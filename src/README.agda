@@ -1,13 +1,30 @@
 ------------------------------------------------------------------------
--- Experiments with higher-order Dependent Object Types (h-DOT)
+-- Fω with interval kinds
 ------------------------------------------------------------------------
 
 -- Author: Sandro Stucki
 -- Copyright (c) 2017 EPFL
 
--- The code in this directory contains an experimental (and partial)
--- Agda mechanization of a higher-order Dependent Object Types (h-DOT)
--- calculus and variants thereof.
+-- The code in this repository contains an Agda mechanization of the
+-- type system Fω extended with interval kinds ("F omega int").  An
+-- interval kind `A..B' represents a type interval bounded by a pair
+-- of types `A', `B'.  It is inhabited by all proper types `C : A..B'
+-- that are both supertypes of `A' and subtypes of `B'.  Interval
+-- kinds are flexible enough to express various features found in
+-- other type systems, such as
+--
+--  * F-<:-style bounded polymorphism,
+--  * bounded type operators,
+--  * singleton kinds and first-class type definitions.
+--
+-- The mechanization includes a small-step operational call-by-value
+-- semantics, declarative and canonical presentations of typing and
+-- kinding, along with (syntactic) proofs of various meta-theoretic
+-- properties, such as
+--
+--  * weak normalization of types (and kinds) via hereditary substitution,
+--  * subject reduction for types (w.r.t. full β-reduction),
+--  * type safety (progress & preservation) w.r.t. to the CBV semantics.
 --
 -- The code makes heavy use of the Agda standard library, which is
 -- freely available from
