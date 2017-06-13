@@ -82,7 +82,7 @@ module Kinding where
 
   infix 4 _ctx _⊢_kd _⊢_wf
   infix 4 _⊢Tp_∈_ _⊢_∈_
-  infix 4 _⊢_<:_∈_ _⊢_<∷_ _⊢_≤_
+  infix 4 _⊢_<:_∈_ _⊢_<∷_
   infix 4 _⊢_≃_∈_ _⊢_≅_ _⊢_≃_wf _≃_ctx _⊢_≃⊎≡_∈_
 
   mutual
@@ -174,27 +174,22 @@ module Kinding where
 
   -- Combined kinding of types and term variable typing.
   data _⊢_∈_ {n} (Γ : Ctx n) : Term n → TermAsc n → Set where
-    ∈-tp  : ∀ {a b} → Γ ⊢Tp a ∈ b → Γ ⊢ a ∈ kd b
+    ∈-tp  : ∀ {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ∈ kd k
     ∈-var : ∀ x {a} → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢ var x ∈ tp a
-
-  -- Combined subtyping and subkinding.
-  data _⊢_≤_ {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
-    ≤-<∷ : ∀ {a b} → Γ ⊢ a <∷ b     → Γ ⊢ kd a ≤ kd b
-    ≤-<: : ∀ {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢ tp a ≤ tp b
 
   mutual
 
     -- Combined kind and type equality, i.e. equality of well-formed
     -- ascriptions.
     data _⊢_≃_wf {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
-      ≃wf-≅ : ∀ {k₁ k₂} → Γ ⊢ k₁ ≅ k₂     → Γ ⊢ kd k₁ ≃ kd k₂ wf
-      ≃wf-≃ : ∀ {a₁ a₂} → Γ ⊢ a₁ ≃ a₂ ∈ * → Γ ⊢ tp a₁ ≃ tp a₂ wf
+      ≃wf-≅ : ∀ {j k} → Γ ⊢ j ≅ k     → Γ ⊢ kd j ≃ kd k wf
+      ≃wf-≃ : ∀ {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ tp a ≃ tp b wf
 
     -- Equality of well-formed contexts.
     data _≃_ctx : ∀ {n} → Ctx n → Ctx n → Set where
       ≃-[] : [] ≃ [] ctx
-      ≃-∷  : ∀ {n a₁ a₂} {Γ₁ Γ₂ : Ctx n} →
-             Γ₁ ⊢ a₁ ≃ a₂ wf → Γ₁ ≃ Γ₂ ctx → a₁ ∷ Γ₁ ≃ a₂ ∷ Γ₂ ctx
+      ≃-∷  : ∀ {n a b} {Γ Δ : Ctx n} →
+             Γ ⊢ a ≃ b wf → Γ ≃ Δ ctx → a ∷ Γ ≃ b ∷ Δ ctx
 
   -- Combined type equality and syntactic term variable equality (used
   -- for parallel substitutions).
@@ -629,12 +624,6 @@ record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
   ∈-/ (∈-var x Γ-ctx Γ[x]≡tp-a) σ∈Γ =
     subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a) (lift (S.lookup x σ∈Γ))
 
-  -- Substitutions preserve subkinding and subtyping.
-  ≤-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b σ} →
-        Γ ⊢ a ≤ b → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A.TermAsc/ σ ≤ b A.TermAsc/ σ
-  ≤-/ (≤-<∷ a<∷b)   σ∈Γ = ≤-<∷ (<∷-/ a<∷b σ∈Γ)
-  ≤-/ (≤-<: a<:b∈k) σ∈Γ = ≤-<: (<:-/ a<:b∈k σ∈Γ)
-
   -- Substitutions preserve type and syntactic term equality.
   ≃⊎≡-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b c σ} →
           Γ ⊢ a ≃⊎≡ b ∈ c → Δ ⊢/ σ ∈ Γ →
@@ -723,11 +712,6 @@ module KindedRenaming where
              (a ∷ Γ) ⊢ weaken b ∈ weakenTermAsc c
   ∈-weaken a-wf b∈c = ∈-/ b∈c (∈-wk a-wf)
 
-  -- Weakening preserves subkinding and subtyping.
-  ≤-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ≤ c →
-             (a ∷ Γ) ⊢ weakenTermAsc b ≤ weakenTermAsc c
-  ≤-weaken a-wf b≤c = ≤-/ b≤c (∈-wk a-wf)
-
   -- Weakening preserves type and syntactic term equality.
   ≃⊎≡-weaken : ∀ {n} {Γ : Ctx n} {a b c d} → Γ ⊢ a wf → Γ ⊢ b ≃⊎≡ c ∈ d →
                (a ∷ Γ) ⊢ weaken b ≃⊎≡ weaken c ∈ weakenTermAsc d
@@ -760,10 +744,8 @@ module KindedSubstitution where
   open TermSubst   termSubst             using (termLift)
   open AscTypedSub termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
   open PropEq      using (cong; sym; subst; subst₂)
-  open KindedRenaming public using
-    ( wf-weaken; kd-weaken; Tp∈-weaken; <∷-weaken; ∈-weaken
-    ; ≤-weaken; ≃⊎≡-weaken
-    )
+  open KindedRenaming public
+    using (wf-weaken; kd-weaken; Tp∈-weaken; <∷-weaken; ∈-weaken; ≃⊎≡-weaken)
   private
     module S  = Substitution
     module KL = TermLikeLemmas termLikeLemmasKind

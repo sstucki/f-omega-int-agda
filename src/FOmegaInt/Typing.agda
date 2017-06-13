@@ -33,7 +33,7 @@ module Typing where
   infix 4 _ctx _⊢_kd _⊢_wf
   infix 4 _⊢Tp_∈_ _⊢Tm_∈_ _⊢_∈_
   infix 4 _⊢_<:_∈_ _⊢_<∷_ _⊢_≤_
-  infix 4 _⊢_≃_∈_ _⊢_≅_ _⊢_≃_wf _≃_ctx _⊢_≃⊎≡_∈_
+  infix 4 _⊢_≃_∈_ _⊢_≅_
 
   mutual
 
@@ -129,49 +129,21 @@ module Typing where
 
   -- Combined typing and kinding of terms and types.
   data _⊢_∈_ {n} (Γ : Ctx n) : Term n → TermAsc n → Set where
-    ∈-tp : ∀ {a b} → Γ ⊢Tp a ∈ b → Γ ⊢ a ∈ kd b
+    ∈-tp : ∀ {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ∈ kd k
     ∈-tm : ∀ {a b} → Γ ⊢Tm a ∈ b → Γ ⊢ a ∈ tp b
 
   -- Combined subtyping and subkinding.
   data _⊢_≤_ {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
-    ≤-<∷ : ∀ {a b} → Γ ⊢ a <∷ b     → Γ ⊢ kd a ≤ kd b
+    ≤-<∷ : ∀ {j k} → Γ ⊢ j <∷ k     → Γ ⊢ kd j ≤ kd k
     ≤-<: : ∀ {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢ tp a ≤ tp b
-
-  mutual
-
-    -- Combined kind and type equality, i.e. equality of well-formed
-    -- ascriptions.
-    data _⊢_≃_wf {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
-      ≃wf-≅ : ∀ {k₁ k₂} → Γ ⊢ k₁ ≅ k₂     → Γ ⊢ kd k₁ ≃ kd k₂ wf
-      ≃wf-≃ : ∀ {a₁ a₂} → Γ ⊢ a₁ ≃ a₂ ∈ * → Γ ⊢ tp a₁ ≃ tp a₂ wf
-
-    -- Equality of well-formed contexts.
-    data _≃_ctx : ∀ {n} → Ctx n → Ctx n → Set where
-      ≃-[] : [] ≃ [] ctx
-      ≃-∷  : ∀ {n a₁ a₂} {Γ₁ Γ₂ : Ctx n} →
-             Γ₁ ⊢ a₁ ≃ a₂ wf → Γ₁ ≃ Γ₂ ctx → a₁ ∷ Γ₁ ≃ a₂ ∷ Γ₂ ctx
-
-  -- Combined type equality and syntactic term equality (used for
-  -- parallel substitutions).
-  data _⊢_≃⊎≡_∈_ {n} (Γ : Ctx n) : Term n → Term n → TermAsc n → Set where
-    ≃-tp : ∀ {a b k} → Γ ⊢ a ≃ b ∈ k  → Γ ⊢ a ≃⊎≡ b ∈ kd k
-    ≃-tm : ∀ {a b}   → Γ ⊢Tm a ∈ b    → Γ ⊢ a ≃⊎≡ a ∈ tp b
 
   open PropEq using ([_])
 
-  -- Derived variable rules.
-
+  -- A derived variable rule.
   ∈-var′ : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ∈ lookup x Γ
   ∈-var′ {Γ = Γ} x Γ-ctx with lookup x Γ | inspect (lookup x) Γ
   ∈-var′ x Γ-ctx | kd k | [ Γ[x]≡kd-k ] = ∈-tp (∈-var x Γ-ctx Γ[x]≡kd-k)
   ∈-var′ x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ∈-tm (∈-var x Γ-ctx Γ[x]≡tp-a)
-
-  ≃⊎≡-var : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ≃⊎≡ var x ∈ lookup x Γ
-  ≃⊎≡-var {Γ = Γ} x Γ-ctx with lookup x Γ | inspect (lookup x) Γ
-  ≃⊎≡-var x Γ-ctx | kd k | [ Γ[x]≡kd-k ] =
-    let x∈a = ∈-var x Γ-ctx Γ[x]≡kd-k
-    in ≃-tp (<:-antisym (<:-refl x∈a) (<:-refl x∈a))
-  ≃⊎≡-var x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ≃-tm (∈-var x Γ-ctx Γ[x]≡tp-a)
 
   -- A derived subsumption rule.
   ∈-⇑′ : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a ∈ b → Γ ⊢ b ≤ c → Γ ⊢ a ∈ c
@@ -196,10 +168,6 @@ wf-kd-inv (wf-kd k-kd) = k-kd
 
 wf-tp-inv : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢ tp a wf → Γ ⊢Tp a ∈ *
 wf-tp-inv (wf-tp a∈*) = a∈*
-
--- An inversion lemma for _⊢_≃_wf.
-≃wf-kd-inv : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ kd j ≃ kd k wf → Γ ⊢ j ≅ k
-≃wf-kd-inv (≃wf-≅ j≅k) = j≅k
 
 -- Kind and type equality imply subkinding and subtyping, respectively.
 
@@ -363,10 +331,6 @@ Tm∈-ctx (∈-⇑ a∈b b<:c)      = Tm∈-ctx a∈b
 ∈-ctx : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ∈ b → Γ ctx
 ∈-ctx (∈-tp a∈k) = Tp∈-ctx a∈k
 ∈-ctx (∈-tm a∈b) = Tm∈-ctx a∈b
-
-≃⊎≡-ctx : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a ≃⊎≡ b ∈ c → Γ ctx
-≃⊎≡-ctx (≃-tp a≃b∈k) = ≃-ctx a≃b∈k
-≃⊎≡-ctx (≃-tm a∈b)   = Tm∈-ctx a∈b
 
 
 ----------------------------------------------------------------------
@@ -607,29 +571,6 @@ record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
   ≤-/ (≤-<∷ a<∷b)   σ∈Γ = ≤-<∷ (<∷-/ a<∷b σ∈Γ)
   ≤-/ (≤-<: a<:b∈k) σ∈Γ = ≤-<: (<:-/ a<:b∈k σ∈Γ)
 
-  -- Substitutions preserve type and syntactic term equality.
-  ≃⊎≡-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b c σ} →
-          Γ ⊢ a ≃⊎≡ b ∈ c → Δ ⊢/ σ ∈ Γ →
-          Δ ⊢ a A./ σ ≃⊎≡ b A./ σ ∈ c A.TermAsc/ σ
-  ≃⊎≡-/ (≃-tp a≃b∈k) σ∈Γ = ≃-tp (≃-/ a≃b∈k σ∈Γ)
-  ≃⊎≡-/ (≃-tm a∈b)   σ∈Γ = ≃-tm (Tm∈-/ a∈b σ∈Γ)
-
-  -- Substitutions preserve equality of kind and type ascriptions.
-  ≃wf-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b σ} →
-          Γ ⊢ a ≃ b wf → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A.TermAsc/ σ ≃ b A.TermAsc/ σ wf
-  ≃wf-/ (≃wf-≅ j≅k) σ∈Γ = ≃wf-≅ (≅-/ j≅k σ∈Γ)
-  ≃wf-/ (≃wf-≃ a≃b) σ∈Γ = ≃wf-≃ (≃-/ a≃b σ∈Γ)
-
-  private module SO = SubstOps (LiftTyped.substOps lt)
-
-  -- Substitutions preserve well-formedness of context extensions .
-  ext′-E′/ : ∀ {k m n} {Γ : Ctx m} {Δ : Ctx n} {E′ : CtxExt′ m k} {σ} →
-             Γ ⊢ E′ ext′ → Δ ⊢/ σ ∈ Γ → Δ ⊢ (E′ SO.E′/ σ) ext′
-  ext′-E′/ {E′ = []}     []              σ∈Γ = []
-  ext′-E′/ {E′ = a ∷ E′} (a-wf ∷ E′-ext) σ∈Γ =
-    wf-/ a-wf (∈-↑⋆ E′/σ-ext σ∈Γ) ∷ E′/σ-ext
-    where E′/σ-ext = ext′-E′/ E′-ext σ∈Γ
-
 -- Well-typed/kinded variable substitutions (renamings).
 module TypedRenaming where
   open Substitution
@@ -707,16 +648,6 @@ module TypedRenaming where
              (a ∷ Γ) ⊢ weakenTermAsc b ≤ weakenTermAsc c
   ≤-weaken a-wf b≤c = ≤-/ b≤c (∈-wk a-wf)
 
-  -- Weakening preserves type and syntactic term equality.
-  ≃⊎≡-weaken : ∀ {n} {Γ : Ctx n} {a b c d} → Γ ⊢ a wf → Γ ⊢ b ≃⊎≡ c ∈ d →
-               (a ∷ Γ) ⊢ weaken b ≃⊎≡ weaken c ∈ weakenTermAsc d
-  ≃⊎≡-weaken a-wf b≃⊎≡c∈d = ≃⊎≡-/ b≃⊎≡c∈d (∈-wk a-wf)
-
-  -- Weakening preserves equality of kind and type ascriptions.
-  ≃wf-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ≃ c wf →
-               (a ∷ Γ) ⊢ weakenTermAsc b ≃ weakenTermAsc c wf
-  ≃wf-weaken a-wf b≃c = ≃wf-/ b≃c (∈-wk a-wf)
-
 -- Operations on well-formed contexts that require weakening of
 -- well-formedness judgments.
 module WfCtxOps where
@@ -745,10 +676,8 @@ module TypedSubstitution where
   open TermSubst     termSubst             using (termLift)
   open AscTypedSub   termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
   open PropEq        using (cong; sym; subst; subst₂)
-  open TypedRenaming public using
-    ( wf-weaken; kd-weaken; Tp∈-weaken; <∷-weaken; ∈-weaken
-    ; ≤-weaken; ≃⊎≡-weaken
-    )
+  open TypedRenaming public
+    using (wf-weaken; kd-weaken; Tp∈-weaken; <∷-weaken; ∈-weaken; ≤-weaken)
   private
     module S  = Substitution
     module KL = TermLikeLemmas termLikeLemmasKind

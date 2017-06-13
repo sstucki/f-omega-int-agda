@@ -31,13 +31,11 @@ open P.≡-Reasoning
 -- and types.  This simplifies the definition of substitution in types
 -- and terms as we don't need to distinguish between type and term
 -- variables.  The difference between terms and types becomes manifest
--- only later in (sub-)typing and (sub-)kinding judgments, and where
--- necessary through special syntactic predicates over raw terms (see
--- e.g. the Nf and Ne predicates in the FOmegaInt.Syntax.Normalization
--- module).  However, unlike PTS, we *do* treat kinds as a separate
--- syntactic category/datatype because there are no kind variables.
--- This simplifies some definitions and proofs that rely on the
--- syntactic structure of kinds (e.g. kind simplification and related
+-- only later in (sub-)typing and (sub-)kinding judgments.  However,
+-- unlike PTS, we *do* treat kinds as a separate syntactic
+-- category/datatype because there are no kind variables.  This
+-- simplifies some definitions and proofs that rely on the syntactic
+-- structure of kinds (e.g. kind simplification and related
 -- properties).
 --
 -- NOTE 2.  We use de Brujin indexing to represent variables in raw
@@ -77,9 +75,9 @@ module Syntax where
   -- applications from type applications/instantiations in CBV
   -- reductions (see FOmegaInt.Reduction.Cbv).  Without the special
   -- treatment of type instantiation, CBV reduction would permit
-  -- reduction of type arguments to before contraction.  Not only is
-  -- this counter to the usual CBV semantics for Fω (see e.g. TAPL
-  -- p. 450), but it would require a proof of subject reduction (aka
+  -- reduction of type arguments before contraction.  Not only is this
+  -- counter to the usual CBV semantics for Fω (see e.g. TAPL p. 450),
+  -- but it would require a proof of subject reduction (aka
   -- preservation) for kinding in order to prove preservation of
   -- typing even under CBV reduction.  By adopting the usual CBV
   -- semantics, this dependency can be avoided.  See
@@ -106,15 +104,15 @@ module Syntax where
   -- consecutive applications are grouped together into sequences of
   -- arguments called "spines".  This representation is better suited
   -- for the definition of "hereditary substitution" (see
-  -- Syntax.Normalization) and canonical kinding (see
-  -- Canonical.Kinding).  The two representations are isomorphic (see
-  -- ⌜⌝∘⌞⌟-id and ⌞⌟∘⌜⌝-id below).
+  -- Syntax.HereditarySubstitution) and canonical kinding (see
+  -- Kinding.Canonical).  The two representations are isomorphic (as
+  -- witnessed by ⌜⌝∘⌞⌟-id and ⌞⌟∘⌜⌝-id below).
   --
   -- NOTE.  Below, we consider type instantiations (a ⊡ b) as heads
-  -- rather than eliminations, despite the fact that, sematically,
+  -- rather than eliminations, despite the fact that, semantically,
   -- they are elimination forms.  However, for the purpose of
   -- hereditary substitution we will ignore their semantics and treat
-  -- _⊡_ as an uniterpreted binary operation.  This is justified by
+  -- _⊡_ as an uninterpreted binary operation.  This is justified by
   -- the fact that *well-kinded* hereditary substitution is only
   -- defined on (well-kinded) types, in which _⊡_ cannot appear.
   mutual
@@ -135,7 +133,7 @@ module Syntax where
       ƛ   : (a : Elim n)      (b : Elim (suc n)) → Head n  -- term abstraction
       _⊡_ : (a b : Elim n)                       → Head n  -- type inst.
 
-    -- Spines are (possibly empty) sequences of atoms.
+    -- Spines are (possibly empty) sequences of eliminations.
     Spine : ℕ → Set
     Spine n = List (Elim n)
 
@@ -253,7 +251,7 @@ module Syntax where
   ⌈ ⟨ a ⟩ ⌉ = a ⋯ a
   ⌈ Π k s ⌉ = Π k ⌈ s ⌉
 
-  -- A wrapper for kind or raw type ascriptions.
+  -- A wrapper for raw kind or type ascriptions.
 
   data KdOrTp (T : ℕ → Set) (n : ℕ) : Set where
     kd : Kind T n → KdOrTp T n
@@ -274,7 +272,7 @@ open Syntax
 
 
 ----------------------------------------------------------------------
--- Some properties of pre-terms and kinds
+-- Some properties of raw terms and kinds
 
 -- The kd constructor is injective.
 kd-inj : ∀ {T n} {j k : Kind T n} → kd j ≡ kd k → j ≡ k
@@ -1314,7 +1312,7 @@ module SimpleCtx where
   ⌊⌋-ElimAsc/Var (kd k) = cong kd (⌊⌋-Kind′/Var k)
   ⌊⌋-ElimAsc/Var (tp t) = refl
 
--- Conversions between the different contexts.
+-- Conversions between the different context representations.
 module ContextConversions where
   open Context
   open SimpleCtx using (kd; ⌊_⌋Asc; ⌊⌋-ElimAsc/Var)
