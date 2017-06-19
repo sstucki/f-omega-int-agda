@@ -707,6 +707,11 @@ module KindedRenaming where
               (a ∷ Γ) ⊢ weakenKind j <∷ weakenKind k
   <∷-weaken a-wf j<∷k = <∷-/ j<∷k (∈-wk a-wf)
 
+  -- Weakening preserves subtyping.
+  <:-weaken : ∀ {n} {Γ : Ctx n} {a b c k} → Γ ⊢ a wf → Γ ⊢ b <: c ∈ k →
+              (a ∷ Γ) ⊢ weaken b <: weaken c ∈ weakenKind k
+  <:-weaken a-wf b<:c∈k = <:-/ b<:c∈k (∈-wk a-wf)
+
   -- Weakening preserves well-kindedness and well-typedness.
   ∈-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ∈ c →
              (a ∷ Γ) ⊢ weaken b ∈ weakenTermAsc c
@@ -744,8 +749,10 @@ module KindedSubstitution where
   open TermSubst   termSubst             using (termLift)
   open AscTypedSub termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
   open PropEq      using (cong; sym; subst; subst₂)
-  open KindedRenaming public
-    using (wf-weaken; kd-weaken; Tp∈-weaken; <∷-weaken; ∈-weaken; ≃⊎≡-weaken)
+  open KindedRenaming public using
+    ( wf-weaken; kd-weaken; Tp∈-weaken; ∈-weaken
+    ; <∷-weaken; <:-weaken; ≃⊎≡-weaken
+    )
   private
     module S  = Substitution
     module KL = TermLikeLemmas termLikeLemmasKind

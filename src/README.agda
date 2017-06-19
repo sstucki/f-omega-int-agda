@@ -100,6 +100,10 @@ open import FOmegaInt.Typing.Inversion
 open import FOmegaInt.Typing.Preservation
 open import FOmegaInt.Typing.Progress
 
+-- Encodings and properties of higher-order extremal types, interval
+-- kinds and bounded quantifiers.
+open import FOmegaInt.Typing.Encodings
+
 
 ------------------------------------------------------------------------
 -- Modules containing generic functionality
