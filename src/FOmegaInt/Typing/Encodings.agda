@@ -6,6 +6,8 @@
 module FOmegaInt.Typing.Encodings where
 
 open import Data.Fin using (zero)
+open import Data.Fin.Substitution using (Sub; Lift; TermSubst)
+open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (suc)
 open import Data.Product using (_,_; proj₁; proj₂; _×_)
 open import Relation.Binary.PropositionalEquality
@@ -16,7 +18,7 @@ open import FOmegaInt.Kinding.Declarative.Validity
 
 open Syntax       hiding (⌈_⌉)
 open TermCtx
-open Substitution hiding (subst)
+open Substitution hiding (subst; _/_; _Kind/_)
 open Kinding
 open KindedSubstitution
 
@@ -163,7 +165,10 @@ mutual
 ----------------------------------------------------------------------
 -- Encodings and properties of higher-order extrema
 
--- Higher order extremal types.
+-- Higher-order extremal types, indexed by simple kinds.
+--
+-- NOTE. We will define a variant of the higher-order extrema indexed
+-- by possibly dependent kinds below.
 
 ⊥⟨_⟩ : ∀ {n} → SKind → Term n
 ⊥⟨ ★ ⟩     = ⊥
@@ -290,6 +295,114 @@ mutual
     a·z∈k       = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
     a·z∈k′      = ⇓-Tp∈ ⌈⌊j⌋⌉↓-kd ⌈⌊j⌋⌉↓<∷j a·z∈k
 
+-- Yet another variant of higher-order extremal types, this time
+-- indexed by possibly dependent kinds.
+
+⊥′⟨_⟩ : ∀ {n} → Kind Term n → Term n
+⊥′⟨ a ⋯ b ⟩ = ⊥
+⊥′⟨ Π j k ⟩ = Λ j ⊥′⟨ k ⟩
+
+⊤′⟨_⟩ : ∀ {n} → Kind Term n → Term n
+⊤′⟨ a ⋯ b ⟩ = ⊤
+⊤′⟨ Π j k ⟩ = Λ j ⊤′⟨ k ⟩
+
+-- A higher-order variant of *.
+*⟨_⟩ : ∀ {n} → Kind Term n → Kind Term n
+*⟨ a ⋯ b ⟩ = *
+*⟨ Π j k ⟩ = Π j *⟨ k ⟩
+
+-- Substitution commutes with ⊥′⟨_⟩, ⊤′⟨_⟩ and *⟨_⟩.
+module EncSubstLemmas {T} (l : Lift T Term) where
+  open SubstApp l
+  open Lift l hiding (var)
+
+  ⊥′⟨⟩-/ : ∀ {n m} {σ : Sub T m n} k → ⊥′⟨ k ⟩ / σ ≡ ⊥′⟨ k Kind/ σ ⟩
+  ⊥′⟨⟩-/ (a ⋯ b) = refl
+  ⊥′⟨⟩-/ (Π j k) = cong (Λ _) (⊥′⟨⟩-/ k)
+
+  ⊤′⟨⟩-/ : ∀ {n m} {σ : Sub T m n} k → ⊤′⟨ k ⟩ / σ ≡ ⊤′⟨ k Kind/ σ ⟩
+  ⊤′⟨⟩-/ (a ⋯ b) = refl
+  ⊤′⟨⟩-/ (Π j k) = cong (Λ _) (⊤′⟨⟩-/ k)
+
+  *⟨⟩-/ : ∀ {n m} {σ : Sub T m n} k → *⟨ k ⟩ Kind/ σ ≡ *⟨ k Kind/ σ ⟩
+  *⟨⟩-/ (a ⋯ b) = refl
+  *⟨⟩-/ (Π j k) = cong (Π _) (*⟨⟩-/ k)
+
+open EncSubstLemmas (TermSubst.termLift termSubst) public
+open EncSubstLemmas (TermSubst.varLift  termSubst) public
+  renaming (⊥′⟨⟩-/ to ⊥′⟨⟩-/Var; ⊤′⟨⟩-/ to ⊤′⟨⟩-/Var; *⟨⟩-/ to *⟨⟩-/Var)
+
+-- Well-formedness of higher-order star kinds.
+kd-*⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ *⟨ k ⟩ kd
+kd-*⟨⟩ (kd-⋯ a∈* b∈*)   = *-kd (Tp∈-ctx a∈*)
+kd-*⟨⟩ (kd-Π j-kd k-kd) = kd-Π j-kd (kd-*⟨⟩ k-kd)
+
+-- ⊥′⟨ k ⟩ and ⊤′⟨ k ⟩ inhabit *⟨ k ⟩.
+
+∈-⊥′⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢Tp ⊥′⟨ k ⟩ ∈ *⟨ k ⟩
+∈-⊥′⟨⟩ (kd-⋯ a∈* b∈*)   = ∈-⊥-f (Tp∈-ctx a∈*)
+∈-⊥′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊥′⟨⟩ k-kd) (kd-*⟨⟩ k-kd)
+
+∈-⊤′⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢Tp ⊤′⟨ k ⟩ ∈ *⟨ k ⟩
+∈-⊤′⟨⟩ (kd-⋯ a∈* b∈*)   = ∈-⊤-f (Tp∈-ctx a∈*)
+∈-⊤′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊤′⟨⟩ k-kd) (kd-*⟨⟩ k-kd)
+
+-- A helper: any well-formed kind k is a subkind of *⟨ k ⟩.
+*⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k <∷ *⟨ k ⟩
+*⟨⟩-maximum (kd-⋯ a∈* b∈*)   = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ b∈*)
+*⟨⟩-maximum (kd-Π j-kd k-kd) =
+  <∷-Π (<∷-refl j-kd) (*⟨⟩-maximum k-kd) (kd-Π j-kd k-kd)
+
+-- ⊥′⟨ k ⟩ and ⊤′⟨ k ⟩ are extremal types in *⟨ k ⟩.
+
+⊥′⟨⟩-minimum : ∀ {n} {Γ : Ctx n} {a k} →
+               Γ ⊢Tp a ∈ k → Γ ⊢ ⊥′⟨ k ⟩ <: a ∈ *⟨ k ⟩
+⊥′⟨⟩-minimum {k = b ⋯ c} a∈b⋯c = <:-⊥ a∈b⋯c
+⊥′⟨⟩-minimum {k = Π j k} a∈Πjk with Tp∈-valid a∈Πjk
+... | kd-Π j-kd k-kd =
+  <:-trans (<:-λ (⊥′⟨⟩-minimum a·z∈k) (∈-⊥′⟨⟩ Πjk-kd)
+                 (∈-⇑ Λa·z∈Πjk Πjk-kd<∷*⟨Πjk⟩))
+           (<:-η₁ (∈-⇑ a∈Πjk Πjk-kd<∷*⟨Πjk⟩))
+  where
+    Λa·z∈Πjk       = Tp∈-η a∈Πjk j-kd k-kd
+    a·z∈k          = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
+    Πjk-kd         = kd-Π j-kd k-kd
+    Πjk-kd<∷*⟨Πjk⟩ = *⟨⟩-maximum Πjk-kd
+
+⊤′⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {a k} →
+               Γ ⊢Tp a ∈ k → Γ ⊢ a <: ⊤′⟨ k ⟩ ∈ *⟨ k ⟩
+⊤′⟨⟩-maximum {k = b ⋯ c} a∈b⋯c = <:-⊤ a∈b⋯c
+⊤′⟨⟩-maximum {k = Π j k} a∈Πjk with Tp∈-valid a∈Πjk
+... | kd-Π j-kd k-kd =
+  <:-trans (<:-η₂ (∈-⇑ a∈Πjk Πjk-kd<∷*⟨Πjk⟩))
+           (<:-λ (⊤′⟨⟩-maximum a·z∈k) (∈-⇑ Λa·z∈Πjk Πjk-kd<∷*⟨Πjk⟩)
+                 (∈-⊤′⟨⟩ Πjk-kd))
+  where
+    Λa·z∈Πjk       = Tp∈-η a∈Πjk j-kd k-kd
+    a·z∈k          = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
+    Πjk-kd         = kd-Π j-kd k-kd
+    Πjk-kd<∷*⟨Πjk⟩ = *⟨⟩-maximum Πjk-kd
+
+-- Applications of higher-order extrema result in lower-order extrema.
+
+≃-⊥′⟨⟩-· : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢ Π j k kd → Γ ⊢Tp a ∈ j →
+           Γ ⊢ ⊥′⟨ Π j k ⟩ · a ≃ ⊥′⟨ k Kind[ a ] ⟩ ∈ *⟨ k Kind[ a ] ⟩
+≃-⊥′⟨⟩-· (kd-Π {j} {k} j-kd k-kd) a∈j =
+  subst₂ (_ ⊢ ⊥′⟨ Π j k ⟩ · _ ≃_∈_) (⊥′⟨⟩-/ _) (*⟨⟩-/ _)
+         (≃-β′ ⊥⟨k⟩ a∈j ⊥⟨Πjk⟩)
+  where
+    ⊥⟨Πjk⟩ = ∈-⊥′⟨⟩ (kd-Π j-kd k-kd)
+    ⊥⟨k⟩   = ∈-⊥′⟨⟩ k-kd
+
+≃-⊤′⟨⟩-· : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢ Π j k kd → Γ ⊢Tp a ∈ j →
+           Γ ⊢ ⊤′⟨ Π j k ⟩ · a ≃ ⊤′⟨ k Kind[ a ] ⟩ ∈ *⟨ k Kind[ a ] ⟩
+≃-⊤′⟨⟩-· (kd-Π {j} {k} j-kd k-kd) a∈j =
+  subst₂ (_ ⊢ ⊤′⟨ Π j k ⟩ · _ ≃_∈_) (⊤′⟨⟩-/ _) (*⟨⟩-/ _)
+         (≃-β′ ⊤⟨k⟩ a∈j ⊤⟨Πjk⟩)
+  where
+    ⊤⟨Πjk⟩ = ∈-⊤′⟨⟩ (kd-Π j-kd k-kd)
+    ⊤⟨k⟩   = ∈-⊤′⟨⟩ k-kd
+
 
 ----------------------------------------------------------------------
 -- Encodings and properties of higher-order intervals
@@ -394,6 +507,12 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
           (<∷-⋯⟨⟩ a₂·z<:a₁·z∈k b₁·z<:b₂·z∈k)
           (kd-⋯⟨⟩ a₁∈Πjk b₁∈Πjk)
 
+-- A corollary: equality of higher-order interval kinds.
+≅-⋯⟨⟩ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ k} →
+        Γ ⊢ a₁ ≃ a₂ ∈ k → Γ ⊢ b₁ ≃ b₂ ∈ k → Γ ⊢ a₁ ⋯⟨ k ⟩ b₁ ≅ a₂ ⋯⟨ k ⟩ b₂
+≅-⋯⟨⟩ (<:-antisym a₁<:a₂∈k a₂<:a₁∈k) (<:-antisym b₁<:b₂∈k b₂<:b₁∈k) =
+  <∷-antisym (<∷-⋯⟨⟩ a₂<:a₁∈k b₁<:b₂∈k) (<∷-⋯⟨⟩ a₁<:a₂∈k b₂<:b₁∈k)
+
 -- A variant of kind-driven η-expansion that only expands the head.
 η-exp : ∀ {n} → Kind Term n → Term n → Term n
 η-exp (_ ⋯ _) a = a
@@ -431,7 +550,7 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
 -- Bound projection rules for higher-order intervals.
 --
 -- NOTE.  These lemmas are a bit weaker than one might like.  In
--- particular, the addtional presmise `Γ ⊢ a , b , c ∈ k' might seem
+-- particular, the additional premises `Γ ⊢ a , b , c ∈ k' might seem
 -- redundant.  But recall that we cannot, in general, invert
 -- well-formed higher-order intervals, i.e. `Γ ⊢ b ⋯⟨ k ⟩ c kd' does
 -- *not* imply `Γ ⊢ b ∈ k' and `Γ ⊢ c ∈ k'.  Similarly, `Γ ⊢ a ∈ b ⋯⟨
@@ -474,6 +593,40 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
             Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → Γ ⊢Tp c ∈ k →
             Γ ⊢Tp a ∈ b ⋯⟨ k ⟩ c → Γ ⊢ a <: c ∈ k
 <:-⋯⟨⟩-|⟩ a∈k b∈k c∈k a∈b⋯⟨k⟩c = proj₂ (<:-⋯⟨⟩-⟨|⟩ a∈k b∈k c∈k a∈b⋯⟨k⟩c)
+
+-- Any interval indexed by *⟨ k ⟩ can be re-indexed by k
+*⟨⟩-⋯⟨⟩ : ∀ {n} {a b : Term n} k → a ⋯⟨ *⟨ k ⟩ ⟩ b ≡ a ⋯⟨ k ⟩ b
+*⟨⟩-⋯⟨⟩ (a ⋯ b) = refl
+*⟨⟩-⋯⟨⟩ (Π j k) = cong (Π j) (*⟨⟩-⋯⟨⟩ k)
+
+-- *⟨ k ⟩ is equal to the HO interval bounded by ⊥′⟨ k ⟩ and ⊤′⟨ k ⟩.
+*⟨⟩-⊥⟨⟩⋯⟨⟩⊤⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd →
+                Γ ⊢ *⟨ k ⟩ ≅ ⊥′⟨ k ⟩ ⋯⟨ k ⟩ ⊤′⟨ k ⟩
+*⟨⟩-⊥⟨⟩⋯⟨⟩⊤⟨⟩         (kd-⋯ a∈* b∈*)           = ≅-refl (*-kd (Tp∈-ctx a∈*))
+*⟨⟩-⊥⟨⟩⋯⟨⟩⊤⟨⟩ {_} {Γ} (kd-Π {j} {k} j-kd k-kd) =
+  ≅-Π (≅-refl j-kd)
+      (≅-trans (*⟨⟩-⊥⟨⟩⋯⟨⟩⊤⟨⟩ k-kd)
+               (subst₂ (_ ⊢_≅_) (*⟨⟩-⋯⟨⟩ k) (*⟨⟩-⋯⟨⟩ k)
+                       (≅-⋯⟨⟩ ⊥⟨k⟩≃Λ⊥⟨k⟩·z ⊤⟨k⟩≃Λ⊤⟨k⟩·z)))
+  where
+    module KL = TermLikeLemmas termLikeLemmasKind
+
+    Γ-ctx   = kd-ctx j-kd
+    z∈j     = ∈-var zero (wf-kd j-kd ∷ Γ-ctx) refl
+    Πjk-kd′ = kd-weaken (wf-kd j-kd) (kd-Π j-kd k-kd)
+    eq₁     = cong (λ k → (Λ (weakenKind j) k) · var zero) (sym (⊥′⟨⟩-/Var k))
+    eq₂     = cong (λ k → (Λ (weakenKind j) k) · var zero) (sym (⊤′⟨⟩-/Var k))
+    k′[z]   = (k Kind/Var _) Kind[ var zero ]
+    ⊥⟨k⟩≃Λ⊥⟨k⟩·z = subst₂ (_ ⊢_≃ weaken (Λ j ⊥′⟨ k ⟩) · var zero ∈_)
+                          (cong ⊥′⟨_⟩ (Kind-wk↑-sub-zero-vanishes k))
+                          (cong *⟨_⟩ (Kind-wk↑-sub-zero-vanishes k))
+                          (subst (kd j ∷ Γ ⊢ ⊥′⟨ k′[z] ⟩ ≃_∈ *⟨ k′[z] ⟩) eq₁
+                                 (≃-sym (≃-⊥′⟨⟩-· Πjk-kd′ z∈j)))
+    ⊤⟨k⟩≃Λ⊤⟨k⟩·z = subst₂ (_ ⊢_≃ weaken (Λ j ⊤′⟨ k ⟩) · var zero ∈_)
+                          (cong ⊤′⟨_⟩ (Kind-wk↑-sub-zero-vanishes k))
+                          (cong *⟨_⟩ (Kind-wk↑-sub-zero-vanishes k))
+                          (subst (kd j ∷ Γ ⊢ ⊤′⟨ k′[z] ⟩ ≃_∈ *⟨ k′[z] ⟩) eq₂
+                                 (≃-sym (≃-⊤′⟨⟩-· Πjk-kd′ z∈j)))
 
 
 ----------------------------------------------------------------------
