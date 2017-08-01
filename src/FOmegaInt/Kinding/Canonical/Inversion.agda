@@ -4,7 +4,7 @@
 
 module FOmegaInt.Kinding.Canonical.Inversion where
 
-open import Data.Product using (_,_; _×_)
+open import Data.Product using (_,_; _×_; proj₁; proj₂)
 open import Data.Vec using ([]; _∷_; foldl)
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong₂)
@@ -12,6 +12,7 @@ open import Relation.Nullary using (¬_)
 
 open import FOmegaInt.Syntax
 open import FOmegaInt.Kinding.Canonical
+open import FOmegaInt.Kinding.Canonical.Validity
 
 open Syntax
 open ElimCtx
@@ -46,22 +47,28 @@ infix 4 ⊢_<!_
 -- Top-level transitivity-free canonical subtyping in the empty
 -- context.
 data ⊢_<!_ : Elim 0 → Elim 0 → Set where
-  <!-⊥         : ∀ {a}     → [] ⊢Nf a ⇉ a ⋯ a                   → ⊢ ⊥∙ <! a
-  <!-trans-⊥   : ∀ {a b}   → [] ⊢Nf a ⇉ a ⋯ a → ⊢ a <! b        → ⊢ ⊥∙ <! b
-  <!-trans-⊤   : ∀ {a b}   → [] ⊢ a <: b → [] ⊢Nf b ⇉ b ⋯ b → ⊢ a  <! ⊤∙
-  <!-∀         : ∀ {k₁ k₂ a₁ a₂} → [] ⊢ k₂ <∷ k₁ → kd k₂ ∷ [] ⊢ a₁ <: a₂ →
-                 [] ⊢Nf ∀∙ k₁ a₁ ⇉ ∀∙ k₁ a₁ ⋯ ∀∙ k₁ a₁ → ⊢ ∀∙ k₁ a₁ <! ∀∙ k₂ a₂
-  <!-→         : ∀ {a₁ a₂ b₁ b₂} → [] ⊢ a₂ <: a₁ → [] ⊢ b₁ <: b₂ →
-                 ⊢ a₁ ⇒∙ b₁ <! a₂ ⇒∙ b₂
+  <!-⊥ : ∀ {a} → [] ⊢Nf a ⇉ a ⋯ a → ⊢ ⊥∙ <! a
+  <!-⊤ : ∀ {a} → [] ⊢Nf a ⇉ a ⋯ a → ⊢ a  <! ⊤∙
+  <!-∀ : ∀ {k₁ k₂ a₁ a₂} → [] ⊢ k₂ <∷ k₁ → kd k₂ ∷ [] ⊢ a₁ <: a₂ →
+         [] ⊢Nf ∀∙ k₁ a₁ ⇉ ∀∙ k₁ a₁ ⋯ ∀∙ k₁ a₁ → ⊢ ∀∙ k₁ a₁ <! ∀∙ k₂ a₂
+  <!-→ : ∀ {a₁ a₂ b₁ b₂} → [] ⊢ a₂ <: a₁ → [] ⊢ b₁ <: b₂ →
+         ⊢ a₁ ⇒∙ b₁ <! a₂ ⇒∙ b₂
 
 -- Soundness of <! with respect to <: in the empty context.
 sound-<! : ∀ {a b : Elim 0} → ⊢ a <! b → [] ⊢ a <: b
-sound-<! (<!-⊥ a⇉a⋯a)            = <:-⊥ a⇉a⋯a
-sound-<! (<!-trans-⊥ a⇉a⋯a a<!b) = <:-trans (<:-⊥ a⇉a⋯a) (sound-<! a<!b)
-sound-<! (<!-trans-⊤ a<:b b∈b⋯b) = <:-trans a<:b (<:-⊤ b∈b⋯b)
+sound-<! (<!-⊥ a⇉a⋯a)         = <:-⊥ a⇉a⋯a
+sound-<! (<!-⊤ a⇉a⋯a)         = <:-⊤ a⇉a⋯a
 sound-<! (<!-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) =
   <:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁
-sound-<! (<!-→ a₂<:a₁ b₁<:b₂)    = <:-→ a₂<:a₁ b₁<:b₂
+sound-<! (<!-→ a₂<:a₁ b₁<:b₂) = <:-→ a₂<:a₁ b₁<:b₂
+
+-- The only proper (top-level) subtype of ⊥ is ⊥ itself.
+⊥-<!-min : ∀ {a : Elim 0} → ⊢ a <! ⊥∙ → a ≡ ⊥∙
+⊥-<!-min (<!-⊥ _) = refl
+
+-- The only proper (top-level) supertype of ⊤ is ⊤ itself.
+⊤-<!-max : ∀ {a : Elim 0} → ⊢ ⊤∙ <! a → a ≡ ⊤∙
+⊤-<!-max (<!-⊤ _) = refl
 
 -- Arrows are not (top-level) subtypes of universals and vice-versa.
 
@@ -71,29 +78,24 @@ sound-<! (<!-→ a₂<:a₁ b₁<:b₂)    = <:-→ a₂<:a₁ b₁<:b₂
 Π-≮!-⇒ : ∀ {a : Elim 0} {k b₁ b₂} → ¬ ⊢ ∀∙ k b₁ <! a ⇒∙ b₂
 Π-≮!-⇒ ()
 
--- Reflexivity in transitivity-free subtyping is admissible.
-<!-reflNf⇉ : ∀ {a b c} → [] ⊢Nf a ⇉ b ⋯ c → ⊢ a <! a
-<!-reflNf⇉ (⇉-⊥-f Γ-ctx) = <!-⊥ (⇉-⊥-f Γ-ctx)
-<!-reflNf⇉ (⇉-⊤-f Γ-ctx) = <!-trans-⊤ (<:-reflNf⇉ (⇉-⊤-f Γ-ctx)) (⇉-⊤-f Γ-ctx)
-<!-reflNf⇉ (⇉-∀-f k-kd a⇉a⋯a)  =
-  <!-∀ (<∷-refl k-kd) (<:-reflNf⇉ a⇉a⋯a) (⇉-∀-f k-kd a⇉a⋯a)
-<!-reflNf⇉ (⇉-→-f a⇉a⋯a b⇉b⋯b) = <!-→ (<:-reflNf⇉ a⇉a⋯a) (<:-reflNf⇉ b⇉b⋯b)
-<!-reflNf⇉ (⇉-s-i (∈-∙ {()} _ _))
+-- Validity of <!
+<!-valid : ∀ {a b} → ⊢ a <! b → [] ⊢Nf a ⇉ a ⋯ a × [] ⊢Nf b ⇉ b ⋯ b
+<!-valid a<!b = <:-valid (sound-<! a<!b)
 
 -- Top-level transitivity of canonical subtyping is admissible.
 <!-trans : ∀ {a b c} → [] ⊢ a <: b → ⊢ b <! c → ⊢ a <! c
 <!-trans (<:-trans a<:b b<:c) c<!d = <!-trans a<:b (<!-trans b<:c c<!d)
-<!-trans (<:-⊥ a⇉a⋯a) a<!d             = <!-trans-⊥ a⇉a⋯a a<!d
-<!-trans (<:-⊤ a⇉a⋯a) (<!-trans-⊤ _ _) = <!-trans-⊤ (<:-reflNf⇉ a⇉a⋯a) a⇉a⋯a
-<!-trans (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) (<!-trans-⊤ Πk₂a₂<:c c⇉c⋯c) =
-  <!-trans-⊤ (<:-trans (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) Πk₂a₂<:c) c⇉c⋯c
+<!-trans (<:-⊥ a⇉a⋯a) a<!d     = <!-⊥ (proj₂ (<!-valid a<!d))
+<!-trans (<:-⊤ a⇉a⋯a) (<!-⊤ _) = <!-⊤ a⇉a⋯a
+<!-trans (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) (<!-⊤ _) =
+  <!-⊤ (proj₁ (<:-valid (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁)))
 <!-trans (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) (<!-∀ k₃<∷k₂ a₂<:a₃ _) =
   <!-∀ (<∷-trans k₃<∷k₂ k₂<∷k₁)
        (<:-trans (⇓-<: [] k₃-kd k₃<∷k₂ a₁<:a₂) a₂<:a₃) Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁
   where k₃-kd = wf-kd-inv (wf-∷₁ (<:-ctx a₂<:a₃))
-<!-trans (<:-→ a₂<:a₁ b₁<:b₂) (<!-trans-⊤ a₂⇒b₂<:c c⇉c⋯c) =
-  <!-trans-⊤ (<:-trans (<:-→ a₂<:a₁ b₁<:b₂) a₂⇒b₂<:c) c⇉c⋯c
-<!-trans (<:-→ a₂<:a₁ b₁<:b₂) (<!-→ a₃<:a₂ b₂<:b₃)        =
+<!-trans (<:-→ a₂<:a₁ b₁<:b₂) (<!-⊤ a₂⇒b₂⇉a₂⇒b₂⋯a₂⇒b₂) =
+  <!-⊤ (proj₁ (<:-valid (<:-→ a₂<:a₁ b₁<:b₂)))
+<!-trans (<:-→ a₂<:a₁ b₁<:b₂) (<!-→ a₃<:a₂ b₂<:b₃) =
   <!-→ (<:-trans a₃<:a₂ a₂<:a₁) (<:-trans b₁<:b₂ b₂<:b₃)
 <!-trans (<:-∙ {()} _ _)        b<!c
 <!-trans (<:-⟨| (∈-∙ {()} _ _)) b<!c
@@ -103,13 +105,21 @@ sound-<! (<!-→ a₂<:a₁ b₁<:b₂)    = <:-→ a₂<:a₁ b₁<:b₂
 complete-<! : ∀ {a b : Elim 0} → [] ⊢ a <: b → ⊢ a <! b
 complete-<! (<:-trans a<:b b<:c) = <!-trans a<:b (complete-<! b<:c)
 complete-<! (<:-⊥ a⇉a⋯a)         = <!-⊥ a⇉a⋯a
-complete-<! (<:-⊤ a⇉a⋯a)         = <!-trans-⊤ (<:-reflNf⇉ a⇉a⋯a) a⇉a⋯a
+complete-<! (<:-⊤ a⇉a⋯a)         = <!-⊤ a⇉a⋯a
 complete-<! (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) =
   <!-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁
 complete-<! (<:-→ a₂<:a₁ b₁<:b₂) = <!-→ a₂<:a₁ b₁<:b₂
 complete-<! (<:-∙ {()} _ _)
 complete-<! (<:-⟨| (∈-∙ {()} _ _))
 complete-<! (<:-|⟩ (∈-∙ {()} _ _))
+
+-- The only proper (top-level) subtype of ⊥ is ⊥ itself.
+⊥-<:-min : ∀ {a : Elim 0} → [] ⊢ a <: ⊥∙ → a ≡ ⊥∙
+⊥-<:-min a<:⊥ = ⊥-<!-min (complete-<! a<:⊥)
+
+-- The only proper (top-level) supertype of ⊤ is ⊤ itself.
+⊤-<:-max : ∀ {a : Elim 0} → [] ⊢ ⊤∙ <: a → a ≡ ⊤∙
+⊤-<:-max ⊤<:a = ⊤-<!-max (complete-<! ⊤<:a)
 
 -- Inversion of canonical subtyping for universals and arrow types.
 
