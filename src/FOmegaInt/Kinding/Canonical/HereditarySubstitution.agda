@@ -362,18 +362,6 @@ module TrackSimpleKindsSubst where
              Γ ⊢Nf a ⇇ j → Δ ⊢/H ρ ⇇ Γ → Δ ⊢Nf a /H ρ ⇇ j Kind/H ρ
     Nf⇇-/H (⇇-⇑ a⇉j j<∷k) ρ⇇Γ = ⇇-⇑ (Nf⇉-/H a⇉j ρ⇇Γ) (<∷-/H≃ j<∷k ρ⇇Γ)
 
-    -- Hereditary substitutions preserve kind equality.
-    ≅-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {j₁ j₂} →
-           Γ ⊢ j₁ ≅ j₂ → Δ ⊢/H ρ ⇇ Γ → Δ ⊢ j₁ Kind/H ρ ≅ j₂ Kind/H ρ
-    ≅-/H (<∷-antisym j-kd k-kd j<∷k k<∷j) ρ⇇Γ =
-      <∷-antisym (kd-/H j-kd ρ⇇Γ)  (kd-/H k-kd ρ⇇Γ)
-                 (<∷-/H≃ j<∷k ρ⇇Γ) (<∷-/H≃ k<∷j ρ⇇Γ)
-
-    Sp≃-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {as₁ as₂ j₁ j₂} →
-              ⌊ Γ ⌋Ctx ⊢ j₁ kds → Γ ⊢ j₁ ⇉∙ as₁ ≃ as₂ ⇉ j₂ → Δ ⊢/H ρ ⇇ Γ →
-              Δ ⊢ j₁ Kind/H ρ ⇉∙ as₁ //H ρ ≃ as₂ //H ρ ⇉ j₂ Kind/H ρ
-    Sp≃-/H j₁-kds as≃bs ρ⇇Γ = Sp≃-/H≃ j₁-kds as≃bs ρ⇇Γ
-
     -- Parallel hereditary substitutions map well-formed ascriptions
     -- to identities.
     wf-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a} →
@@ -421,7 +409,7 @@ module TrackSimpleKindsSubst where
     -- Parallel hereditary substitutions map normal forms to subtypes.
 
     Nf⇉-⋯-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a b c} →
-              Γ ⊢Nf a ⇉ b ⋯ c → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a /H ρ <: a /H σ
+                Γ ⊢Nf a ⇉ b ⋯ c → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a /H ρ <: a /H σ
     Nf⇉-⋯-/H≃ (⇉-⊥-f Γ-ctx) ρ≃σ⇇Γ =
       <:-⊥ (⇉-⊥-f (ctx-/H Γ-ctx (/H≃-valid₁ ρ≃σ⇇Γ)))
     Nf⇉-⋯-/H≃ (⇉-⊤-f Γ-ctx) ρ≃σ⇇Γ =
@@ -531,9 +519,9 @@ module TrackSimpleKindsSubst where
 
     -- Parallel hereditary substitutions map checked normal forms to
     -- subtypes.
-    Nf⇇-/H≃-<: : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a k} →
-                 Γ ⊢Nf a ⇇ k → Γ ⊢ k kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                 Δ ⊢ a /H ρ <: a /H σ ⇇ k Kind/H ρ
+    Nf⇇-/H≃-<: : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a j} →
+                 Γ ⊢Nf a ⇇ j → Γ ⊢ j kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
+                 Δ ⊢ a /H ρ <: a /H σ ⇇ j Kind/H ρ
     Nf⇇-/H≃-<: (⇇-⇑ a⇉b₁⋯c₁ (<∷-⋯ b₂<:b₁ c₁<:c₂)) _ ρ≃σ⇇Γ =
       let ρ⇇Γ   = /H≃-valid₁ ρ≃σ⇇Γ
           σ⇇Γ   = /H≃-valid₂ ρ≃σ⇇Γ
@@ -649,18 +637,10 @@ module TrackSimpleKindsSubst where
              (subst (_ ⊢_⇉∙ _ ≃ _ ⇉ _) j₂[a]/ρ≡j₂/ρ[a/ρ]
                     (Sp≃-/H≃ (kds-/H j₂-kds (∈-hsub [] a∈⌊j₁⌋)) as≃bs ρ≃σ⇇Γ))
 
-    -- Parallel hereditary substitutions preserve kind equality.
-    ≅-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {k₁ k₂} →
-            Γ ⊢ k₁ ≅ k₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ k₁ Kind/H ρ ≅ k₂ Kind/H σ
-    ≅-/H≃ (<∷-antisym j-kd k-kd j<∷k k<∷j) ρ≃σ⇇Γ =
-      <∷-antisym (kd-/H j-kd (/H≃-valid₁ ρ≃σ⇇Γ))
-                 (kd-/H k-kd (/H≃-valid₂ ρ≃σ⇇Γ))
-                 (<∷-/H≃ j<∷k ρ≃σ⇇Γ) (<∷-/H≃ k<∷j (/H≃-sym ρ≃σ⇇Γ))
-
     -- Parallel hereditary substitutions preserve type equality.
-    ≃-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a₁ a₂ k} →
-            Γ ⊢ a₁ ≃ a₂ ⇇ k → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-            Δ ⊢ a₁ /H ρ ≃ a₂ /H σ ⇇ k Kind/H ρ
+    ≃-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a₁ a₂ j} →
+            Γ ⊢ a₁ ≃ a₂ ⇇ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
+            Δ ⊢ a₁ /H ρ ≃ a₂ /H σ ⇇ j Kind/H ρ
     ≃-/H≃ (<:-antisym k-kd a<:b⇇k b<:a⇇k) ρ≃σ⇇Γ =
       let σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
           k/ρ-kd = kd-/H k-kd (/H≃-valid₁ ρ≃σ⇇Γ)
@@ -710,7 +690,7 @@ module TrackSimpleKindsSubst where
       | l₁ , a₁ , l₂ , a₂ , Λl₁a₁⇇Πj₁j₂ , Λl₂a₂⇇Πj₁j₂ , kd-Π j₁-kd j₂-kd ,
         j₁<∷l₁ , l₁≅l₂ , a₁<:a₂⇇j₂ , a₂<:a₁⇇j₂ , refl , refl =
         let ⌊Πj₁j₂⌋≡k     = is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂
-            k₁≡⌊j₂⌋       = sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡k₁)
+            k₁≡⌊j₁⌋       = sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡k₁)
             b₁⇇j₁ , b₂⇇j₁ = ≃-valid b₁≃b₂⇇j₁
             ρ≃σ⇇j₁∷Γ      = ≃-hsub [] [] b₁≃b₂⇇j₁ ⌊j₁⌋≡k₁
             σ≃ρ⇇j₁∷Γ      = /H≃-sym ρ≃σ⇇j₁∷Γ
@@ -718,12 +698,12 @@ module TrackSimpleKindsSubst where
         in <:-antisym (subst (λ k → _ ⊢ _ Kind[ _ ∈ k ] kd)
                              (sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡k₁))
                              (kd-/H j₂-kd (/H≃-valid₁ ρ≃σ⇇j₁∷Γ)))
-                      (subst (λ k → _ ⊢ _ <: _ ⇇ _ Kind[ _ ∈ k ]) k₁≡⌊j₂⌋
+                      (subst (λ k → _ ⊢ _ <: _ ⇇ _ Kind[ _ ∈ k ]) k₁≡⌊j₁⌋
                              (<:⇇-/H≃ a₁<:a₂⇇j₂ j₂-kd ρ≃σ⇇j₁∷Γ))
                       (<:⇇-⇑ (<:⇇-/H≃ a₂<:a₁⇇j₂ j₂-kd σ≃ρ⇇j₁∷Γ)
-                             (subst (λ k → Γ ⊢ _ <∷ _ Kind[ _ ∈ k ]) k₁≡⌊j₂⌋
+                             (subst (λ k → Γ ⊢ _ <∷ _ Kind[ _ ∈ k ]) k₁≡⌊j₁⌋
                                     (kd-/H≃-<∷ j₂-kd σ≃ρ⇇j₁∷Γ))
-                             (subst (λ k → Γ ⊢ _ Kind[ _ ∈ k ] kd) k₁≡⌊j₂⌋
+                             (subst (λ k → Γ ⊢ _ Kind[ _ ∈ k ] kd) k₁≡⌊j₁⌋
                                     (kd-/H j₂-kd ρ⇇j₁∷Γ)))
 
     -- Helpers (to satisfy the termination checker).
@@ -780,7 +760,10 @@ module TrackSimpleKindsSubst where
     <:-/H≃-wf (<:-⟨| a∈b⋯c)     ρ≃σ⇇Γ = Ne∈-/H≃-wf a∈b⋯c ρ≃σ⇇Γ
     <:-/H≃-wf (<:-|⟩ a∈b⋯c)     ρ≃σ⇇Γ = Ne∈-/H≃-wf a∈b⋯c ρ≃σ⇇Γ
 
-    ≅-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j k₁ k₂} →
-               kd j ∷ Γ ⊢ k₁ ≅ k₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-               Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    ≅-/H≃-wf (<∷-antisym k₁-kd _ _ _) ρ≃σ⇇Γ = kd-/H≃-wf k₁-kd ρ≃σ⇇Γ
+  -- Parallel hereditary substitutions preserve kind equality.
+  ≅-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {k₁ k₂} →
+          Γ ⊢ k₁ ≅ k₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ k₁ Kind/H ρ ≅ k₂ Kind/H σ
+  ≅-/H≃ (<∷-antisym j-kd k-kd j<∷k k<∷j) ρ≃σ⇇Γ =
+    <∷-antisym (kd-/H j-kd (/H≃-valid₁ ρ≃σ⇇Γ))
+               (kd-/H k-kd (/H≃-valid₂ ρ≃σ⇇Γ))
+               (<∷-/H≃ j<∷k ρ≃σ⇇Γ) (<∷-/H≃ k<∷j (/H≃-sym ρ≃σ⇇Γ))
