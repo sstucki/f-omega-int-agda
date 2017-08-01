@@ -19,7 +19,6 @@ open import Relation.Binary.TransReasoning
 open import Relation.Nullary using (¬_)
 
 open import FOmegaInt.Syntax
-open import FOmegaInt.Reduction.Full
 
 
 ------------------------------------------------------------------------
@@ -54,7 +53,7 @@ open import FOmegaInt.Reduction.Full
 --  1. prove the validity lemmas for the judgments containing the
 --     additional validity conditions as premises,
 --
---  2. prove that the the two variants of the judgments are
+--  2. prove that the two variants of the judgments are
 --     equivalent, i.e.
 --
 --     a) the extended judgments are sound w.r.t to the original

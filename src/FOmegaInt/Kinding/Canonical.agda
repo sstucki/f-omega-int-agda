@@ -239,7 +239,7 @@ wf-kd-inv (wf-kd k-kd) = k-kd
 ≃-sym : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a ≃ b ⇇ k → Γ ⊢ b ≃ a ⇇ k
 ≃-sym (<:-antisym k-kd a<:b b<:a) = <:-antisym k-kd b<:a a<:b
 
--- Transitivity of checked subtyping is admissible.
+-- Transitivity of checked subtyping and type equality are admissible.
 
 <:⇇-trans : ∀ {n} {Γ : Ctx n} {a b c k} →
             Γ ⊢ a <: b ⇇ k → Γ ⊢ b <: c ⇇ k → Γ ⊢ a <: c ⇇ k
@@ -247,6 +247,11 @@ wf-kd-inv (wf-kd k-kd) = k-kd
   <:-⇇ a₁⇇b⋯c a₃⇇b⋯c (<:-trans a₁<:a₂ a₂<:a₃)
 <:⇇-trans (<:-λ a₁<:a₂ Λj₁a₁⇇Πjk _) (<:-λ a₂<:a₃ _ Λj₃a₃⇇Πjk) =
   <:-λ (<:⇇-trans a₁<:a₂ a₂<:a₃) Λj₁a₁⇇Πjk Λj₃a₃⇇Πjk
+
+≃-trans : ∀ {n} {Γ : Ctx n} {a b c k} →
+          Γ ⊢ a ≃ b ⇇ k → Γ ⊢ b ≃ c ⇇ k → Γ ⊢ a ≃ c ⇇ k
+≃-trans (<:-antisym k-kd a<:b⇇k b<:a⇇k) (<:-antisym _ b<:c⇇k c<:b⇇k) =
+  <:-antisym k-kd (<:⇇-trans a<:b⇇k b<:c⇇k) (<:⇇-trans c<:b⇇k b<:a⇇k)
 
 -- The synthesized kind of a normal proper type is exactly the singleton
 -- containing that type.
@@ -307,7 +312,7 @@ Nf⇉-valid (⇉-s-i a∈b⋯c)       = kd-⋯ (⇉-s-i a∈b⋯c) (⇉-s-i a∈
 ≃-valid-kd (<:-antisym k-kd a<:b b<:a) = k-kd
 
 -- NOTE.  In order to prove validity for the remainder of the kinding,
--- subkinding and subtyping judgments, we first need to prove the
+-- subkinding and subtyping judgments, we first need to prove that
 -- hereditary substitutions preserve well-formedness of kinds (see
 -- Kinding.Canonical.HereditarySubstitution).  See the definition of
 -- `Var∈-valid' below and the module Kinding.Canonical.Validity for
@@ -321,8 +326,8 @@ Nf⇇-ne (∈-∙ x∈k k⇉as⇉b⋯c) =
 
 -- The contexts of (most of) the above judgments are well-formed.
 --
--- NOTE. The exceptions are kinding and equality of spines, where the
--- ⇉-[] and ≃-[] rules offers no guaratee that the enclosing context
+-- NOTE. The exceptions are kinding and equality of spines, as the
+-- ⇉-[] and ≃-[] rules offer no guarantee that the enclosing context
 -- is well-formed.  This is not a problem in practice, since
 -- well-kinded spines are used in the kinding of neutral types, the
 -- head of which is guaranteed to be kinded in a well-formed context.
@@ -791,7 +796,7 @@ module ContextNarrowing where
                    x  = raise n zero
                    j′ = weakenKind′⋆ n (weakenKind′ k₁)
                in Γ ctx → lookup x Γ ≡ kd j → Γ₁ ⊢ k₁ <∷ k₂ → Δ ctx →
-                  Δ ⊢Var var x ∈ j′ × Δ ⊢ j′ <∷ j × Δ ⊢ j kd
+                  Δ ⊢Var var x ∈ j
   ⇓-Var∈-Hit {_} {n} Γ₂ {Γ₁} {j} {k₁} {k₂} Γ-ctx Γ[x]≡kd-j k₁<∷k₂ Δ-ctx =
     let k₂′≡j = kd-inj (begin
             kd (weakenKind′⋆ n (weakenKind′ k₂))
@@ -807,21 +812,21 @@ module ContextNarrowing where
         Γ₂-ext , k₁∷Γ₁-ctx = wf-split Δ-ctx
         _      , k₂∷Γ₁-ctx = wf-split {Δ = CtxExt′⇒CtxExt Γ₂} Γ-ctx
         k₂-kd              = wf-kd-inv (wf-∷₁ k₂∷Γ₁-ctx)
-    in ⇉-var (raise n zero) Δ-ctx (begin
-             lookup (raise n zero) (Γ₂ ′++ kd k₁ ∷ Γ₁)
-           ≡⟨ lookup-weaken⋆′ n zero [] Γ₂ (kd k₁ ∷ Γ₁) ⟩
-             weakenElimAsc⋆ n (weakenElimAsc (kd k₁))
-           ≡⟨ sym (AL./-wk⋆ n) ⟩
-             weakenElimAsc (kd k₁) ElimAsc/ wk⋆ n
-           ≡⟨ cong kd (KL./-wk⋆ n) ⟩
-             kd (weakenKind′⋆ n (weakenKind′ k₁))
-           ∎) ,
-       subst (Γ₂ ′++ kd k₁ ∷ Γ₁ ⊢ _ <∷_) k₂′≡j
-             (<∷-weaken⋆ {Δ′ = Γ₂} Γ₂-ext
-                         (<∷-weaken (wf-∷₁ k₁∷Γ₁-ctx) k₁<∷k₂)) ,
-       subst (Γ₂ ′++ kd k₁ ∷ Γ₁ ⊢_kd) k₂′≡j
-             (kd-weaken⋆ {Δ′ = Γ₂} Γ₂-ext
-                         (kd-weaken (wf-∷₁ k₁∷Γ₁-ctx) k₂-kd))
+    in ⇇-⇑ (⇉-var (raise n zero) Δ-ctx (begin
+                lookup (raise n zero) (Γ₂ ′++ kd k₁ ∷ Γ₁)
+              ≡⟨ lookup-weaken⋆′ n zero [] Γ₂ (kd k₁ ∷ Γ₁) ⟩
+                weakenElimAsc⋆ n (weakenElimAsc (kd k₁))
+              ≡⟨ sym (AL./-wk⋆ n) ⟩
+                weakenElimAsc (kd k₁) ElimAsc/ wk⋆ n
+              ≡⟨ cong kd (KL./-wk⋆ n) ⟩
+                kd (weakenKind′⋆ n (weakenKind′ k₁))
+              ∎))
+           (subst (Γ₂ ′++ kd k₁ ∷ Γ₁ ⊢ _ <∷_) k₂′≡j
+                  (<∷-weaken⋆ {Δ′ = Γ₂} Γ₂-ext
+                              (<∷-weaken (wf-∷₁ k₁∷Γ₁-ctx) k₁<∷k₂)))
+           (subst (Γ₂ ′++ kd k₁ ∷ Γ₁ ⊢_kd) k₂′≡j
+                  (kd-weaken⋆ {Δ′ = Γ₂} Γ₂-ext
+                              (kd-weaken (wf-∷₁ k₁∷Γ₁-ctx) k₂-kd)))
 
   -- "Lookup" the type of a variable not affected by narrowing.
   ⇓-Var∈-Miss : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ : Ctx m} y {j k₁ k₂} →
@@ -893,9 +898,8 @@ module ContextNarrowing where
              Γ₂ ′++ kd k₂ ∷ Γ₁ ⊢Var a ∈ j → Γ₂ ′++ kd k₁ ∷ Γ₁ ⊢Var a ∈ j
     ⇓-Var∈ {_} {n} Γ₂ k₁-kd k₁<∷k₂ (⇉-var x  Γ-ctx Γ[x]≡kd-j) with compare n x
     ⇓-Var∈ {_} {n} Γ₂ k₁-kd k₁<∷k₂ (⇉-var ._ Γ-ctx Γ[x]≡kd-j) | yes refl =
-      let Δ-ctx               = ⇓-ctx Γ₂ k₁-kd k₁<∷k₂ Γ-ctx
-          x∈j′ , j′<∷j , j-kd = ⇓-Var∈-Hit Γ₂ Γ-ctx Γ[x]≡kd-j k₁<∷k₂ Δ-ctx
-      in ⇇-⇑ x∈j′ j′<∷j j-kd
+      let Δ-ctx = ⇓-ctx Γ₂ k₁-kd k₁<∷k₂ Γ-ctx
+      in ⇓-Var∈-Hit Γ₂ Γ-ctx Γ[x]≡kd-j k₁<∷k₂ Δ-ctx
     ⇓-Var∈ Γ₂ k₁-kd k₁<∷k₂ (⇉-var ._ Γ-ctx Γ[x]≡kd-j) | no y refl =
       ⇓-Var∈-Miss Γ₂ y (⇓-ctx Γ₂ k₁-kd k₁<∷k₂ Γ-ctx) Γ[x]≡kd-j
     ⇓-Var∈ Γ₂ k₁-kd k₁<∷k₂ (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) =
@@ -1038,14 +1042,15 @@ Nf⇇-⇑ (⇇-⇑ a⇇j₁ j₁<∷j₂) j₂<∷j₃ = ⇇-⇑ a⇇j₁ (<∷-
 --
 -- NOTE. The proof is by mutual induction in the structure of the
 -- types and kinds being related to themselves, and then by
--- case-anaylis on typing/kinding derivations (rather than induction
--- on the typing/kinding derivations directly).  For example, the
--- proof of (<:⇇-reflNf⇉-⇑) is not decreasing in the kiding derivation
--- of `a' in the type abstraction (Π-intro) case.  To avoid clutter,
--- we do not make the corresponding type/kind parameters explicit in
--- the implementations below: thanks to the structure of canonical
--- well-formedness/kinding, every kind/type constructor corresponds to
--- exactly one kinding/typing rule.
+-- case-analysis on formation/kinding derivations (rather than
+-- induction on the typing/kinding derivations directly).  For
+-- example, the proof of (<:⇇-reflNf⇉-⇑) is not decreasing in the
+-- kinding derivation of `a' in the type abstraction (Π-intro) case.
+-- To avoid clutter, we do not make the corresponding type/kind
+-- parameters explicit in the implementations below: thanks to the
+-- structure of canonical formation/kinding, every kind/type
+-- constructor corresponds to exactly one kinding/typing rule
+-- (i.e. the rules are syntax directed).
 mutual
 
   -- Reflexivity of canonical subkinding.
@@ -1110,8 +1115,8 @@ Nf⇉⇒Nf⇇ a⇉k = ⇇-⇑ a⇉k (<∷-refl (Nf⇉-valid a⇉k))
 -- An admissible operator introduction rule accepting a checked body.
 Nf⇇-Π-i : ∀ {n} {Γ : Ctx n} {j a k} →
           Γ ⊢ j kd → kd j ∷ Γ ⊢Nf a ⇇ k → Γ ⊢Nf Λ∙ j a ⇇ Π j k
-Nf⇇-Π-i j-kd (⇇-⇑ a⇉j j<∷k) =
-  ⇇-⇑ (⇉-Π-i j-kd a⇉j) (<∷-Π (<∷-refl j-kd) j<∷k (kd-Π j-kd (Nf⇉-valid a⇉j)))
+Nf⇇-Π-i j-kd (⇇-⇑ a⇉l l<∷k) =
+  ⇇-⇑ (⇉-Π-i j-kd a⇉l) (<∷-Π (<∷-refl j-kd) l<∷k (kd-Π j-kd (Nf⇉-valid a⇉l)))
 
 -- Admissible projection rules for canonically kinded proper types.
 

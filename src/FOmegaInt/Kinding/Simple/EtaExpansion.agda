@@ -47,7 +47,7 @@ module TrackSimpleKindsKindedEtaExp where
   -- NOTE. The definition of the functions η-exp-Var∈ and η-exp-Ne∈
   -- below are structurally recursive in the *simple* kind parameter
   -- k, but *not* in the kind j because we need to weaken the domain
-  -- j₂ of the dependent kind (j = Π j₁ j₂) in the arrow case.  The
+  -- j₁ of the dependent kind (j = Π j₁ j₂) in the arrow case.  The
   -- additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
   -- simplification of the kind j.
 
@@ -71,12 +71,12 @@ module TrackSimpleKindsKindedEtaExp where
         η-x∙as = TK.η-exp _ (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) (var x ∙ as)
         z∈k₁ = η-exp-Var∈ (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (kds-weaken j₁-kds)
                           (∈-var zero (cong kd (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡k₁)))
-        x∙as·z∈k₂ = (∈-∙ (Var∈-weaken x∈l) (∈-∷ʳ (Sp∈-weaken l∋as∈k₁⇒k₂) z∈k₁))
+        x∙as·z∈k₂ = Ne∈-Π-e (Ne∈-weaken (∈-∙ x∈l l∋as∈k₁⇒k₂)) z∈k₁
 
   mutual
 
     -- η-expansion of neutrals followed by hereditary substitution
-    -- vanish if the substitution hits the head of the neutral.
+    -- vanishes if the substitution hits the head of the neutral.
 
     η-exp-var-Hit-/H : ∀ {k m n Γ Δ} {x j} (hyp : ⌊ j ⌋≡ k) {ρ : HSub k m n} →
                        Hit ρ x → Γ ⊢ j kds → Γ ⊢Var var x ∈ k → Δ ⊢/H ρ ∈ Γ →

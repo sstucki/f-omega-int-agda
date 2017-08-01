@@ -140,7 +140,7 @@ module TrackSimpleKindsEtaExp where
   -- NOTE. The definition of the function η-exp in this module is
   -- structurally recursive in the *simple* kind parameter k, but
   -- *not* in the kind (j : Kind Elim n) because we need to weaken the
-  -- domain j₂ of the dependent kind (j = Π j₁ j₂) in the arrow case.
+  -- domain j₁ of the dependent kind (j = Π j₁ j₂) in the arrow case.
   -- The additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
   -- simplification of the kind j.
 

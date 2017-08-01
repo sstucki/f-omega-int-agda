@@ -623,10 +623,11 @@ module ParallelEtaExpansion where
 
   -- NOTE. The definition of the function ≈-η-exp′ in this module is
   -- structurally recursive in the *simple* kind parameter k, but
-  -- *not* in the kind (j : Kind Elim n) because we need to weaken the
-  -- domain j₂ of the dependent kind (j = Π j₁ j₂) in the arrow case.
-  -- The additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
-  -- simplification of the kind j.
+  -- *not* in the kinds (j₁ j₂ : Kind Elim n) because we need to
+  -- weaken the domains j₁₁ and j₂₁ of the dependent kinds (j₁ = Π j₁₁
+  -- j₁₂) and (j₂ = Π j₂₁ j₂₂) in the arrow case.  The additional
+  -- premises ⌊ j₁ ⌋≡ k and ⌊ j₂ ⌋≡ k ensure that k is indeed the
+  -- simplification of the kinds j₁ and j₂.
 
   -- Weak equality is a congruence w.r.t. untyped η-expansion.
   --
@@ -660,9 +661,8 @@ module ParallelEtaExpansion where
   ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
     ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
 
-  ≈-η-exp : ∀ {n j₁ j₂} {a₁ a₂ : Elim n} →
-            _≡_ {A = SKind} ⌊ j₁ ⌋ ⌊ j₂ ⌋ → a₁ ≈ a₂ →
-            η-exp j₁ a₁ ≈ η-exp j₂ a₂
+  ≈-η-exp : ∀ {n} {j₁ j₂ : Kind Elim n} {a₁ a₂} →
+            ⌊ j₁ ⌋ ≡ ⌊ j₂ ⌋ → a₁ ≈ a₂ → η-exp j₁ a₁ ≈ η-exp j₂ a₂
   ≈-η-exp {_} {j₁} {j₂} {a₁} {a₂} ⌊j₁⌋≡⌊j₂⌋ a₁≈a₂ = begin
       η-exp j₁ a₁
     ≡⟨ TK.η-exp-⌊⌋≡ (⌊⌋-⌊⌋≡ j₁) (⌊⌋≡-trans ⌊j₁⌋≡⌊j₂⌋ (⌊⌋-⌊⌋≡ j₂))

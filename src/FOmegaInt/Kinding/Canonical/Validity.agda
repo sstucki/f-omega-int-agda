@@ -49,7 +49,6 @@ Sp≃-valid (<∷-Π j₂<∷j₁ k₁<∷k₂ (kd-Π j₁-kd k₁-kd))
   let j₂-kd        = ≃-valid-kd a≃b⇇j₂
       a⇇j₂ , b⇇j₂  = ≃-valid a≃b⇇j₂
       b⇇j₁         = Nf⇇-⇑ b⇇j₂ j₂<∷j₁
-      k₁[b]-kd     = TK.kd-/H k₁-kd (⇇-hsub [] b⇇j₁ j₁-kd (⌊⌋-⌊⌋≡ _))
       k₁[b]<∷k₂[a] = TK.<∷-/H≃ k₁<∷k₂ (≃-hsub [] [] (≃-sym a≃b⇇j₂) (⌊⌋-⌊⌋≡ _))
       l₁ , k₂[a]⇉as⇉l₂ , k₁[b]⇉bs⇉l₁ , l₁<∷l₂ = Sp≃-valid k₁[b]<∷k₂[a]
                                                           k₂[a]⇉as≃bs⇉l₂

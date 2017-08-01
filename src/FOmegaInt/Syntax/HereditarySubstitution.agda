@@ -878,7 +878,7 @@ module _ where
   open Substitution
   open ≡-Reasoning
 
-  -- Weakening commutes with application of lifted hereditary
+  -- Repeated weakening commutes with application of lifted hereditary
   -- substitutions.
 
   wk⋆-/H-↑⋆ : ∀ i {k m n} a {ρ : HSub k m n} →
@@ -965,7 +965,8 @@ module _ where
   -- (i.e. the lemmas `∙∙⟨⟩-/H-↑⋆' and `⌜·⌝⟨⟩-/H-↑⋆' do not hold in
   -- that general case).  We will prove a weaker result, namely that
   -- well-kinded hereditary substitutions in well-kinded types
-  -- commute, later.
+  -- commute, later.  See e.g. `Nf∈-[]-/H-↑⋆` etc. in module
+  -- Kinding.Simple.
 
 -- Some commutation lemmas up to βη-equality.
 

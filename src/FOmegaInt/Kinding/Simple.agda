@@ -42,13 +42,14 @@ module Kinding where
 
   mutual
 
-    -- A variant of well-formedness for η-long β-normal kinds based on
-    -- simple kinding.
+    -- Simplified well-formedness of kinds: a variant of
+    -- well-formedness for η-long β-normal kinds based on simple
+    -- kinding.
     data _⊢_kds {n} (Γ : Ctx n) : Kind Elim n → Set where
       kds-⋯ : ∀ {a b} → Γ ⊢Nf a ∈ ★ → Γ ⊢Nf b ∈ ★           → Γ ⊢ a ⋯ b kds
       kds-Π : ∀ {j k} → Γ ⊢ j kds   → kd ⌊ j ⌋ ∷ Γ ⊢ k kds  → Γ ⊢ Π j k kds
 
-    -- Kind synthesis for η-long β-normal types.
+    -- Simple kinding of η-long β-normal types.
     data _⊢Nf_∈_ {n} (Γ : Ctx n) : Elim n → SKind → Set where
       ∈-⊥-f : Γ ⊢Nf ⊥∙ ∈ ★
       ∈-⊤-f : Γ ⊢Nf ⊤∙ ∈ ★
@@ -59,12 +60,12 @@ module Kinding where
               Γ ⊢Nf Λ∙ j a ∈ ⌊ j ⌋ ⇒ k
       ∈-ne  : ∀ {a} → Γ ⊢Ne a ∈ ★ → Γ ⊢Nf a ∈ ★
 
-    -- Kind synthesis for neutral types.
+    -- Simple kinding of neutral types.
     data _⊢Ne_∈_ {n} (Γ : Ctx n) : Elim n → SKind → Set where
       ∈-∙ : ∀ {x j k} {as : Spine n} → Γ ⊢Var var x ∈ j →
             Γ ⊢ j ∋∙ as ∈ k → Γ ⊢Ne var x ∙ as ∈ k
 
-    -- Kind synthesis for spines.
+    -- Simple spine kinding.
     data _⊢_∋∙_∈_ {n} (Γ : Ctx n) : SKind → Spine n → SKind → Set where
       ∈-[] : ∀ {k} → Γ ⊢ k ∋∙ [] ∈ k
       ∈-∷  : ∀ {a as j k l} → Γ ⊢Nf a ∈ j → Γ ⊢ k ∋∙ as ∈ l →
@@ -87,12 +88,18 @@ open SimpleCtx hiding (_++_)
 open Kinding
 open PropEq
 
+-- An admissible kinding rule for spine concatenation.
+∈-++ : ∀ {n} {Γ : Ctx n} {as bs j k l} →
+       Γ ⊢ j ∋∙ as ∈ k → Γ ⊢ k ∋∙ bs ∈ l →
+       Γ ⊢ j ∋∙ as ++ bs ∈ l
+∈-++ ∈-[]               k∋as∈l = k∋as∈l
+∈-++ (∈-∷ b∈j₁ j₂∋as∈k) k∋as∈l = ∈-∷ b∈j₁ (∈-++ j₂∋as∈k k∋as∈l)
+
 -- An admissible kinding rule for appending a normal form to a spine.
 ∈-∷ʳ : ∀ {n} {Γ : Ctx n} {as a j k l} →
        Γ ⊢ j ∋∙ as ∈ k ⇒ l → Γ ⊢Nf a ∈ k →
        Γ ⊢ j ∋∙ as ∷ʳ a ∈ l
-∈-∷ʳ ∈-[]               a∈k = ∈-∷ a∈k ∈-[]
-∈-∷ʳ (∈-∷ a∈j k∈as∈l⇒m) b∈l = ∈-∷ a∈j (∈-∷ʳ k∈as∈l⇒m b∈l)
+∈-∷ʳ j∋as∈k⇒k a∈k = ∈-++ j∋as∈k⇒k (∈-∷ a∈k ∈-[])
 
 -- An admissible kinding rule for post-application to neutral types.
 Ne∈-Π-e : ∀ {n} {Γ : Ctx n} {a b j k} →
@@ -218,10 +225,10 @@ module KindedRenaming where
   Nf∈-weaken⋆ []       a∈k = a∈k
   Nf∈-weaken⋆ (_ ∷ Δ′) a∈k = Nf∈-weaken (Nf∈-weaken⋆ Δ′ a∈k)
 
-  -- Weakening preserves kinding of variables.
-  Var∈-weaken : ∀ {n} {Γ : Ctx n} {a b k} →
-                Γ ⊢Var b ∈ k → (a ∷ Γ) ⊢Var weakenHead b ∈ k
-  Var∈-weaken b∈k = Var∈-/Var b∈k (∈-wk tt)
+  -- Weakening preserves kinding of neutral forms.
+  Ne∈-weaken : ∀ {n} {Γ : Ctx n} {a b k} →
+               Γ ⊢Ne b ∈ k → (a ∷ Γ) ⊢Ne weakenElim b ∈ k
+  Ne∈-weaken b∈k = Ne∈-/Var b∈k (∈-wk tt)
 
   -- Weakening preserves spine kinding.
   Sp∈-weaken : ∀ {n} {Γ : Ctx n} {a bs j k} →

@@ -152,6 +152,30 @@ mutual
 ≃-valid-kd : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a ≃ b ∈ k → Γ ⊢ k kd
 ≃-valid-kd (<:-antisym a<:b∈k _) = <:-valid-kd a<:b∈k
 
+-- Operations on well-formed context equality that require weakening
+-- and validity of ascription equality.
+module CtxEqOps where
+  open KindedRenaming using (≃wf-weaken)
+
+  -- Convert a context equation to its All₂ representation.
+  ≃ctx-toAll : ∀ {m} {Γ Δ : Ctx m} → Γ ≃ Δ ctx →
+               All₂ (Γ ⊢_≃_wf) (toVec Γ) (toVec Δ)
+  ≃ctx-toAll ≃-[]          = []
+  ≃ctx-toAll (≃-∷ a≃b Γ≃Δ) =
+    let a-wf , _ = ≃wf-valid a≃b
+    in ≃wf-weaken a-wf a≃b ∷ gmap₂ (≃wf-weaken a-wf) (≃ctx-toAll Γ≃Δ)
+
+  -- Ascriptions looked up in equal contexts are equal.
+
+  lookup-≃ : ∀ {m} {Γ Δ : Ctx m} x → Γ ≃ Δ ctx →
+             Γ ⊢ lookup x Γ ≃ lookup x Δ wf
+  lookup-≃ x Γ≃Δ = VecAll.lookup₂ x (≃ctx-toAll Γ≃Δ)
+
+  lookup-≃-kd : ∀ {m} {Γ Δ : Ctx m} {j k} x → Γ ≃ Δ ctx →
+                lookup x Γ ≡ kd j → lookup x Δ ≡ kd k → Γ ⊢ j ≅ k
+  lookup-≃-kd x Γ≃Δ Γ[x]≡kd-j Δ[x]≡kd-k =
+    ≃wf-kd-inv (PropEq.subst₂ (_ ⊢_≃_wf) Γ[x]≡kd-j Δ[x]≡kd-k (lookup-≃ x Γ≃Δ))
+
 
 ----------------------------------------------------------------------
 -- Admissible kind and type equality rules.
@@ -248,29 +272,36 @@ Tp∈-[≃] a∈k b≃c∈j = let b∈j , c∈j = ≃-valid b≃c∈j in Tp∈-[
   in <:-antisym (<:-⇑ (<:-⋯-i a<:b∈c⋯d) (<∷-⋯ a<:a∈* b<:a∈*))
                 (<:-⇑ (<:-⋯-i b<:a∈c⋯d) (<∷-⋯ a<:b∈* a<:a∈*))
 
--- Operations on well-formed context reductions that require weakening
--- and validity of well-formed reductions.
-module CtxReductionOps where
-  open KindedRenaming using (≃wf-weaken)
+------------------------------------------------------------------------
+-- Stone and Harper's singleton subkinding rules.
+--
+-- See p. 3 (216) of C. A. Stone and R. Harper, Deciding Type
+-- Equivalence in a Language with Singleton Kinds, proc. POPL'00, ACM,
+-- 2000.
 
-  -- Convert a context equation to its All₂ representation.
-  ≃ctx-toAll : ∀ {m} {Γ Δ : Ctx m} → Γ ≃ Δ ctx →
-               All₂ (Γ ⊢_≃_wf) (toVec Γ) (toVec Δ)
-  ≃ctx-toAll ≃-[]          = []
-  ≃ctx-toAll (≃-∷ a≃b Γ≃Δ) =
-    let a-wf , _ = ≃wf-valid a≃b
-    in ≃wf-weaken a-wf a≃b ∷ gmap₂ (≃wf-weaken a-wf) (≃ctx-toAll Γ≃Δ)
+-- Singleton introduction for kinding is exactly the `∈-s-i' kinding rule.
 
-  -- Ascriptions looked up in equal contexts are equal.
+-- Singleton introduction for equality.
+--
+-- NOTE. This is just a weaker version of `≃-s-i'.
+≃-s-i′ : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ a ≃ b ∈ a ⋯ a
+≃-s-i′ a≃b∈* = ≃-s-i a≃b∈*
 
-  lookup-≃ : ∀ {m} {Γ Δ : Ctx m} x → Γ ≃ Δ ctx →
-             Γ ⊢ lookup x Γ ≃ lookup x Δ wf
-  lookup-≃ x Γ≃Δ = VecAll.lookup₂ x (≃ctx-toAll Γ≃Δ)
+-- Singleton elimination.
+≃-s-proj : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢Tp a ∈ b ⋯ b → Γ ⊢ a ≃ b ∈ *
+≃-s-proj a∈b⋯b = <:-antisym (<:-|⟩ a∈b⋯b) (<:-⟨| a∈b⋯b)
 
-  lookup-≃-kd : ∀ {m} {Γ Δ : Ctx m} {j k} x → Γ ≃ Δ ctx →
-                lookup x Γ ≡ kd j → lookup x Δ ≡ kd k → Γ ⊢ j ≅ k
-  lookup-≃-kd x Γ≃Δ Γ[x]≡kd-j Δ[x]≡kd-k =
-    ≃wf-kd-inv (PropEq.subst₂ (_ ⊢_≃_wf) Γ[x]≡kd-j Δ[x]≡kd-k (lookup-≃ x Γ≃Δ))
+-- Subkinding of singletons.
+
+<∷-s-* : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ a ⋯ a <∷ *
+<∷-s-* a∈* = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ a∈*)
+
+<∷-s-s : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ a ⋯ a <∷ b ⋯ b
+<∷-s-s (<:-antisym a<:b∈* b<:a∈*) = <∷-⋯ b<:a∈* a<:b∈*
+
+
+------------------------------------------------------------------------
+-- Subject reduction for kinding.
 
 -- A variant of subject reduction for kinding: untyped β-reduction of
 -- kinds and types is included in kind resp. type equality.

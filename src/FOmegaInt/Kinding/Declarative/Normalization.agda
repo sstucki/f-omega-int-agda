@@ -80,7 +80,7 @@ module TrackSimpleKindsDeclarativeEtaExp where
 
   -- NOTE. The definition of the function Tp∈-⌞⌟-≃-η below is
   -- structurally recursive in the *simple* kind parameter k, but
-  -- *not* in the kind j because we need to weaken the domain j₂ of
+  -- *not* in the kind j because we need to weaken the domain j₁ of
   -- the dependent kind (j = Π j₁ j₂) in the arrow case.  The
   -- additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
   -- simplification of the kind j.
@@ -91,7 +91,7 @@ module TrackSimpleKindsDeclarativeEtaExp where
                Γ ⊢ ⌞ var x ∙ as ⌟ ≃ ⌞ TK.η-exp j hyp (var x ∙ as) ⌟ ∈ ⌞ j ⌟Kd
   Tp∈-⌞⌟-≃-η is-★ ⌞b₂⋯c₂⌟-kd ⌞x∙as⌟∈⌞b₁⋯c₁⌟ = ≃-refl ⌞x∙as⌟∈⌞b₁⋯c₁⌟
   Tp∈-⌞⌟-≃-η {_} {Γ} {x} {as} (is-⇒ {j₁} {j₂} ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂)
-              (kd-Π ⌞j₁⌟-kd ⌞j₂⌟-kd) ⌞x∙as⌟∈⌞Πj₁j₂⌟ =
+             (kd-Π ⌞j₁⌟-kd ⌞j₂⌟-kd) ⌞x∙as⌟∈⌞Πj₁j₂⌟ =
     begin
       ⌞ var x ∙ as ⌟
     ≃⟨ ≃-sym (≃-η ⌞x∙as⌟∈⌞Πj₁j₂⌟) ⟩
@@ -174,7 +174,7 @@ mutual
   -- equality).
 
   Tp∈-≃-⌞⌟-nf : ∀ {n} {Γ : Ctx n} {a k} →
-                 Γ ⊢Tp a ∈ k → Γ ⊢ a ≃ ⌞ nf (nfCtx Γ) a ⌟ ∈ k
+                Γ ⊢Tp a ∈ k → Γ ⊢ a ≃ ⌞ nf (nfCtx Γ) a ⌟ ∈ k
   Tp∈-≃-⌞⌟-nf {_} {Γ} (∈-var {k} x Γ-ctx Γ[x]≡kd-k)
     with ElimCtx.lookup x (nfCtx Γ) | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
   ... | kd ._ | refl =
@@ -182,7 +182,7 @@ mutual
         (≅⇒<∷ (≅-sym k≅⌞nf-k⌟))
     where
       open ≡-Reasoning
-      open CtxReductionOps using (lookup-≃-kd)
+      open CtxEqOps using (lookup-≃-kd)
 
       Γ≃⌞nf-Γ⌟         = ctx-≃-⌞⌟-nf Γ-ctx
       ⌞nf-Γ⌟[x]≡kd-⌞k⌟ = begin

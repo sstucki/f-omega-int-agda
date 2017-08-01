@@ -19,7 +19,6 @@ open import Relation.Binary.TransReasoning
 open import Relation.Nullary using (¬_)
 
 open import FOmegaInt.Syntax
-open import FOmegaInt.Reduction.Full
 
 
 ------------------------------------------------------------------------
