@@ -50,9 +50,9 @@ infix 4 _⊢/H_⇇_ _⊢/H_≃_⇇_
 -- Well-kinded suspended parallel hereditary substations.
 data _⊢/H_≃_⇇_ : ∀ {k m n} → Ctx n → HSub k m n → HSub k m n → Ctx m → Set where
   ≃-hsub : ∀ {k m n} {Δ₂ : CtxExt′ m n} {Γ₂ Γ₁} {a b j} →
-            Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ a ∈ k ] ext → Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ b ∈ k ] ext →
-            Γ₁ ⊢ a ≃ b ⇇ j → ⌊ j ⌋≡ k →
-            Δ₂ ′++ Γ₁ ⊢/H (n ← a ∈ k) ≃ (n ← b ∈ k) ⇇ Γ₂ ′++ kd j ∷ Γ₁
+           Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ a ∈ k ] ext → Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ b ∈ k ] ext →
+           Γ₁ ⊢ a ≃ b ⇇ j → ⌊ j ⌋≡ k →
+           Δ₂ ′++ Γ₁ ⊢/H (n ← a ∈ k) ≃ (n ← b ∈ k) ⇇ Γ₂ ′++ kd j ∷ Γ₁
 
 -- Lift a kinded hereditary substitution over an additional type variable.
 ≃-H↑ : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} {a b} →
@@ -124,9 +124,14 @@ private
   module AL = TermLikeLemmas termLikeLemmasElimAsc
 
 -- Simplification of kinded substitutions.
-/H⇇-/H∈ : ∀ {k m n Δ Γ} {ρ : HSub k m n} →
-          Δ ⊢/H ρ ⇇ Γ → ⌊ Δ ⌋Ctx ⊢/H ρ ∈ ⌊ Γ ⌋Ctx
-/H⇇-/H∈ (≃-hsub {Δ₂ = Δ₂} {Γ₂} {Γ₁} {a} {_} {j} Δ₂≅Γ₁[a] _ a≃a⇇j ⌊j⌋≡k)
+--
+-- FIXME: the second substitution σ is ignored here and it might be
+-- better to reformulate the lemma in terms of a simple kinded
+-- (hereditary) substitution Δ ⊢/H ρ ⇇ Γ, i.e. such that ρ = σ but
+-- Agda 2.5.2 won't accept that variant.  To be investigated.
+/H⇇-/H∈ : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} →
+          Δ ⊢/H ρ ≃ σ ⇇ Γ → ⌊ Δ ⌋Ctx ⊢/H ρ ∈ ⌊ Γ ⌋Ctx
+/H⇇-/H∈ (≃-hsub {Δ₂ = Δ₂} {Γ₂} {Γ₁} {a} {_} {j} Δ₂≅Γ₁[a] _ a≃b⇇j ⌊j⌋≡k)
   rewrite sym (⌊⌋≡⇒⌊⌋-≡ ⌊j⌋≡k) =
   subst₂ (_⊢/H _ ∈_) (begin
       map′ (λ _ k → k) (map′ (λ _ → ⌊_⌋Asc) Γ₂) ′++ ⌊ Γ₁ ⌋Ctx
@@ -143,7 +148,7 @@ private
       ElimCtx.map ⌊_⌋Asc (Δ₂ ′++ Γ₁)
     ∎) (′++-map ⌊_⌋Asc Γ₂ (kd j ∷ Γ₁))
          (∈-hsub (map′ (λ _ → ⌊_⌋Asc) Γ₂) (Nf⇇-Nf∈ a⇇j))
-    where a⇇j = proj₁ (≃-valid a≃a⇇j)
+    where a⇇j = proj₁ (≃-valid a≃b⇇j)
 
 -- Lookup a hit in a well-kinded hereditary substitution.
 Var∈-Hit-/H≃ : ∀ {m n} {E : CtxExt′ m n} {Γ₂ Γ₁ a b j k l} →
@@ -251,12 +256,12 @@ module TrackSimpleKindsSubst where
     wf-/H (wf-kd k-kd)  ρ⇇Γ = wf-kd (kd-/H k-kd ρ⇇Γ)
     wf-/H (wf-tp a⇉a⋯a) ρ⇇Γ = wf-tp (Nf⇉-/H a⇉a⋯a ρ⇇Γ)
 
-    -- Hereditary substitutions preserve well-formedness of contexts.
-    ctx-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} → Γ ctx → Δ ⊢/H ρ ⇇ Γ → Δ ctx
-    ctx-/H Γ-ctx (≃-hsub E≅Γ₂[a] _ a≃a⇇j ⌊j⌋≡k) = ctx-/H′ _ E≅Γ₂[a] Γ-ctx
+    -- Parallel hereditary substitutions preserve well-formedness of contexts.
+    ctx-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} → Γ ctx → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ctx
+    ctx-/H≃ Γ-ctx (≃-hsub E≅Γ₂[a] _ a≃b⇇j ⌊j⌋≡k) = ctx-/H′ _ E≅Γ₂[a] Γ-ctx
       where
-        a⇇j  = proj₁ (≃-valid a≃a⇇j)
-        j-kd = ≃-valid-kd a≃a⇇j
+        a⇇j  = proj₁ (≃-valid a≃b⇇j)
+        j-kd = ≃-valid-kd a≃b⇇j
 
         ctx-/H′ : ∀ {k m n} {E : CtxExt′ m n} Γ₂ {Γ₁ a j} →
                   Γ₁ ⊢ E ≅ Γ₂ E[ a ∈ k ] ext →
@@ -278,8 +283,8 @@ module TrackSimpleKindsSubst where
     -- types.
     Nf⇉-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a j} →
              Γ ⊢Nf a ⇉ j → Δ ⊢/H ρ ⇇ Γ → Δ ⊢Nf a /H ρ ⇉ j Kind/H ρ
-    Nf⇉-/H (⇉-⊥-f Γ-ctx) ρ⇇Γ = ⇉-⊥-f (ctx-/H Γ-ctx ρ⇇Γ)
-    Nf⇉-/H (⇉-⊤-f Γ-ctx) ρ⇇Γ = ⇉-⊤-f (ctx-/H Γ-ctx ρ⇇Γ)
+    Nf⇉-/H (⇉-⊥-f Γ-ctx) ρ⇇Γ = ⇉-⊥-f (ctx-/H≃ Γ-ctx ρ⇇Γ)
+    Nf⇉-/H (⇉-⊤-f Γ-ctx) ρ⇇Γ = ⇉-⊤-f (ctx-/H≃ Γ-ctx ρ⇇Γ)
     Nf⇉-/H (⇉-∀-f k-kd a⇉a⋯a)  ρ⇇Γ =
       let k/ρ-kd = kd-/H k-kd ρ⇇Γ
       in ⇉-∀-f k/ρ-kd (Nf⇉-/H a⇉a⋯a (⇇-H↑ (≅wf-refl (wf-kd k/ρ-kd)) ρ⇇Γ))
@@ -304,34 +309,43 @@ module TrackSimpleKindsSubst where
       in subst (_ ⊢Nf_⇇ _) (sym (ne-/H-Miss _ y miss))
                (Nf⇇-ne (∈-∙ y∈j/ρ (Sp⇉-/H (kd-kds j-kd) j⇉as⇉l ρ⇇Γ)))
 
-    Var⇇-Hit-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {x j} → Hit ρ x →
-                  Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ⇇ Γ →
+    -- FIXME: the second substitution σ is ignored here and it might
+    -- be better to reformulate the lemma in terms of a simple kinded
+    -- (hereditary) substitution Δ ⊢/H ρ ⇇ Γ, i.e. such that ρ = σ but
+    -- Agda 2.5.2 won't accept that variant.  To be investigated.
+    Var⇇-Hit-/H : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {x j} → Hit ρ x →
+                  Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
                   Δ ⊢Nf var∙ x /H ρ ⇇ j Kind/H ρ × ⌊ j Kind/H ρ ⌋≡ k × Γ ⊢ j kd
     Var⇇-Hit-/H refl (⇉-var _ Γ-ctx Γ[x]≡kd-j)
-                (≃-hsub {_} {_} {n} E≅Γ₂[a] _ a≃a⇇k ⌊k⌋≡l) =
-      let Δ-ctx = ctx-/H Γ-ctx (≃-hsub E≅Γ₂[a] E≅Γ₂[a] a≃a⇇k ⌊k⌋≡l)
-          a≃a⇇j/ρ , ⌊j/ρ⌋≡k = Var∈-Hit-/H≃ Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] a≃a⇇k ⌊k⌋≡l
-          a⇇j/ρ   , _ = ≃-valid a≃a⇇j/ρ
+                (≃-hsub {_} {_} {n} E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l) =
+      let Δ-ctx = ctx-/H≃ Γ-ctx (≃-hsub E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l)
+          a≃b⇇j/ρ , ⌊j/ρ⌋≡k = Var∈-Hit-/H≃ Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] a≃b⇇k ⌊k⌋≡l
+          a⇇j/ρ   , _ = ≃-valid a≃b⇇j/ρ
           j-kd        = Var∈-valid (⇉-var (raise n zero) Γ-ctx Γ[x]≡kd-j)
       in a⇇j/ρ , ⌊j/ρ⌋≡k , j-kd
-    Var⇇-Hit-/H hit (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ⇇Γ =
-      let x/ρ⇇j₁/ρ , ⌊j₁/ρ⌋≡k , _ = Var⇇-Hit-/H hit x∈j₁ ρ⇇Γ
-          j₁/ρ<:j₂/ρ = <∷-/H≃ j₁<∷j₂ ρ⇇Γ
+    Var⇇-Hit-/H hit (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ≃σ⇇Γ =
+      let x/ρ⇇j₁/ρ , ⌊j₁/ρ⌋≡k , _ = Var⇇-Hit-/H hit x∈j₁ ρ≃σ⇇Γ
+          j₁/ρ<:j₂/ρ = <∷-/H≃ j₁<∷j₂ (/H≃-valid₁ ρ≃σ⇇Γ)
       in Nf⇇-⇑ x/ρ⇇j₁/ρ j₁/ρ<:j₂/ρ ,
          ⌊⌋≡-trans (sym (<∷-⌊⌋ j₁/ρ<:j₂/ρ)) ⌊j₁/ρ⌋≡k ,
          j₂-kd
 
-    Var⇇-Miss-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {x j} y → Miss ρ x y →
-                   Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ⇇ Γ →
+    -- FIXME: the second substitution σ is ignored here and it might
+    -- be better to reformulate the lemma in terms of a simple kinded
+    -- (hereditary) substitution Δ ⊢/H ρ ⇇ Γ, i.e. such that ρ = σ but
+    -- Agda 2.5.2 won't accept that variant.  To be investigated.
+    Var⇇-Miss-/H : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {x j} y → Miss ρ x y →
+                   Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
                    Δ ⊢Var var y ∈ j Kind/H ρ × Γ ⊢ j kd
     Var⇇-Miss-/H y refl (⇉-var _ Γ-ctx Γ[x]≡kd-j)
-                 (≃-hsub {_} {_} {n} E≅Γ₂[a] _ a≃a⇇k ⌊k⌋≡l) =
-      let Δ-ctx = ctx-/H Γ-ctx (≃-hsub E≅Γ₂[a] E≅Γ₂[a] a≃a⇇k ⌊k⌋≡l)
+                 (≃-hsub {_} {_} {n} E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l) =
+      let Δ-ctx = ctx-/H≃ Γ-ctx (≃-hsub E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l)
           x/ρ⇇j/ρ = Var∈-Miss-/H Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] ⌊k⌋≡l
           j-kd = Var∈-valid (⇉-var (lift n suc y) Γ-ctx Γ[x]≡kd-j)
       in x/ρ⇇j/ρ , j-kd
-    Var⇇-Miss-/H y miss (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ⇇Γ =
-      let y∈j₁/ρ , _ = Var⇇-Miss-/H y miss x∈j₁ ρ⇇Γ
+    Var⇇-Miss-/H y miss (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ≃σ⇇Γ =
+      let y∈j₁/ρ , _ = Var⇇-Miss-/H y miss x∈j₁ ρ≃σ⇇Γ
+          ρ⇇Γ        = /H≃-valid₁ ρ≃σ⇇Γ
           j₁/ρ<:j₂/ρ = <∷-/H≃ j₁<∷j₂ ρ⇇Γ
       in ⇇-⇑ y∈j₁/ρ j₁/ρ<:j₂/ρ (kd-/H j₂-kd ρ⇇Γ) , j₂-kd
 
@@ -411,9 +425,9 @@ module TrackSimpleKindsSubst where
     Nf⇉-⋯-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a b c} →
                 Γ ⊢Nf a ⇉ b ⋯ c → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a /H ρ <: a /H σ
     Nf⇉-⋯-/H≃ (⇉-⊥-f Γ-ctx) ρ≃σ⇇Γ =
-      <:-⊥ (⇉-⊥-f (ctx-/H Γ-ctx (/H≃-valid₁ ρ≃σ⇇Γ)))
+      <:-⊥ (⇉-⊥-f (ctx-/H≃ Γ-ctx (/H≃-valid₁ ρ≃σ⇇Γ)))
     Nf⇉-⋯-/H≃ (⇉-⊤-f Γ-ctx) ρ≃σ⇇Γ =
-      <:-⊤ (⇉-⊤-f (ctx-/H Γ-ctx (/H≃-valid₂ ρ≃σ⇇Γ)))
+      <:-⊤ (⇉-⊤-f (ctx-/H≃ Γ-ctx (/H≃-valid₂ ρ≃σ⇇Γ)))
     Nf⇉-⋯-/H≃ (⇉-∀-f k-kd a⇉a⋯a) ρ≃σ⇇Γ =
       let ρ⇇Γ       = /H≃-valid₁ ρ≃σ⇇Γ
           σ⇇Γ       = /H≃-valid₂ ρ≃σ⇇Γ
@@ -484,7 +498,7 @@ module TrackSimpleKindsSubst where
                 (≃-hsub {_} {_} {n} E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l) =
       let a⇇k , b⇇k = ≃-valid    a≃b⇇k
           k-kd      = ≃-valid-kd a≃b⇇k
-          Δ-ctx     = ctx-/H Γ-ctx (⇇-hsub E≅Γ₂[a] a⇇k k-kd ⌊k⌋≡l)
+          Δ-ctx     = ctx-/H≃ Γ-ctx (⇇-hsub E≅Γ₂[a] a⇇k k-kd ⌊k⌋≡l)
           a≃b⇇j/ρ , ⌊j/ρ⌋≡k = Var∈-Hit-/H≃ Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] a≃b⇇k ⌊k⌋≡l
           j-kd = Var∈-valid (⇉-var (raise n zero) Γ-ctx Γ[x]≡kd-j)
       in a≃b⇇j/ρ , ⌊j/ρ⌋≡k , j-kd

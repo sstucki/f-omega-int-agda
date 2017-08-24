@@ -441,7 +441,7 @@ module Context where
         (Vec.map W₂.weaken (Vec.map (f _) (W₁.extToVec′ ts Γ′)))
       ≡⟨ sym (map-∘ W₂.weaken (f l) (W₁.extToVec′ ts Γ′)) ⟩
         (Vec.map (W₂.weaken ∘ f l) (W₁.extToVec′ ts Γ′))
-      ≡⟨ map-cong hyp (W₁.extToVec′ ts Γ′) ⟩
+      ≡⟨ map-cong (hyp {l}) (W₁.extToVec′ ts Γ′) ⟩
         (Vec.map (f (suc l) ∘ W₁.weaken) (W₁.extToVec′ ts Γ′))
       ≡⟨ map-∘ (f (suc l)) W₁.weaken (W₁.extToVec′ ts Γ′) ⟩
         (Vec.map (f (suc l)) (Vec.map W₁.weaken (W₁.extToVec′ ts Γ′)))

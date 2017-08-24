@@ -30,7 +30,9 @@
 -- freely available from
 --
 --   https://github.com/agda/agda-stdlib/
-
+--
+-- The code has been tested using Agda 2.5.2 and version 0.13 of the
+-- Agda standard library.
 
 module README where
 
