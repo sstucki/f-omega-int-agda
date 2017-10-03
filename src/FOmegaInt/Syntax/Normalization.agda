@@ -27,7 +27,7 @@ open import FOmegaInt.Reduction.Full
 open import FOmegaInt.Syntax
 open import FOmegaInt.Syntax.HereditarySubstitution
 
-open Syntax hiding (⌈_⌉)
+open Syntax
 
 ----------------------------------------------------------------------
 -- Untyped η-expansion of neutral terms.

@@ -14,7 +14,7 @@ open import Relation.Binary.Reduction
 open import FOmegaInt.Syntax
 open import FOmegaInt.Reduction.Full
 
-open Syntax       hiding (⌈_⌉)
+open Syntax
 open Substitution using (_[_])
 
 ----------------------------------------------------------------------

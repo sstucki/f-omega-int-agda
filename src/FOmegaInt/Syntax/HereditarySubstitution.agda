@@ -28,7 +28,7 @@ open import FOmegaInt.Syntax
 ----------------------------------------------------------------------
 -- Untyped hereditary substitution.
 
-open Syntax hiding (⌈_⌉)
+open Syntax
 open ElimCtx hiding (_++_)
 
 -- A specialized comparison predicate for comparing variable names.

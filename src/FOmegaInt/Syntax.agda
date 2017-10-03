@@ -231,11 +231,6 @@ module Syntax where
     ⌜ a ⋯ b ⌝Kd = ⌜ a ⌝ ⋯ ⌜ b ⌝
     ⌜ Π j k ⌝Kd = Π ⌜ j ⌝Kd ⌜ k ⌝Kd
 
-  -- Singleton kinds.
-  data Sing (T : ℕ → Set) (n : ℕ) : Set where
-    ⟨_⟩ : (a : T n)                           → Sing T n
-    Π   : (k : Kind T n) (s : Sing T (suc n)) → Sing T n
-
   -- Simple kinds.
   data SKind : Set where
     ★   : SKind
@@ -245,11 +240,6 @@ module Syntax where
   ⌊_⌋ : ∀ {T n} → Kind T n → SKind
   ⌊ a ⋯ b ⌋ = ★
   ⌊ Π j k ⌋ = ⌊ j ⌋ ⇒ ⌊ k ⌋
-
-  -- Canonical injection of singleton kinds into kinds.
-  ⌈_⌉ : ∀ {T n} → Sing T n → Kind T n
-  ⌈ ⟨ a ⟩ ⌉ = a ⋯ a
-  ⌈ Π k s ⌉ = Π k ⌈ s ⌉
 
   -- A wrapper for raw kind or type ascriptions.
 
@@ -404,8 +394,8 @@ mutual
 -- at least point to McBride's paper on "Type-Preserving Renaming and
 -- Substitution").
 
--- Application of generic substitutions lifted to singleton kinds as
--- well as type and kind ascriptions.
+-- Application of generic substitutions lifted to type and kind
+-- ascriptions.
 module KdOrTpSubstApp {T T′} (simple : Simple T)
                       (kdApp : Application (Kind T′) T)
                       (tpApp : Application T′ T) where
@@ -413,12 +403,7 @@ module KdOrTpSubstApp {T T′} (simple : Simple T)
   open Application kdApp renaming (_/_ to _Kd/_; _/✶_ to _Kd/✶_)
   open Application tpApp renaming (_/_ to _Tp/_; _/✶_ to _Tp/✶_)
 
-  infixl 8 _Sing/_ _/_
-
-  -- Apply a substitution to a singleton kind.
-  _Sing/_ : ∀ {m n} → Sing T′ m → Sub T m n → Sing T′ n
-  ⟨ a ⟩ Sing/ σ = ⟨ a Tp/ σ ⟩
-  Π k s Sing/ σ = Π (k Kd/ σ) (s Sing/ σ ↑)
+  infixl 8 _/_
 
   -- Apply a substitution to a kind or type ascription.
   _/_ : ∀ {m n} → KdOrTp T′ m → Sub T m n → KdOrTp T′ n
@@ -426,24 +411,9 @@ module KdOrTpSubstApp {T T′} (simple : Simple T)
   (tp a) / σ = tp (a Tp/ σ)
 
   open Application (record { _/_ = _/_     }) public hiding (_/_)
-  open Application (record { _/_ = _Sing/_ }) public using ()
-    renaming (_/✶_ to _Sing/✶_)
 
   -- Some helper lemmas about applying sequences of substitutions (to
   -- be used for instantiating TermSubstLemmas).
-
-  -- Substitutions in singleton kinds are compositional.
-  ⟨⟩-Sing/✶-↑✶ : ∀ k {m n a} (σs : Subs T m n) →
-                 ⟨ a ⟩ Sing/✶ σs ↑✶ k ≡ ⟨ a Tp/✶ σs ↑✶ k ⟩
-  ⟨⟩-Sing/✶-↑✶ k ε        = refl
-  ⟨⟩-Sing/✶-↑✶ k (σ ◅ σs) = cong₂ _Sing/_ (⟨⟩-Sing/✶-↑✶ k σs) refl
-
-  -- Substitutions in singleton arrows are compositional.
-  Π-Sing/✶-↑✶ : ∀ k {m n j s} (σs : Subs T m n) →
-                Π j s Sing/✶ σs ↑✶ k ≡
-                  Π (j Kd/✶ σs ↑✶ k) (s Sing/✶ σs ↑✶ suc k)
-  Π-Sing/✶-↑✶ k ε        = refl
-  Π-Sing/✶-↑✶ k (σ ◅ σs) = cong₂ _Sing/_ (Π-Sing/✶-↑✶ k σs) refl
 
   -- Substitutions in kind ascriptions are compositional.
   kd-/✶-↑✶ : ∀ k {m n j} (σs : Subs T m n) →
@@ -682,23 +652,10 @@ module SubstApp {T} (l : Lift T Term) where
   ⌊⌋-Kind′/ (Π j k) = cong₂ _⇒_ (⌊⌋-Kind′/ j) (⌊⌋-Kind′/ k)
 
   -- Application of substitutions to type and kind ascriptions.
-  open KdOrTpSubstApp simple appKind  appTerm public using (_Sing/_)
+  open KdOrTpSubstApp simple appKind  appTerm public using ()
     renaming (_/_ to _TermAsc/_)
   open KdOrTpSubstApp simple appKind′ appElim public using ()
-    renaming (_/_ to _ElimAsc/_; _Sing/_ to _Sing′/_)
-
-  -- Application of substitutions in singleton kinds commutes with
-  -- conversion to kinds.
-
-  ⌈⌉-Kind/ : ∀ {m n} (s : Sing Term m) {σ : Sub T m n} →
-             ⌈ s Sing/ σ ⌉ ≡ ⌈ s ⌉ Kind/ σ
-  ⌈⌉-Kind/ ⟨ a ⟩   = refl
-  ⌈⌉-Kind/ (Π k s) = cong (Π _) (⌈⌉-Kind/ s)
-
-  ⌈⌉-Kind′/ : ∀ {m n} (s : Sing Elim m) {σ : Sub T m n} →
-              ⌈ s Sing′/ σ ⌉ ≡ ⌈ s ⌉ Kind′/ σ
-  ⌈⌉-Kind′/ ⟨ a ⟩   = refl
-  ⌈⌉-Kind′/ (Π k s) = cong (Π _) (⌈⌉-Kind′/ s)
+    renaming (_/_ to _ElimAsc/_)
 
 -- Substitutions in terms and associated lemmas.
 module Substitution where
@@ -997,15 +954,12 @@ module Substitution where
 
   open TermLemmas termLemmas public hiding (var; termSubst)
   open SubstApp (TermSubst.termLift termSubst) public using
-    ( _Head/_; _//_; _Sing/_; _Sing′/_
-    ; ++-//; ∙∙-/; ⌜·⌝-/; ⌜⌝-/; ⌜⌝Kd-/; ⌞⌟-/; ⌞⌟Kd-/
-    ; ⌊⌋-Kind/; ⌊⌋-Kind′/; ⌈⌉-Kind/; ⌈⌉-Kind′/
+    ( _Head/_; _//_
+    ; ++-//; ∙∙-/; ⌜·⌝-/; ⌜⌝-/; ⌜⌝Kd-/; ⌞⌟-/; ⌞⌟Kd-/; ⌊⌋-Kind/; ⌊⌋-Kind′/
     )
   open SubstApp (TermSubst.varLift termSubst) public using () renaming
     ( _Head/_   to _Head/Var′_
     ; _//_      to _//Var_
-    ; _Sing/_   to _Sing/Var_
-    ; _Sing′/_  to _Sing′/Var_
     ; ++-//     to ++-//Var
     ; ∙∙-/      to ∙∙-/Var
     ; ⌜·⌝-/     to ⌜·⌝-/Var
@@ -1015,8 +969,6 @@ module Substitution where
     ; ⌞⌟Kd-/    to ⌞⌟Kd-/Var
     ; ⌊⌋-Kind/  to ⌊⌋-Kind/Var
     ; ⌊⌋-Kind′/ to ⌊⌋-Kind′/Var
-    ; ⌈⌉-Kind/  to ⌈⌉-Kind/Var
-    ; ⌈⌉-Kind′/ to ⌈⌉-Kind′/Var
     )
 
   -- By instantiating TermLikeLemmas, we get access to a number of
@@ -1113,19 +1065,13 @@ module Substitution where
     ; weaken⋆ to weakenElimAsc⋆
     )
 
-  -- Weakening of heads, spines and singleton kinds.
+  -- Weakening of heads and spines.
 
   weakenHead : ∀ {n} → Head n → Head (suc n)
   weakenHead a = a Head/Var VarSubst.wk
 
   weakenSpine : ∀ {n} → Spine n → Spine (suc n)
   weakenSpine a = a //Var VarSubst.wk
-
-  weakenSing : ∀ {n} → Sing Term n → Sing Term (suc n)
-  weakenSing k = k Sing/Var VarSubst.wk
-
-  weakenSing′ : ∀ {n} → Sing Elim n → Sing Elim (suc n)
-  weakenSing′ k = k Sing′/Var VarSubst.wk
 
   -- Conversion of ascriptions commutes with weakening.
 

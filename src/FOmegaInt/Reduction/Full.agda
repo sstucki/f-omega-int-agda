@@ -21,7 +21,7 @@ import Function.Equivalence as Equiv
 
 open import FOmegaInt.Syntax
 
-open Syntax       hiding (⌈_⌉)
+open Syntax
 open Substitution using (_[_]; weaken)
 
 ----------------------------------------------------------------------
