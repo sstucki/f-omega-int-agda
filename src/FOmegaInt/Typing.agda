@@ -9,14 +9,9 @@ open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Typed
-open import Data.Fin.Substitution.TypedParallel
-open import Data.Nat using (ℕ; suc)
-open import Data.Product using (_,_; _×_; proj₁)
-open import Data.Vec as Vec using (unzip)
-open import Function using (_∘_)
+open import Data.Nat using (ℕ)
+open import Data.Product using (_,_; _×_)
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
-open import Relation.Binary.TransReasoning
-open import Relation.Nullary using (¬_)
 
 open import FOmegaInt.Syntax
 
@@ -32,8 +27,7 @@ module Typing where
   infix 4 _ctx _⊢_kd _⊢_wf
   infix 4 _⊢Tp_∈_ _⊢Tm_∈_ _⊢_∈_
   infix 4 _⊢_<:_∈_ _⊢_<∷_ _⊢_≤_
-  infix 4 _⊢_≃_∈_ _⊢_≅_
-
+  infix 4 _⊢_≃_∈_ _⊢_≅_ _⊢_≃_wf _≃_ctx
   mutual
 
     -- Well-formed typing contexts.
@@ -136,6 +130,20 @@ module Typing where
     ≤-<∷ : ∀ {j k} → Γ ⊢ j <∷ k     → Γ ⊢ kd j ≤ kd k
     ≤-<: : ∀ {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢ tp a ≤ tp b
 
+  mutual
+
+    -- Combined kind and type equality, i.e. equality of well-formed
+    -- ascriptions.
+    data _⊢_≃_wf {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
+      ≃wf-≅ : ∀ {j k} → Γ ⊢ j ≅ k     → Γ ⊢ kd j ≃ kd k wf
+      ≃wf-≃ : ∀ {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ tp a ≃ tp b wf
+
+    -- Equality of well-formed contexts.
+    data _≃_ctx : ∀ {n} → Ctx n → Ctx n → Set where
+      ≃-[] : [] ≃ [] ctx
+      ≃-∷  : ∀ {n a b} {Γ Δ : Ctx n} →
+             Γ ⊢ a ≃ b wf → Γ ≃ Δ ctx → a ∷ Γ ≃ b ∷ Δ ctx
+
   open PropEq using ([_])
 
   -- A derived variable rule.
@@ -167,6 +175,10 @@ wf-kd-inv (wf-kd k-kd) = k-kd
 
 wf-tp-inv : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢ tp a wf → Γ ⊢Tp a ∈ *
 wf-tp-inv (wf-tp a∈*) = a∈*
+
+-- An inversion lemma for _⊢_≃_wf.
+≃wf-kd-inv : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ kd j ≃ kd k wf → Γ ⊢ j ≅ k
+≃wf-kd-inv (≃wf-≅ j≅k) = j≅k
 
 -- Kind and type equality imply subkinding and subtyping, respectively.
 
@@ -255,17 +267,9 @@ module _ where
 -- w.r.t. the remaining type constructors (e.g. Π and _·_) or
 -- transitivity of subkinding and kind equality.  But the proofs of
 -- these lemmas require context narrowing and/or validity lemmas which
--- we have not yet established.  Since the proofs of the type safety
--- theorems do not directly depend on these lemmas, we will simply
--- skip them.  However, we will prove variants of these lemmas (which
--- are necessary to prove type safety) for the alternate, extended
--- judgments in the module Kinding.Declarative (see the
--- Kinding.Declarative.Validity module for these additional lemmas).
--- Since the extended judgments are equivalent to the ones given above
--- (see Kinding.Declarative.Equivalence for the proof), all of the
--- admissible rules presented there, are also admissible in the
--- original judgments, but we will not give explicit proofs of these
--- corollaries.
+-- we have not yet established.  We will prove these lemmas once we
+-- have established validity of the declarative judgments (see the
+-- Typing.Validity module).
 
 
 -- The contexts of all the above judgments are well-formed.
@@ -363,7 +367,6 @@ record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
                      (lt : LiftToTpOrTm l _⊢T_∈_) : Set where
   open LiftTyped lt hiding (weaken-/)
   open Substitution using  (_[_]; _Kind[_]; weaken)
-  open PropEq       hiding ([_])
   private
     module A = SubstApp l
     module L = Lift l
@@ -570,6 +573,12 @@ record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
   ≤-/ (≤-<∷ a<∷b)   σ∈Γ = ≤-<∷ (<∷-/ a<∷b σ∈Γ)
   ≤-/ (≤-<: a<:b∈k) σ∈Γ = ≤-<: (<:-/ a<:b∈k σ∈Γ)
 
+  -- Substitutions preserve equality of kind and type ascriptions.
+  ≃wf-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b σ} →
+          Γ ⊢ a ≃ b wf → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A.TermAsc/ σ ≃ b A.TermAsc/ σ wf
+  ≃wf-/ (≃wf-≅ j≅k) σ∈Γ = ≃wf-≅ (≅-/ j≅k σ∈Γ)
+  ≃wf-/ (≃wf-≃ a≃b) σ∈Γ = ≃wf-≃ (≃-/ a≃b σ∈Γ)
+
 -- Well-typed/kinded variable substitutions (renamings).
 module TypedRenaming where
   open Substitution
@@ -637,6 +646,11 @@ module TypedRenaming where
               (a ∷ Γ) ⊢ weakenKind j <∷ weakenKind k
   <∷-weaken a-wf j<∷k = <∷-/ j<∷k (∈-wk a-wf)
 
+  -- Weakening preserves subtyping.
+  <:-weaken : ∀ {n} {Γ : Ctx n} {a b c k} → Γ ⊢ a wf → Γ ⊢ b <: c ∈ k →
+              (a ∷ Γ) ⊢ weaken b <: weaken c ∈ weakenKind k
+  <:-weaken a-wf b<:c∈k = <:-/ b<:c∈k (∈-wk a-wf)
+
   -- Weakening preserves well-kindedness and well-typedness.
   ∈-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ∈ c →
              (a ∷ Γ) ⊢ weaken b ∈ weakenTermAsc c
@@ -646,6 +660,11 @@ module TypedRenaming where
   ≤-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ≤ c →
              (a ∷ Γ) ⊢ weakenTermAsc b ≤ weakenTermAsc c
   ≤-weaken a-wf b≤c = ≤-/ b≤c (∈-wk a-wf)
+
+  -- Weakening preserves equality of kind and type ascriptions.
+  ≃wf-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ≃ c wf →
+               (a ∷ Γ) ⊢ weakenTermAsc b ≃ weakenTermAsc c wf
+  ≃wf-weaken a-wf b≃c = ≃wf-/ b≃c (∈-wk a-wf)
 
 -- Operations on well-formed contexts that require weakening of
 -- well-formedness judgments.
@@ -660,13 +679,13 @@ module WfCtxOps where
   lookup-kd : ∀ {m} {Γ : Ctx m} {k} x →
               Γ ctx → TermCtx.lookup x Γ ≡ kd k → Γ ⊢ k kd
   lookup-kd x Γ-ctx Γ[x]≡kd-k =
-    wf-kd-inv (PropEq.subst (_ ⊢_wf) Γ[x]≡kd-k (W.lookup x Γ-ctx))
+    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-k (W.lookup x Γ-ctx))
 
   -- Lookup the type of a term variable in a well-formed context.
   lookup-tp : ∀ {m} {Γ : Ctx m} {a} x →
               Γ ctx → TermCtx.lookup x Γ ≡ tp a → Γ ⊢Tp a ∈ *
   lookup-tp x Γ-ctx Γ[x]≡tp-a =
-    wf-tp-inv (PropEq.subst (_ ⊢_wf) Γ[x]≡tp-a (W.lookup x Γ-ctx))
+    wf-tp-inv (subst (_ ⊢_wf) Γ[x]≡tp-a (W.lookup x Γ-ctx))
 
 -- Well-kinded/typed type and term substitutions.
 module TypedSubstitution where
@@ -674,9 +693,9 @@ module TypedSubstitution where
   open SimpleExt     simple                using (extension)
   open TermSubst     termSubst             using (termLift)
   open AscTypedSub   termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
-  open PropEq        using (cong; sym; subst; subst₂)
   open TypedRenaming public
-    using (wf-weaken; kd-weaken; Tp∈-weaken; <∷-weaken; ∈-weaken; ≤-weaken)
+    using ( wf-weaken; kd-weaken; Tp∈-weaken
+          ; <∷-weaken; <:-weaken; ∈-weaken; ≤-weaken)
   private
     module S  = Substitution
     module KL = TermLikeLemmas termLikeLemmasKind
@@ -729,6 +748,11 @@ module TypedSubstitution where
 
   -- Lemmas about single variable substitutions.
 
+  -- Single-variable substitutions preserve kind well-formedness.
+  kd-[] : ∀ {n} {Γ : Ctx n} {a b k} →
+          b ∷ Γ ⊢ k kd → Γ ⊢ a ∈ b → Γ ⊢ k Kind[ a ] kd
+  kd-[] k-kd a∈b = kd-/ k-kd (∈-sub a∈b)
+
   -- Single-variable substitutions preserve well-kindedness.
   Tp∈-[] : ∀ {n} {Γ : Ctx n} {a b k c} →
            c ∷ Γ ⊢Tp a ∈ k → Γ ⊢ b ∈ c → Γ ⊢Tp a [ b ] ∈ k Kind[ b ]
@@ -749,16 +773,16 @@ open TypedSubstitution
 
 
 ----------------------------------------------------------------------
--- Inversion lemmas about kinding
+-- Generation lemmas for kinding
 
--- An inversion lemma for kinding of universals.
+-- A generation lemma for kinding of universals.
 Tp∈-∀-inv : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢Tp Π j a ∈ k →
             Γ ⊢ j kd × kd j ∷ Γ ⊢Tp a ∈ *
 Tp∈-∀-inv (∈-∀-f j-kd a∈*) = j-kd , a∈*
 Tp∈-∀-inv (∈-s-i ∀ka∈b⋯c)  = Tp∈-∀-inv ∀ka∈b⋯c
 Tp∈-∀-inv (∈-⇑ ∀ja∈k k<∷l) = Tp∈-∀-inv ∀ja∈k
 
--- An inversion lemma for kinding of arrows.
+-- A generation lemma for kinding of arrows.
 Tp∈-→-inv : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢Tp a ⇒ b ∈ k →
             Γ ⊢Tp a ∈ * × Γ ⊢Tp b ∈ *
 Tp∈-→-inv (∈-→-f a∈* b∈*)  = a∈* , b∈*

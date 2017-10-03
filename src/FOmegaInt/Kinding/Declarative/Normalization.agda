@@ -5,32 +5,24 @@
 
 module FOmegaInt.Kinding.Declarative.Normalization where
 
-open import Data.Fin using (Fin; zero; suc)
+open import Data.Fin using (zero)
 open import Data.Fin.Substitution
-open import Data.Fin.Substitution.Lemmas
-open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Typed
-open import Data.List using ([]; _∷_; _∷ʳ_)
-open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (_,_; proj₂; _×_)
-open import Data.Vec as Vec using ([]; _∷_)
-open import Function using (_∘_)
+open import Data.Vec using ([])
 open import Relation.Binary.PropositionalEquality hiding ([_])
 
-open import FOmegaInt.Reduction.Full
 open import FOmegaInt.Syntax
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
-open import FOmegaInt.Kinding.Declarative
-open import FOmegaInt.Kinding.Declarative.Validity
+open import FOmegaInt.Typing
+open import FOmegaInt.Typing.Validity
 
 open Syntax
 open TermCtx
 open Substitution hiding (subst)
 open ContextConversions
-open Kinding
-open KindedSubstitution
-open KindedParallelSubstitution
+open Typing
+open TypedSubstitution
 
 
 ------------------------------------------------------------------------
@@ -39,7 +31,7 @@ open KindedParallelSubstitution
 -- NOTE. The following are corollaries of the corresponding soundness
 -- lemmas using untyped β-reduction and the subject reduction property
 -- for kinding (see the Syntax.HereditarySubstitution and
--- Kinding.Declarative.Validity modules for details).
+-- Typing.Validity modules for details).
 
 -- Soundness of hereditary substitution: the results of ordinary and
 -- hereditary substitutions in well-formed kinds resp. well-kinded
@@ -63,9 +55,8 @@ Tp∈-⌞⌟-[]-≃ {_} {_} {a} {b} {j} {k} ⌞a⌟∈⌞k⌟ ⌞b⌟∈⌞j⌟ 
 Tp∈-⌞⌟-·-≃ : ∀ {n} {Γ : Ctx n} {a b j k} →
              Γ ⊢Tp ⌞ a ⌟ ∈ Π j k → Γ ⊢Tp ⌞ b ⌟ ∈ j →
              Γ ⊢ ⌞ a ⌟ · ⌞ b ⌟ ≃ ⌞ a ↓⌜·⌝ b ⌟ ∈ k Kind[ ⌞ b ⌟ ]
-Tp∈-⌞⌟-·-≃ {_} {_} {a} {b} {j} {k} ⌞a⌟∈Πjk ⌞b⌟∈j with Tp∈-valid ⌞a⌟∈Πjk
-... | (kd-Π j-kd k-kd) =
-  Tp∈-→β*-≃ (∈-Π-e ⌞a⌟∈Πjk ⌞b⌟∈j k-kd (kd-[] k-kd (∈-tp ⌞b⌟∈j))) (⌞⌟-↓⌜·⌝-β a b)
+Tp∈-⌞⌟-·-≃ {_} {_} {a} {b} {j} {k} ⌞a⌟∈Πjk ⌞b⌟∈j =
+  Tp∈-→β*-≃ (∈-Π-e ⌞a⌟∈Πjk ⌞b⌟∈j) (⌞⌟-↓⌜·⌝-β a b)
 
 
 ------------------------------------------------------------------------
@@ -200,8 +191,9 @@ mutual
   Tp∈-≃-⌞⌟-nf (∈-⊤-f Γ-ctx) = ≃-refl (∈-⊤-f Γ-ctx)
   Tp∈-≃-⌞⌟-nf (∈-∀-f k-kd a∈*) = ≃-∀ (kd-≅-⌞⌟-nf k-kd) (Tp∈-≃-⌞⌟-nf a∈*)
   Tp∈-≃-⌞⌟-nf (∈-→-f a∈* b∈*)  = ≃-→ (Tp∈-≃-⌞⌟-nf a∈*) (Tp∈-≃-⌞⌟-nf b∈*)
-  Tp∈-≃-⌞⌟-nf (∈-Π-i j-kd a∈k k-kd) = ≃-λ′ (kd-≅-⌞⌟-nf j-kd) (Tp∈-≃-⌞⌟-nf a∈k)
-  Tp∈-≃-⌞⌟-nf {_} {Γ} (∈-Π-e {a} {b} {j} {k} a∈Πjk b∈j k-kd k[b]-kd) =
+  Tp∈-≃-⌞⌟-nf (∈-Π-i j-kd a∈k) = ≃-λ′ (kd-≅-⌞⌟-nf j-kd) (Tp∈-≃-⌞⌟-nf a∈k)
+  Tp∈-≃-⌞⌟-nf {_} {Γ} (∈-Π-e {a} {b} {j} {k} a∈Πjk b∈j) with Tp∈-valid a∈Πjk
+  ... | (kd-Π j-kd k-kd) =
     begin
       a · b
     ≃⟨ ≃-· a≃⌞nf-a⌟∈Πjk b≃⌞nf-b⌟∈j ⟩

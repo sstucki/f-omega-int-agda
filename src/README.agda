@@ -90,10 +90,6 @@ open import FOmegaInt.Kinding.Canonical.WeakEquality
 -- Equivalence of canonical and declarative kinding.
 open import FOmegaInt.Kinding.Canonical.Equivalence
 
--- Inversion lemmas for the alternate declarative subtyping judgment
--- that hold in the empty context.
-open import FOmegaInt.Kinding.Declarative.Inversion
-
 -- Generation of typing and inversion of declarative subtyping in the
 -- empty context.
 open import FOmegaInt.Typing.Inversion

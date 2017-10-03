@@ -10,17 +10,18 @@ open import Data.Fin.Substitution using (Sub; Lift; TermSubst)
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (suc)
 open import Data.Product using (_,_; proj₁; proj₂; _×_)
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality hiding ([_])
 
 open import FOmegaInt.Syntax
-open import FOmegaInt.Kinding.Declarative
-open import FOmegaInt.Kinding.Declarative.Validity
+open import FOmegaInt.Typing
+open import FOmegaInt.Typing.Validity
 
-open Syntax       hiding (⌈_⌉)
+open Syntax
 open TermCtx
 open Substitution hiding (subst; _/_; _Kind/_)
-open Kinding
-open KindedSubstitution
+open Typing
+open TypedSubstitution
+open TypedNarrowing
 
 
 ----------------------------------------------------------------------
@@ -87,7 +88,6 @@ mutual
   ⌈ ★     ⌉↑ = *
   ⌈ j ⇒ k ⌉↑ = Π ⌈ j ⌉↓ ⌈ k ⌉↑
 
-
 mutual
 
   -- Proof of point 1 above: `⌈_⌉↓' and `⌈_⌉↑' are right-inverses of
@@ -126,9 +126,8 @@ mutual
   ⌈⌉↑-maximum : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k <∷ ⌈ ⌊ k ⌋ ⌉↑
   ⌈⌉↑-maximum (kd-⋯ a∈* b∈*)       = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ b∈*)
   ⌈⌉↑-maximum (kd-Π {j} j-kd k-kd) =
-    let ⌈⌊j⌋⌉↓-kd = ⌈⌉↓-kd ⌊ j ⌋ (kd-ctx j-kd)
-        ⌈⌊j⌋⌉↓<∷j = ⌈⌉↓-minimum j-kd
-    in <∷-Π ⌈⌊j⌋⌉↓<∷j (⌈⌉↑-maximum (⇓-kd ⌈⌊j⌋⌉↓-kd ⌈⌊j⌋⌉↓<∷j k-kd))
+    let ⌈⌊j⌋⌉↓<∷j = ⌈⌉↓-minimum j-kd
+    in <∷-Π ⌈⌊j⌋⌉↓<∷j (⌈⌉↑-maximum (⇓-kd ⌈⌊j⌋⌉↓<∷j k-kd))
             (kd-Π j-kd k-kd)
 
   ⌈⌉↓-minimum : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ ⌈ ⌊ k ⌋ ⌉↓ <∷ k
@@ -185,16 +184,14 @@ mutual
 ∈-⊥⟨⟩ (j ⇒ k) Γ-ctx =
   let ⌈j⌉-kd = ⌈⌉-kd j Γ-ctx
       ⌈j⌉∷Γ  = wf-kd ⌈j⌉-kd ∷ Γ-ctx
-      ⌈k⌉-kd = ⌈⌉-kd k ⌈j⌉∷Γ
-  in ∈-Π-i ⌈j⌉-kd (∈-⊥⟨⟩ k ⌈j⌉∷Γ) ⌈k⌉-kd
+  in ∈-Π-i ⌈j⌉-kd (∈-⊥⟨⟩ k ⌈j⌉∷Γ)
 
 ∈-⊤⟨⟩ : ∀ {n} {Γ : Ctx n} k → Γ ctx → Γ ⊢Tp ⊤⟨ k ⟩ ∈ ⌈ k ⌉
 ∈-⊤⟨⟩ ★       Γ-ctx = ∈-⊤-f Γ-ctx
 ∈-⊤⟨⟩ (j ⇒ k) Γ-ctx =
   let ⌈j⌉-kd = ⌈⌉-kd j Γ-ctx
       ⌈j⌉∷Γ  = wf-kd ⌈j⌉-kd ∷ Γ-ctx
-      ⌈k⌉-kd = ⌈⌉-kd k ⌈j⌉∷Γ
-  in ∈-Π-i ⌈j⌉-kd (∈-⊤⟨⟩ k ⌈j⌉∷Γ) ⌈k⌉-kd
+  in ∈-Π-i ⌈j⌉-kd (∈-⊤⟨⟩ k ⌈j⌉∷Γ)
 
 -- ⊥⟨ k ⟩ and ⊤⟨ k ⟩ are extremal types in ⌈ k ⌉.
 
@@ -206,9 +203,7 @@ mutual
            (<:-η₁ a∈⌈j⇒k⌉)
   where
     Γ-ctx  = Tp∈-ctx a∈⌈j⇒k⌉
-    ⌈j⌉-kd = ⌈⌉-kd j Γ-ctx
-    ⌈k⌉-kd = ⌈⌉-kd k (wf-kd ⌈j⌉-kd ∷ Γ-ctx)
-    Λa·z∈⌈j⇒k⌉ = Tp∈-η a∈⌈j⇒k⌉ ⌈j⌉-kd ⌈k⌉-kd
+    Λa·z∈⌈j⇒k⌉ = Tp∈-η a∈⌈j⇒k⌉
     a·z∈⌈k⌉    = proj₂ (Tp∈-Λ-inv Λa·z∈⌈j⇒k⌉)
 
 ⊤⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {a k} →
@@ -219,9 +214,7 @@ mutual
            (<:-λ (⊤⟨⟩-maximum a·z∈⌈k⌉) Λa·z∈⌈j⇒k⌉ (∈-⊤⟨⟩ (j ⇒ k) Γ-ctx))
   where
     Γ-ctx  = Tp∈-ctx a∈⌈j⇒k⌉
-    ⌈j⌉-kd = ⌈⌉-kd j Γ-ctx
-    ⌈k⌉-kd = ⌈⌉-kd k (wf-kd ⌈j⌉-kd ∷ Γ-ctx)
-    Λa·z∈⌈j⇒k⌉ = Tp∈-η a∈⌈j⇒k⌉ ⌈j⌉-kd ⌈k⌉-kd
+    Λa·z∈⌈j⇒k⌉ = Tp∈-η a∈⌈j⇒k⌉
     a·z∈⌈k⌉    = proj₂ (Tp∈-Λ-inv Λa·z∈⌈j⇒k⌉)
 
 -- An alternate pair of higher-order extremal types inhabiting the
@@ -243,7 +236,7 @@ mutual
   let ⌈j⌉↑-kd = ⌈⌉↑-kd j Γ-ctx
       ⌈j⌉↑∷Γ  = wf-kd ⌈j⌉↑-kd ∷ Γ-ctx
       ⌈k⌉↑-kd = ⌈⌉↑-kd k ⌈j⌉↑∷Γ
-  in ∈-⇑ (∈-Π-i ⌈j⌉↑-kd (∈-⊥↑⟨⟩ k ⌈j⌉↑∷Γ) ⌈k⌉↑-kd)
+  in ∈-⇑ (∈-Π-i ⌈j⌉↑-kd (∈-⊥↑⟨⟩ k ⌈j⌉↑∷Γ))
          (<∷-Π (⌈⌉↓<∷⌈⌉↑ j Γ-ctx)
                (<∷-refl (⌈⌉↑-kd k ((wf-kd (⌈⌉↓-kd j Γ-ctx)) ∷ Γ-ctx)))
                (kd-Π ⌈j⌉↑-kd ⌈k⌉↑-kd))
@@ -254,7 +247,7 @@ mutual
   let ⌈j⌉↑-kd = ⌈⌉↑-kd j Γ-ctx
       ⌈j⌉↑∷Γ  = wf-kd ⌈j⌉↑-kd ∷ Γ-ctx
       ⌈k⌉↑-kd = ⌈⌉↑-kd k ⌈j⌉↑∷Γ
-  in ∈-⇑ (∈-Π-i ⌈j⌉↑-kd (∈-⊤↑⟨⟩ k ⌈j⌉↑∷Γ) ⌈k⌉↑-kd)
+  in ∈-⇑ (∈-Π-i ⌈j⌉↑-kd (∈-⊤↑⟨⟩ k ⌈j⌉↑∷Γ))
          (<∷-Π (⌈⌉↓<∷⌈⌉↑ j Γ-ctx)
                (<∷-refl (⌈⌉↑-kd k ((wf-kd (⌈⌉↓-kd j Γ-ctx)) ∷ Γ-ctx)))
                (kd-Π ⌈j⌉↑-kd ⌈k⌉↑-kd))
@@ -272,11 +265,10 @@ mutual
   where
     Πjk<∷⌈Πjk⌉↑ = ⌈⌉↑-maximum (kd-Π j-kd k-kd)
     Γ-ctx       = Tp∈-ctx a∈Πjk
-    ⌈⌊j⌋⌉↓-kd   = ⌈⌉↓-kd ⌊ j ⌋ Γ-ctx
     ⌈⌊j⌋⌉↓<∷j   = ⌈⌉↓-minimum j-kd
-    Λa·z∈Πjk    = Tp∈-η a∈Πjk j-kd k-kd
+    Λa·z∈Πjk    = Tp∈-η a∈Πjk
     a·z∈k       = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
-    a·z∈k′      = ⇓-Tp∈ ⌈⌊j⌋⌉↓-kd ⌈⌊j⌋⌉↓<∷j a·z∈k
+    a·z∈k′      = ⇓-Tp∈ ⌈⌊j⌋⌉↓<∷j a·z∈k
 
 ⊤↑⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {a k} →
                Γ ⊢Tp a ∈ k → Γ ⊢ a <: ⊤↑⟨ ⌊ k ⌋ ⟩ ∈ ⌈ ⌊ k ⌋ ⌉↑
@@ -289,11 +281,10 @@ mutual
   where
     Πjk<∷⌈Πjk⌉↑ = ⌈⌉↑-maximum (kd-Π j-kd k-kd)
     Γ-ctx       = Tp∈-ctx a∈Πjk
-    ⌈⌊j⌋⌉↓-kd   = ⌈⌉↓-kd ⌊ j ⌋ Γ-ctx
     ⌈⌊j⌋⌉↓<∷j   = ⌈⌉↓-minimum j-kd
-    Λa·z∈Πjk    = Tp∈-η a∈Πjk j-kd k-kd
+    Λa·z∈Πjk    = Tp∈-η a∈Πjk
     a·z∈k       = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
-    a·z∈k′      = ⇓-Tp∈ ⌈⌊j⌋⌉↓-kd ⌈⌊j⌋⌉↓<∷j a·z∈k
+    a·z∈k′      = ⇓-Tp∈ ⌈⌊j⌋⌉↓<∷j a·z∈k
 
 -- Yet another variant of higher-order extremal types, this time
 -- indexed by possibly dependent kinds.
@@ -341,11 +332,11 @@ kd-*⟨⟩ (kd-Π j-kd k-kd) = kd-Π j-kd (kd-*⟨⟩ k-kd)
 
 ∈-⊥′⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢Tp ⊥′⟨ k ⟩ ∈ *⟨ k ⟩
 ∈-⊥′⟨⟩ (kd-⋯ a∈* b∈*)   = ∈-⊥-f (Tp∈-ctx a∈*)
-∈-⊥′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊥′⟨⟩ k-kd) (kd-*⟨⟩ k-kd)
+∈-⊥′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊥′⟨⟩ k-kd)
 
 ∈-⊤′⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢Tp ⊤′⟨ k ⟩ ∈ *⟨ k ⟩
 ∈-⊤′⟨⟩ (kd-⋯ a∈* b∈*)   = ∈-⊤-f (Tp∈-ctx a∈*)
-∈-⊤′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊤′⟨⟩ k-kd) (kd-*⟨⟩ k-kd)
+∈-⊤′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊤′⟨⟩ k-kd)
 
 -- A helper: any well-formed kind k is a subkind of *⟨ k ⟩.
 *⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k <∷ *⟨ k ⟩
@@ -358,29 +349,27 @@ kd-*⟨⟩ (kd-Π j-kd k-kd) = kd-Π j-kd (kd-*⟨⟩ k-kd)
 ⊥′⟨⟩-minimum : ∀ {n} {Γ : Ctx n} {a k} →
                Γ ⊢Tp a ∈ k → Γ ⊢ ⊥′⟨ k ⟩ <: a ∈ *⟨ k ⟩
 ⊥′⟨⟩-minimum {k = b ⋯ c} a∈b⋯c = <:-⊥ a∈b⋯c
-⊥′⟨⟩-minimum {k = Π j k} a∈Πjk with Tp∈-valid a∈Πjk
-... | kd-Π j-kd k-kd =
+⊥′⟨⟩-minimum {k = Π j k} a∈Πjk =
   <:-trans (<:-λ (⊥′⟨⟩-minimum a·z∈k) (∈-⊥′⟨⟩ Πjk-kd)
                  (∈-⇑ Λa·z∈Πjk Πjk-kd<∷*⟨Πjk⟩))
            (<:-η₁ (∈-⇑ a∈Πjk Πjk-kd<∷*⟨Πjk⟩))
   where
-    Λa·z∈Πjk       = Tp∈-η a∈Πjk j-kd k-kd
+    Λa·z∈Πjk       = Tp∈-η a∈Πjk
     a·z∈k          = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
-    Πjk-kd         = kd-Π j-kd k-kd
+    Πjk-kd         = Tp∈-valid a∈Πjk
     Πjk-kd<∷*⟨Πjk⟩ = *⟨⟩-maximum Πjk-kd
 
 ⊤′⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {a k} →
                Γ ⊢Tp a ∈ k → Γ ⊢ a <: ⊤′⟨ k ⟩ ∈ *⟨ k ⟩
 ⊤′⟨⟩-maximum {k = b ⋯ c} a∈b⋯c = <:-⊤ a∈b⋯c
-⊤′⟨⟩-maximum {k = Π j k} a∈Πjk with Tp∈-valid a∈Πjk
-... | kd-Π j-kd k-kd =
+⊤′⟨⟩-maximum {k = Π j k} a∈Πjk =
   <:-trans (<:-η₂ (∈-⇑ a∈Πjk Πjk-kd<∷*⟨Πjk⟩))
            (<:-λ (⊤′⟨⟩-maximum a·z∈k) (∈-⇑ Λa·z∈Πjk Πjk-kd<∷*⟨Πjk⟩)
                  (∈-⊤′⟨⟩ Πjk-kd))
   where
-    Λa·z∈Πjk       = Tp∈-η a∈Πjk j-kd k-kd
+    Λa·z∈Πjk       = Tp∈-η a∈Πjk
     a·z∈k          = proj₂ (Tp∈-Λ-inv Λa·z∈Πjk)
-    Πjk-kd         = kd-Π j-kd k-kd
+    Πjk-kd         = Tp∈-valid a∈Πjk
     Πjk-kd<∷*⟨Πjk⟩ = *⟨⟩-maximum Πjk-kd
 
 -- Applications of higher-order extrema result in lower-order extrema.
@@ -434,8 +423,8 @@ kd-⋯⟨⟩ a∈c⋯d b∈c⋯d | kd-⋯ _ _       = kd-⋯ (Tp∈-⋯-* a∈c�
 kd-⋯⟨⟩ a∈Πjk b∈Πjk | kd-Π j-kd k-kd =
   kd-Π j-kd (kd-⋯⟨⟩ a·z∈k b·z∈k)
   where
-    a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk j-kd k-kd))
-    b·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η b∈Πjk j-kd k-kd))
+    a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk))
+    b·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η b∈Πjk))
 
 -- NOTE.  We would like to show that the inverse of the above also
 -- holds, i.e. that given a well-formed higher-order interval kind `a
@@ -484,23 +473,20 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
 <∷-⋯⟨⟩ a₂<:a₁∈c⋯d b₁<:b₂∈c⋯d | kd-⋯ _ _ =
   <∷-⋯ (<:-⋯-* a₂<:a₁∈c⋯d) (<:-⋯-* b₁<:b₂∈c⋯d)
 <∷-⋯⟨⟩ a₂<:a₁∈Πjk b₁<:b₂∈Πjk | kd-Π j-kd k-kd =
-  let module TR = KindedRenaming
+  let module TR = TypedRenaming
 
       a₂∈Πjk , a₁∈Πjk = <:-valid a₂<:a₁∈Πjk
       b₁∈Πjk , b₂∈Πjk = <:-valid b₁<:b₂∈Πjk
       Γ-ctx   = kd-ctx j-kd
       j-wf    = wf-kd j-kd
       j∷Γ-ctx = j-wf ∷ Γ-ctx
-      j-kd′   = kd-weaken j-wf j-kd
-      k-kd′   = TR.kd-/ k-kd (TR.∈-↑ (wf-kd j-kd′) (TR.∈-wk j-wf))
       z∈k     = ∈-var zero j∷Γ-ctx refl
       z≃z∈k   = ≃-refl z∈k
       a₂<:a₁∈Πjk′ = <:-weaken j-wf a₂<:a₁∈Πjk
       b₁<:b₂∈Πjk′ = <:-weaken j-wf b₁<:b₂∈Πjk
-      k[z]-kd     = kd-[] k-kd′ (∈-tp z∈k)
       k[z]≡k      = Kind-wk↑-sub-zero-vanishes _
-      a₂·z<:a₁·z∈k[z] = <:-· a₂<:a₁∈Πjk′ z≃z∈k z∈k k-kd′ k[z]-kd
-      b₁·z<:b₂·z∈k[z] = <:-· b₁<:b₂∈Πjk′ z≃z∈k z∈k k-kd′ k[z]-kd
+      a₂·z<:a₁·z∈k[z] = <:-· a₂<:a₁∈Πjk′ z≃z∈k
+      b₁·z<:b₂·z∈k[z] = <:-· b₁<:b₂∈Πjk′ z≃z∈k
       a₂·z<:a₁·z∈k = subst (_ ⊢ _ <: _ ∈_) k[z]≡k a₂·z<:a₁·z∈k[z]
       b₁·z<:b₂·z∈k = subst (_ ⊢ _ <: _ ∈_) k[z]≡k b₁·z<:b₂·z∈k[z]
   in <∷-Π (<∷-refl j-kd)
@@ -528,7 +514,7 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
   Λ j (η-exp k (weaken a · var zero))   ∎
   where
     open ≃-Reasoning
-    a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk j-kd k-kd))
+    a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk))
 
 -- A singleton introduction rule for higher-order interval kinds.
 ∈-s⟨⟩-i : ∀ {n} {Γ : Ctx n} {a k} →
@@ -536,9 +522,9 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
 ∈-s⟨⟩-i a∈k   with Tp∈-valid a∈k
 ∈-s⟨⟩-i a∈b⋯c | kd-⋯ _ _       = ∈-s-i a∈b⋯c
 ∈-s⟨⟩-i a∈Πjk | kd-Π j-kd k-kd =
-  ∈-Π-i j-kd (∈-s⟨⟩-i a·z∈k) (kd-⋯⟨⟩ a·z∈k a·z∈k)
+  ∈-Π-i j-kd (∈-s⟨⟩-i a·z∈k)
   where
-    a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk j-kd k-kd))
+    a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk))
 
 -- A corollary: we can kind (the η-expansion of) a type with explicit
 -- lower and uper bounds in the interval defined by these bounds.
@@ -561,18 +547,17 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
 <:-⋯⟨⟩-⟨|⟩ : ∀ {n} {Γ : Ctx n} {a b c k} →
              Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → Γ ⊢Tp c ∈ k →
              Γ ⊢Tp a ∈ b ⋯⟨ k ⟩ c → Γ ⊢ b <: a ∈ k × Γ ⊢ a <: c ∈ k
-<:-⋯⟨⟩-⟨|⟩ a∈k   b∈k   c∈k   a∈b⋯⟨k⟩c       with Tp∈-valid a∈k
-<:-⋯⟨⟩-⟨|⟩ a∈d⋯e b∈d⋯e c∈d⋯e a∈b⋯c          | kd-⋯ _ _ =
+<:-⋯⟨⟩-⟨|⟩ {k = _ ⋯ _} a∈d⋯e b∈d⋯e c∈d⋯e a∈b⋯c          =
   <:-⇑ (<:-⋯-i (<:-⟨| a∈b⋯c)) (<∷-⋯ (<:-⟨| b∈d⋯e) (<:-|⟩ a∈d⋯e)) ,
   <:-⇑ (<:-⋯-i (<:-|⟩ a∈b⋯c)) (<∷-⋯ (<:-⟨| a∈d⋯e) (<:-|⟩ c∈d⋯e))
-<:-⋯⟨⟩-⟨|⟩ a∈Πjk b∈Πjk c∈Πjk a∈Πjb·z⋯⟨k⟩c·z | kd-Π j-kd k-kd =
-  let Λa·z∈Πjk  = Tp∈-η a∈Πjk j-kd k-kd
-      Λb·z∈Πjk  = Tp∈-η b∈Πjk j-kd k-kd
-      Λc·z∈Πjk  = Tp∈-η c∈Πjk j-kd k-kd
+<:-⋯⟨⟩-⟨|⟩ {k = Π _ _} a∈Πjk b∈Πjk c∈Πjk a∈Πjb·z⋯⟨k⟩c·z =
+  let Λa·z∈Πjk  = Tp∈-η a∈Πjk
+      Λb·z∈Πjk  = Tp∈-η b∈Πjk
+      Λc·z∈Πjk  = Tp∈-η c∈Πjk
       _ , a·z∈k = Tp∈-Λ-inv Λa·z∈Πjk
       _ , b·z∈k = Tp∈-Λ-inv Λb·z∈Πjk
       _ , c·z∈k = Tp∈-Λ-inv Λc·z∈Πjk
-      Λa·z∈Πjb·z⋯⟨k⟩c·z  = Tp∈-η a∈Πjb·z⋯⟨k⟩c·z j-kd (kd-⋯⟨⟩ b·z∈k c·z∈k)
+      Λa·z∈Πjb·z⋯⟨k⟩c·z  = Tp∈-η a∈Πjb·z⋯⟨k⟩c·z
       _ , a·z∈b·z⋯⟨k⟩c·z = Tp∈-Λ-inv Λa·z∈Πjb·z⋯⟨k⟩c·z
       b·z<:a·z∈k , a·z<:c·z∈k = <:-⋯⟨⟩-⟨|⟩ a·z∈k b·z∈k c·z∈k a·z∈b·z⋯⟨k⟩c·z
       Λjb·z<:Λja·z∈Πjk = <:-λ b·z<:a·z∈k Λb·z∈Πjk Λa·z∈Πjk
@@ -593,6 +578,26 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
             Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → Γ ⊢Tp c ∈ k →
             Γ ⊢Tp a ∈ b ⋯⟨ k ⟩ c → Γ ⊢ a <: c ∈ k
 <:-⋯⟨⟩-|⟩ a∈k b∈k c∈k a∈b⋯⟨k⟩c = proj₂ (<:-⋯⟨⟩-⟨|⟩ a∈k b∈k c∈k a∈b⋯⟨k⟩c)
+
+-- An interval introduction rule for subtypes inhabiting higher-order
+-- interval kinds.
+<:-⋯⟨⟩-i : ∀ {n} {Γ : Ctx n} {a b k} →
+           Γ ⊢ a <: b ∈ k → Γ ⊢ η-exp k a <: η-exp k b ∈ a ⋯⟨ k ⟩ b
+<:-⋯⟨⟩-i a<:b∈k   with <:-valid-kd a<:b∈k
+<:-⋯⟨⟩-i a<:b∈c⋯d | kd-⋯ _ _    = <:-⋯-i a<:b∈c⋯d
+<:-⋯⟨⟩-i a<:b∈Πjk | kd-Π j-kd _ =
+  let j-wf          = wf-kd j-kd
+      Γ-ctx         = <:-ctx a<:b∈Πjk
+      j∷Γ-ctx       = j-wf ∷ Γ-ctx
+      a∈Πjk , b∈Πjk = <:-valid a<:b∈Πjk
+      a<:b∈Πjk′     = <:-weaken j-wf a<:b∈Πjk
+      a·z<:b·z∈k[z] = <:-· a<:b∈Πjk′ (≃-refl (∈-var zero j∷Γ-ctx refl))
+      a·z<:b·z∈k    = subst (_ ⊢ _ <: _ ∈_) (Kind-wk↑-sub-zero-vanishes _)
+                            a·z<:b·z∈k[z]
+      a·z<:b·z∈a·z⋯⟨k⟩b·z = <:-⋯⟨⟩-i a·z<:b·z∈k
+  in <:-λ a·z<:b·z∈a·z⋯⟨k⟩b·z
+          (∈-⇑ (∈-s⟨⟩-i a∈Πjk) (<∷-⋯⟨⟩ (<:-refl a∈Πjk) a<:b∈Πjk))
+          (∈-⇑ (∈-s⟨⟩-i b∈Πjk) (<∷-⋯⟨⟩ a<:b∈Πjk (<:-refl b∈Πjk)))
 
 -- Any interval indexed by *⟨ k ⟩ can be re-indexed by k
 *⟨⟩-⋯⟨⟩ : ∀ {n} {a b : Term n} k → a ⋯⟨ *⟨ k ⟩ ⟩ b ≡ a ⋯⟨ k ⟩ b
@@ -630,15 +635,40 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
 
 
 ----------------------------------------------------------------------
--- Encodings and admissible kinding rules of bounded quantifiers
+-- Encodings and admissible kinding rules of bounded quantifiers and
+-- operators
+
+-- Bounded operator kind.
+Π′ : ∀ {n} → Term n → Term n → Kind Term n → Kind Term (suc n) → Kind Term n
+Π′ a b j k = Π (a ⋯⟨ j ⟩ b) k
 
 -- Bounded universal quantifiers.
 ∀′ : ∀ {n} → Term n → Term n → Kind Term n → Term (suc n) → Term n
 ∀′ a b k c = Π (a ⋯⟨ k ⟩ b) c
 
--- Bounded universal quantifier abstraction.
+-- Bounded type abstraction.
 Λ′ : ∀ {n} → Term n → Term n → Kind Term n → Term (suc n) → Term n
 Λ′ a b k c = Λ (a ⋯⟨ k ⟩ b) c
+
+-- A formation rule for bounded operator kinds.
+∈-Π′-f : ∀ {n} {Γ : Ctx n} {a b j k} →
+         Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ j → kd (a ⋯⟨ j ⟩ b) ∷ Γ ⊢ k kd →
+         Γ ⊢ Π′ a b j k kd
+∈-Π′-f a∈j b∈j k-kd = kd-Π (kd-⋯⟨⟩ a∈j b∈j) k-kd
+
+-- An introduction rule for bounded universal quantifiers.
+∈-Π′-i : ∀ {n} {Γ : Ctx n} {a b j c k} →
+         Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ j → kd (a ⋯⟨ j ⟩ b) ∷ Γ ⊢Tp c ∈ k →
+         Γ ⊢Tp Λ′ a b j c ∈ Π′ a b j k
+∈-Π′-i a∈j b∈j c∈k = ∈-Π-i (kd-⋯⟨⟩ a∈j b∈j) c∈k
+
+-- An elimination rule for bounded universal quantifiers.
+∈-Π′-e : ∀ {n} {Γ : Ctx n} {a b c j k d} →
+         Γ ⊢Tp a ∈ Π′ b c j k → Γ ⊢ b <: d ∈ j → Γ ⊢ d <: c ∈ j →
+         Γ ⊢Tp a · η-exp j d ∈ k Kind[ η-exp j d ]
+∈-Π′-e a∈Πbcjk b<:d∈j d<:c∈j =
+  let d∈j , _ = <:-valid d<:c∈j
+  in ∈-Π-e a∈Πbcjk (∈-⇑ (∈-s⟨⟩-i d∈j) (<∷-⋯⟨⟩ b<:d∈j d<:c∈j))
 
 -- A formation rule for bounded universal quantifiers.
 ∈-∀′-f : ∀ {n} {Γ : Ctx n} {a b k c} →
@@ -646,10 +676,89 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
          Γ ⊢Tp ∀′ a b k c ∈ *
 ∈-∀′-f a∈k b∈k c∈* = ∈-∀-f (kd-⋯⟨⟩ a∈k b∈k) c∈*
 
--- TODO.  We also want to show that there are admissible introduction
--- and elimination rules for bounded quantifiers.  To do so, we need
--- to first re-write the above development so it uses the kinding
--- rules defined in FOmegaInt.Typing rather than those from
--- FOmegaInt.Kinding.Declarative.  This will require "transporting"
--- some lemmas about declarative kinding (in particular validity
--- lemmas) via the equivalence of the two presentations.
+-- An introduction rule for bounded universal quantifiers.
+∈-∀′-i : ∀ {n} {Γ : Ctx n} {a b k c d} →
+         Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → kd (a ⋯⟨ k ⟩ b) ∷ Γ ⊢Tm c ∈ d →
+         Γ ⊢Tm Λ′ a b k c ∈ ∀′ a b k d
+∈-∀′-i a∈k b∈k c∈d = ∈-∀-i (kd-⋯⟨⟩ a∈k b∈k) c∈d
+
+-- An elimination rule for bounded universal quantifiers.
+∈-∀′-e : ∀ {n} {Γ : Ctx n} {a b c k d e} →
+         Γ ⊢Tm a ∈ ∀′ b c k d → Γ ⊢ b <: e ∈ k → Γ ⊢ e <: c ∈ k →
+         Γ ⊢Tm a ⊡ η-exp k e ∈ d [ η-exp k e ]
+∈-∀′-e a∈∀bckd b<:e∈k e<:c∈k =
+  let e∈k , _ = <:-valid e<:c∈k
+  in ∈-∀-e a∈∀bckd (∈-⇑ (∈-s⟨⟩-i e∈k) (<∷-⋯⟨⟩ b<:e∈k e<:c∈k))
+
+
+------------------------------------------------------------------------
+-- Stone and Harper's singleton (sub)kinding rules.
+--
+-- See p. 3 (216) of C. A. Stone and R. Harper, Deciding Type
+-- Equivalence in a Language with Singleton Kinds, proc. POPL'00, ACM,
+-- 2000.
+
+-- An encoding of Stone and Harper's singleton kinds.
+S : ∀ {n} → Term n → Kind Term n
+S a = a ⋯ a
+
+-- Singleton kind formation.
+kd-s : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ S a kd
+kd-s a∈* = kd-⋯ a∈* a∈*
+
+-- Singleton introduction for kinding is exactly the `∈-s-i' kinding rule.
+
+-- Singleton introduction for equality.
+--
+-- NOTE. This is just a weaker version of `≃-s-i'.
+≃-s-i′ : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ a ≃ b ∈ S a
+≃-s-i′ a≃b∈* = ≃-s-i a≃b∈*
+
+-- Singleton elimination.
+≃-s-e : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢Tp a ∈ S b → Γ ⊢ a ≃ b ∈ *
+≃-s-e a∈b⋯b = <:-antisym (<:-|⟩ a∈b⋯b) (<:-⟨| a∈b⋯b)
+
+-- Subkinding of singletons.
+
+<∷-s-* : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ S a <∷ *
+<∷-s-* a∈* = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ a∈*)
+
+<∷-s-s : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ S a <∷ S b
+<∷-s-s (<:-antisym a<:b∈* b<:a∈*) = <∷-⋯ b<:a∈* a<:b∈*
+
+-- Equality of singleton kinds.
+--
+-- NOTE. This is just a weaker version of `≅-⋯'.
+≅-s : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ S a ≅ S b
+≅-s a≃b∈* = ≅-⋯ a≃b∈* a≃b∈*
+
+
+------------------------------------------------------------------------
+-- Cardelli and Longo's power (sub)kinding rules.
+--
+-- See p. 8 (424) of L. Cardelli, G. Longo, A Semantic Basis for
+-- Quest, JFP 1(4), Cambridge University Press, 1991.
+
+-- An encoding of Cardelli and Longo's power kinds.
+P : ∀ {n} → Term n → Kind Term n
+P a = ⊥ ⋯ a
+
+-- Power kind formation.
+kd-p : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ P a kd
+kd-p a∈* = kd-⋯ (∈-⊥-f (Tp∈-ctx a∈*)) a∈*
+
+-- Power kind introduction.
+∈-p-i : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢Tp a ∈ P a
+∈-p-i a∈* = ∈-⇑ (∈-s-i a∈*) (<∷-⋯ (<:-⊥ a∈*) (<:-refl a∈*))
+
+-- Subkinding of power kinds.
+<∷-p : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢ P a <∷ P b
+<∷-p a<:b∈* = <∷-⋯ (<:-⊥ (∈-⊥-f (<:-ctx a<:b∈*))) a<:b∈*
+
+-- Power kinding is equivalent to subtyping of proper types.
+
+∈P⇒<: : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢Tp a ∈ P b → Γ ⊢ a <: b ∈ *
+∈P⇒<: a∈Pb = <:-|⟩ a∈Pb
+
+<:⇒∈P : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢Tp a ∈ P b
+<:⇒∈P a<:b∈* = ∈-⇑ (∈-p-i (proj₁ (<:-valid a<:b∈*))) (<∷-p a<:b∈*)

@@ -4,21 +4,13 @@
 
 module FOmegaInt.Kinding.Declarative.Validity where
 
-open import Data.Fin using (Fin; suc; zero)
-open import Data.Fin.Substitution
-open import Data.Fin.Substitution.Lemmas
+open import Data.Fin using (zero)
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Product as Prod using (∃; _,_; _×_; proj₁; proj₂)
-open import Data.Vec as Vec using ([]; _∷_)
-open import Data.Vec.All as VecAll using (All₂; []; _∷_)
-open import Data.Vec.All.Properties using (gmap; gmap₂)
-open import Data.Star using (ε; _◅_)
-open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
-open import Relation.Nullary.Negation using (contradiction)
+open import Data.Product as Prod using (_,_; _×_; proj₁; proj₂)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; subst)
 
 open import FOmegaInt.Syntax
 open import FOmegaInt.Kinding.Declarative
-open import FOmegaInt.Reduction.Full
 
 
 ------------------------------------------------------------------------
@@ -39,7 +31,6 @@ Tp∈-η : ∀ {n} {Γ : Ctx n} {a j k} →
 Tp∈-η {k = k} a∈Πjk j-kd k-kd =
   ∈-Π-i j-kd (subst (_ ⊢Tp _ ∈_) k′[z]≡k (∈-Π-e a∈Πjk′ z∈k k-kd′ k[z]-kd)) k-kd
   where
-    open ≡-Reasoning
     module TR = KindedRenaming
     module KL = TermLikeLemmas termLikeLemmasKind
 
@@ -137,231 +128,21 @@ mutual
 ≅-valid : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ j ≅ k → Γ ⊢ j kd × Γ ⊢ k kd
 ≅-valid (<∷-antisym j<∷k k<∷j) = <∷-valid j<∷k
 
--- Validity of combined kind and type equality: equal ascriptions are
--- well-formed.
-≃wf-valid : ∀ {n} {Γ : Ctx n} {a b} →
-            Γ ⊢ a ≃ b wf → Γ ⊢ a wf × Γ ⊢ b wf
-≃wf-valid (≃wf-≅ j≅k)   = Prod.map wf-kd wf-kd (≅-valid j≅k)
-≃wf-valid (≃wf-≃ a≃b∈k) = Prod.map wf-tp wf-tp (≃-valid a≃b∈k)
-
--- Some corollaries.
-
+-- A corollary.
 <:-valid-kd : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a <: b ∈ k → Γ ⊢ k kd
 <:-valid-kd a<:b∈k = Tp∈-valid (proj₁ (<:-valid a<:b∈k))
 
-≃-valid-kd : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a ≃ b ∈ k → Γ ⊢ k kd
-≃-valid-kd (<:-antisym a<:b∈k _) = <:-valid-kd a<:b∈k
-
--- Operations on well-formed context equality that require weakening
--- and validity of ascription equality.
-module CtxEqOps where
-  open KindedRenaming using (≃wf-weaken)
-
-  -- Convert a context equation to its All₂ representation.
-  ≃ctx-toAll : ∀ {m} {Γ Δ : Ctx m} → Γ ≃ Δ ctx →
-               All₂ (Γ ⊢_≃_wf) (toVec Γ) (toVec Δ)
-  ≃ctx-toAll ≃-[]          = []
-  ≃ctx-toAll (≃-∷ a≃b Γ≃Δ) =
-    let a-wf , _ = ≃wf-valid a≃b
-    in ≃wf-weaken a-wf a≃b ∷ gmap₂ (≃wf-weaken a-wf) (≃ctx-toAll Γ≃Δ)
-
-  -- Ascriptions looked up in equal contexts are equal.
-
-  lookup-≃ : ∀ {m} {Γ Δ : Ctx m} x → Γ ≃ Δ ctx →
-             Γ ⊢ lookup x Γ ≃ lookup x Δ wf
-  lookup-≃ x Γ≃Δ = VecAll.lookup₂ x (≃ctx-toAll Γ≃Δ)
-
-  lookup-≃-kd : ∀ {m} {Γ Δ : Ctx m} {j k} x → Γ ≃ Δ ctx →
-                lookup x Γ ≡ kd j → lookup x Δ ≡ kd k → Γ ⊢ j ≅ k
-  lookup-≃-kd x Γ≃Δ Γ[x]≡kd-j Δ[x]≡kd-k =
-    ≃wf-kd-inv (PropEq.subst₂ (_ ⊢_≃_wf) Γ[x]≡kd-j Δ[x]≡kd-k (lookup-≃ x Γ≃Δ))
-
 
 ----------------------------------------------------------------------
--- Admissible kind and type equality rules.
+-- Strengthened versions of kind formation and kinding functionality.
 
--- Single-variable substitutions map well-formed kinds to kind
--- equations (strong version).
+-- Functionality of kind formation (strong version).
 kd-[≃] : ∀ {n} {Γ : Ctx n} {a b j k} →
          kd j ∷ Γ ⊢ k kd → Γ ⊢ a ≃ b ∈ j → Γ ⊢ k Kind[ a ] ≅ k Kind[ b ]
 kd-[≃] k-kd a≃b∈j = let a∈j , b∈j = ≃-valid a≃b∈j in kd-[≃′] k-kd a∈j b∈j a≃b∈j
 
--- Single-variable substitutions map well-kinded types to type
--- equations (strong version).
+-- Functionality of kinding (strong version).
 Tp∈-[≃] : ∀ {n} {Γ : Ctx n} {a b c j k} →
           kd j ∷ Γ ⊢Tp a ∈ k → Γ ⊢ b ≃ c ∈ j →
           Γ ⊢ a [ b ] ≃ a [ c ] ∈ k Kind[ b ]
 Tp∈-[≃] a∈k b≃c∈j = let b∈j , c∈j = ≃-valid b≃c∈j in Tp∈-[≃′] a∈k b∈j c∈j b≃c∈j
-
--- An admissible congruence rule for kind equality w.r.t. dependent
--- arrow formation.
-≅-Π : ∀ {n} {Γ : Ctx n} {j₁ j₂ k₁ k₂} →
-      Γ ⊢ j₁ ≅ j₂ → kd j₁ ∷ Γ ⊢ k₁ ≅ k₂ → Γ ⊢ Π j₁ k₁ ≅ Π j₂ k₂
-≅-Π (<∷-antisym j₁<∷j₂ j₂<∷j₁) (<∷-antisym k₁<∷k₂ k₂<∷k₁) =
-  let j₁-kd , j₂-kd = <∷-valid j₁<∷j₂
-      k₁-kd , k₂-kd = <∷-valid k₁<∷k₂
-  in <∷-antisym (<∷-Π j₂<∷j₁ (⇓-<∷ j₂-kd j₂<∷j₁ k₁<∷k₂) (kd-Π j₁-kd k₁-kd))
-                (<∷-Π j₁<∷j₂ k₂<∷k₁ (kd-Π j₂-kd (⇓-kd j₂-kd j₂<∷j₁ k₂-kd)))
-
--- Equal types inhabiting interval kinds are proper types.
-≃-⋯-* : ∀ {n} {Γ : Ctx n} {a b c d} → Γ ⊢ a ≃ b ∈ c ⋯ d → Γ ⊢ a ≃ b ∈ *
-≃-⋯-* (<:-antisym a<:b∈c⋯d b<:a∈c⋯d) =
-  let a<:b∈* = <:-⋯-* a<:b∈c⋯d
-      b<:a∈* = <:-⋯-* b<:a∈c⋯d
-  in <:-antisym a<:b∈* b<:a∈*
-
--- An admissible congruence rule for type equality w.r.t. formation of
--- universal types.
-≃-∀ : ∀ {n} {Γ : Ctx n} {k₁ k₂ a₁ a₂} →
-      Γ ⊢ k₁ ≅ k₂ → kd k₁ ∷ Γ ⊢ a₁ ≃ a₂ ∈ * → Γ ⊢ Π k₁ a₁ ≃ Π k₂ a₂ ∈ *
-≃-∀ (<∷-antisym k₁<∷k₂ k₂<∷k₁) (<:-antisym a₁<:a₂∈* a₂<:a₁∈*) =
-  let k₁-kd , k₂-kd = <∷-valid k₁<∷k₂
-      a₁∈*  , a₂∈*  = <:-valid a₁<:a₂∈*
-  in <:-antisym (<:-∀ k₂<∷k₁ (⇓-<: k₂-kd k₂<∷k₁ a₁<:a₂∈*) (∈-∀-f k₁-kd a₁∈*))
-                (<:-∀ k₁<∷k₂ a₂<:a₁∈* (∈-∀-f k₂-kd (⇓-Tp∈ k₂-kd k₂<∷k₁ a₂∈*)))
-
--- Another, weaker congruence lemma for type equality w.r.t. type
--- operator abstraction.
-≃-λ′ : ∀ {n} {Γ : Ctx n} {j₁ j₂ a₁ a₂ k} →
-       Γ ⊢ j₁ ≅ j₂ → kd j₁ ∷ Γ ⊢ a₁ ≃ a₂ ∈ k → Γ ⊢ Λ j₁ a₁ ≃ Λ j₂ a₂ ∈ Π j₁ k
-≃-λ′ (<∷-antisym j₁<∷j₂ j₂<∷j₁) (<:-antisym a₁<:a₂∈k a₂<:a₁∈k) =
-  let j₁-kd , j₂-kd = <∷-valid j₁<∷j₂
-      a₁∈k  , a₂∈k  = <:-valid a₁<:a₂∈k
-      k-kd          = Tp∈-valid a₁∈k
-      k-kd′         = ⇓-kd j₂-kd j₂<∷j₁ k-kd
-      Πj₂k<∷j₁k     = <∷-Π j₁<∷j₂ (<∷-refl k-kd) (kd-Π j₂-kd k-kd′)
-      Λj₁a₁∈Πj₁k    = ∈-Π-i j₁-kd a₁∈k k-kd
-      Λj₂a₂∈Πj₁k    = ∈-⇑ (∈-Π-i j₂-kd (⇓-Tp∈ j₂-kd j₂<∷j₁ a₂∈k) k-kd′)
-                          Πj₂k<∷j₁k
-  in <:-antisym (<:-λ a₁<:a₂∈k Λj₁a₁∈Πj₁k Λj₂a₂∈Πj₁k)
-                (<:-λ a₂<:a₁∈k Λj₂a₂∈Πj₁k Λj₁a₁∈Πj₁k)
-
--- An admissible congruence rule for type equality w.r.t. type
--- application.
-≃-· : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ j k} →
-      Γ ⊢ a₁ ≃ a₂ ∈ Π j k → Γ ⊢ b₁ ≃ b₂ ∈ j →
-      Γ ⊢ a₁ · b₁ ≃ a₂ · b₂ ∈ k Kind[ b₁ ]
-≃-· (<:-antisym a₁<:a₂∈Πjk a₂<:a₁∈Πjk) b₁≃b₂∈j with <:-valid-kd a₁<:a₂∈Πjk
-... | (kd-Π j-kd k-kd) =
-  let b₁∈j , b₂∈j = ≃-valid b₁≃b₂∈j
-      k[b₁]-kd    = kd-[] k-kd (∈-tp b₁∈j)
-      k[b₂]-kd    = kd-[] k-kd (∈-tp b₂∈j)
-  in <:-antisym (<:-· a₁<:a₂∈Πjk b₁≃b₂∈j b₁∈j k-kd k[b₁]-kd)
-                (<:-⇑ (<:-· a₂<:a₁∈Πjk (≃-sym b₁≃b₂∈j) b₂∈j k-kd k[b₂]-kd)
-                      (≅⇒<∷ (kd-[≃] k-kd (≃-sym b₁≃b₂∈j))))
-
--- An admissible, more flexible β-rule for type equality.
-≃-β′ : ∀ {n} {Γ : Ctx n} {a b j k l} →
-       kd j ∷ Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ j → Γ ⊢Tp Λ l a ∈ Π j k →
-       Γ ⊢ (Λ l a) · b ≃ a [ b ] ∈ k Kind[ b ]
-≃-β′ a∈k b∈j Λla∈Πjk =
-  let j-kd      = Tp∈-valid b∈j
-      k-kd      = Tp∈-valid a∈k
-      k[b]-kd   = kd-[] k-kd (∈-tp b∈j)
-      a[b]∈k[b] = Tp∈-[] a∈k (∈-tp b∈j)
-  in ≃-trans (≃-· (≃-λ (≃-refl a∈k) Λla∈Πjk (∈-Π-i j-kd a∈k k-kd)) (≃-refl b∈j))
-             (≃-β a∈k b∈j a[b]∈k[b] k-kd k[b]-kd)
-
--- An admissible singleton-introduction rule for type equality.
-≃-s-i : ∀ {n} {Γ : Ctx n} {a b c d} → Γ ⊢ a ≃ b ∈ c ⋯ d → Γ ⊢ a ≃ b ∈ a ⋯ a
-≃-s-i (<:-antisym a<:b∈c⋯d b<:a∈c⋯d) =
-  let a<:b∈*  = <:-⋯-* a<:b∈c⋯d
-      b<:a∈*  = <:-⋯-* b<:a∈c⋯d
-      a∈* , _ = <:-valid a<:b∈*
-      a<:a∈*  = <:-refl a∈*
-  in <:-antisym (<:-⇑ (<:-⋯-i a<:b∈c⋯d) (<∷-⋯ a<:a∈* b<:a∈*))
-                (<:-⇑ (<:-⋯-i b<:a∈c⋯d) (<∷-⋯ a<:b∈* a<:a∈*))
-
-------------------------------------------------------------------------
--- Stone and Harper's singleton subkinding rules.
---
--- See p. 3 (216) of C. A. Stone and R. Harper, Deciding Type
--- Equivalence in a Language with Singleton Kinds, proc. POPL'00, ACM,
--- 2000.
-
--- Singleton introduction for kinding is exactly the `∈-s-i' kinding rule.
-
--- Singleton introduction for equality.
---
--- NOTE. This is just a weaker version of `≃-s-i'.
-≃-s-i′ : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ a ≃ b ∈ a ⋯ a
-≃-s-i′ a≃b∈* = ≃-s-i a≃b∈*
-
--- Singleton elimination.
-≃-s-proj : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢Tp a ∈ b ⋯ b → Γ ⊢ a ≃ b ∈ *
-≃-s-proj a∈b⋯b = <:-antisym (<:-|⟩ a∈b⋯b) (<:-⟨| a∈b⋯b)
-
--- Subkinding of singletons.
-
-<∷-s-* : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ a ⋯ a <∷ *
-<∷-s-* a∈* = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ a∈*)
-
-<∷-s-s : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ a ⋯ a <∷ b ⋯ b
-<∷-s-s (<:-antisym a<:b∈* b<:a∈*) = <∷-⋯ b<:a∈* a<:b∈*
-
-
-------------------------------------------------------------------------
--- Subject reduction for kinding.
-
--- A variant of subject reduction for kinding: untyped β-reduction of
--- kinds and types is included in kind resp. type equality.
-
-mutual
-
-  kd-→β-≅ : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ j kd → j Kd→β k → Γ ⊢ j ≅ k
-  kd-→β-≅ (kd-⋯ a∈* b∈*)   (a→a′ ⋯₁ b) = ≅-⋯ (Tp∈-→β-≃ a∈* a→a′) (≃-refl b∈*)
-  kd-→β-≅ (kd-⋯ a∈* b∈*)   (a ⋯₂ b→b′) = ≅-⋯ (≃-refl a∈*) (Tp∈-→β-≃ b∈* b→b′)
-  kd-→β-≅ (kd-Π j-kd k-kd) (Π₁ j→j′ k) =
-    ≅-Π (kd-→β-≅ j-kd j→j′) (≅-refl k-kd)
-  kd-→β-≅ (kd-Π j-kd k-kd) (Π₂ j k→k′) =
-    ≅-Π (≅-refl j-kd) (kd-→β-≅ k-kd k→k′)
-
-  Tp∈-→β-≃ : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢Tp a ∈ k → a →β b → Γ ⊢ a ≃ b ∈ k
-  Tp∈-→β-≃ (∈-var x Γ-ctx Γ[x]≡kd-k) ⌈ () ⌉
-  Tp∈-→β-≃ (∈-⊥-f Γ-ctx)    ⌈ () ⌉
-  Tp∈-→β-≃ (∈-⊤-f Γ-ctx)    ⌈ () ⌉
-  Tp∈-→β-≃ (∈-∀-f k-kd a∈*) ⌈ () ⌉
-  Tp∈-→β-≃ (∈-∀-f k-kd a∈*) (Π₁ k→k′ a) =
-    ≃-∀ (kd-→β-≅ k-kd k→k′) (≃-refl a∈*)
-  Tp∈-→β-≃ (∈-∀-f k-kd a∈*) (Π₂ k a→a′) =
-    ≃-∀ (≅-refl k-kd) (Tp∈-→β-≃ a∈* a→a′)
-  Tp∈-→β-≃ (∈-→-f a∈* b∈*)  ⌈ () ⌉
-  Tp∈-→β-≃ (∈-→-f a∈* b∈*)  (a→a′ ⇒₁ b) =
-    ≃-→ (Tp∈-→β-≃ a∈* a→a′) (≃-refl b∈*)
-  Tp∈-→β-≃ (∈-→-f a∈* b∈*)  (a ⇒₂ b→b′) =
-    ≃-→ (≃-refl a∈*) (Tp∈-→β-≃ b∈* b→b′)
-  Tp∈-→β-≃ (∈-Π-i j-kd a∈k k-kd) ⌈ () ⌉
-  Tp∈-→β-≃ (∈-Π-i j-kd a∈k k-kd) (Λ₁ j→j′ a) =
-    ≃-λ′ (kd-→β-≅ j-kd j→j′) (≃-refl a∈k)
-  Tp∈-→β-≃ (∈-Π-i j-kd a∈k k-kd) (Λ₂ j a→a′) =
-    ≃-λ′ (≅-refl j-kd) (Tp∈-→β-≃ a∈k a→a′)
-  Tp∈-→β-≃ (∈-Π-e a∈Πjk b∈j k-kd k[b]-kd) ⌈ cont-Tp· l a b ⌉ =
-    let l-kd , a∈k = Tp∈-Λ-inv a∈Πjk
-    in ≃-β′ a∈k b∈j a∈Πjk
-  Tp∈-→β-≃ (∈-Π-e a∈Πjk b∈j k-kd k[b]-kd) ⌈ cont-Tm· a b c ⌉ =
-    contradiction a∈Πjk Tp∈-¬λ
-  Tp∈-→β-≃ (∈-Π-e a∈Πjk b∈j k-kd k[b]-kd) (a→a′ ·₁ b) =
-    ≃-· (Tp∈-→β-≃ a∈Πjk a→a′) (≃-refl b∈j)
-  Tp∈-→β-≃ (∈-Π-e a∈Πjk b∈j k-kd k[b]-kd) (a ·₂ b→b′) =
-    ≃-· (≃-refl a∈Πjk) (Tp∈-→β-≃ b∈j b→b′)
-  Tp∈-→β-≃ (∈-s-i a∈k)    a→b = ≃-s-i (Tp∈-→β-≃ a∈k a→b)
-  Tp∈-→β-≃ (∈-⇑ a∈j j<∷k) a→b = ≃-⇑ (Tp∈-→β-≃ a∈j a→b) j<∷k
-
-kd-→β*-≅ : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ j kd → j Kd→β* k → Γ ⊢ j ≅ k
-kd-→β*-≅ j-kd ε            = ≅-refl j-kd
-kd-→β*-≅ j-kd (j→k ◅ k→*l) =
-  let j≅k  = kd-→β-≅ j-kd j→k
-      k-kd = proj₂ (≅-valid j≅k)
-  in ≅-trans j≅k (kd-→β*-≅ k-kd k→*l)
-
-Tp∈-→β*-≃ : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢Tp a ∈ k → a →β* b → Γ ⊢ a ≃ b ∈ k
-Tp∈-→β*-≃ a∈k ε            = ≃-refl a∈k
-Tp∈-→β*-≃ a∈k (a→b ◅ b→*c) =
-  let a≃b∈k = Tp∈-→β-≃ a∈k a→b
-      b∈k   = proj₂ (≃-valid a≃b∈k)
-  in ≃-trans a≃b∈k (Tp∈-→β*-≃ b∈k b→*c)
-
--- A corollary: subject reduction for kinding, aka preservation of
--- kinding under (full) β-reduction.
-pres-Tp∈-→β* : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢Tp a ∈ k → a →β* b → Γ ⊢Tp b ∈ k
-pres-Tp∈-→β* a∈k a→b = proj₂ (≃-valid (Tp∈-→β*-≃ a∈k a→b))

@@ -10,44 +10,19 @@ open import Relation.Nullary using (¬_)
 
 open import FOmegaInt.Syntax
 open import FOmegaInt.Typing
-import FOmegaInt.Kinding.Declarative.Validity  as DeclVal
-import FOmegaInt.Kinding.Declarative.Inversion as DeclInv
-open import FOmegaInt.Kinding.Declarative.Equivalence
-  using (sound-kd; sound-Tp∈; sound-<∷; sound-<:; complete-Tp∈; complete-<:)
+open import FOmegaInt.Typing.Validity
+open import FOmegaInt.Kinding.Declarative.Normalization
+open import FOmegaInt.Kinding.Canonical.Equivalence
+  using (sound-<:; sound-<∷; complete-<∷; complete-<:-⋯)
+import FOmegaInt.Kinding.Canonical.Inversion as CanInv
+
 open Syntax
 open TermCtx hiding (map)
 open Typing
 open Substitution using (_[_]; weaken)
 open WfCtxOps using (lookup-tp)
 open TypedSubstitution
-
-
-------------------------------------------------------------------------
--- Validity of kinding, subtyping and typing.
-
--- Validity of kinding: the kinds of well-kinded types are well-formed.
-Tp∈-valid : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ k kd
-Tp∈-valid a∈k = sound-kd (DeclVal.Tp∈-valid (complete-Tp∈ a∈k))
-
--- Validity of subtyping: subtypes that are related in some kind `k'
--- inhabit `k'.
-<:-valid : ∀ {n} {Γ : Ctx n} {a b k} →
-           Γ ⊢ a <: b ∈ k → Γ ⊢Tp a ∈ k × Γ ⊢Tp b ∈ k
-<:-valid a<:b∈k =
-  map sound-Tp∈ sound-Tp∈ (DeclVal.<:-valid (complete-<: a<:b∈k))
-
--- Validity of typing: the types of well-typed terms are well-kinded.
-Tm∈-valid : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢Tm a ∈ b → Γ ⊢Tp b ∈ *
-Tm∈-valid (∈-var x Γ-ctx Γ[x]≡tp-a) = lookup-tp x Γ-ctx Γ[x]≡tp-a
-Tm∈-valid (∈-∀-i k-kd a∈b)    = ∈-∀-f k-kd (Tm∈-valid a∈b)
-Tm∈-valid (∈-→-i a∈* b∈c c∈*) = ∈-→-f a∈* c∈*
-Tm∈-valid (∈-∀-e a∈∀kc b∈k)   =
-  let k-kd , c∈* = Tp∈-∀-inv (Tm∈-valid a∈∀kc)
-  in Tp∈-[] c∈* (∈-tp b∈k)
-Tm∈-valid (∈-→-e a∈c⇒d b∈c)   =
-  let c∈* , d∈* = Tp∈-→-inv (Tm∈-valid a∈c⇒d)
-  in d∈*
-Tm∈-valid (∈-⇑ a∈b b<:c)      = proj₂ (<:-valid b<:c)
+open TypedNarrowing
 
 
 ------------------------------------------------------------------------
@@ -119,17 +94,36 @@ Tm∈-gen (∈-⇑ a·b∈e e<:f) | ∈-→-e a∈c⇒d b∈c d<:e    =
 <:-∀-inv : ∀ {k₁ k₂ : Kind Term 0} {a₁ a₂} → [] ⊢ Π k₁ a₁ <: Π k₂ a₂ ∈ * →
            [] ⊢ k₂ <∷ k₁ × kd k₂ ∷ [] ⊢ a₁ <: a₂ ∈ *
 <:-∀-inv ∀k₁a₁<:∀k₂a₂∈* =
-  map sound-<∷ sound-<: (DeclInv.<:-∀-inv (complete-<: ∀k₁a₁<:∀k₂a₂∈*))
+  let nf-∀k₁a₁<:nf-∀k₂a₂          = complete-<:-⋯ ∀k₁a₁<:∀k₂a₂∈*
+      nf-k₂<∷nf-k₁ , nf-a₁<:nf-a₂ = CanInv.<:-∀-inv nf-∀k₁a₁<:nf-∀k₂a₂
+      ∀k₁a₁∈* , ∀k₂a₂∈*           = <:-valid ∀k₁a₁<:∀k₂a₂∈*
+      k₁≅nf-k₁∈* , a₁≃nf-a₁∈*     = Tp∈-∀-≃-⌞⌟-nf ∀k₁a₁∈*
+      k₂≅nf-k₂∈* , a₂≃nf-a₂∈*     = Tp∈-∀-≃-⌞⌟-nf ∀k₂a₂∈*
+      k₂<∷nf-k₂∈*                 = ≅⇒<∷ k₂≅nf-k₂∈*
+      k₂<∷k₁ = <∷-trans (<∷-trans k₂<∷nf-k₂∈* (sound-<∷ nf-k₂<∷nf-k₁))
+                        (≅⇒<∷ (≅-sym k₁≅nf-k₁∈*))
+  in k₂<∷k₁ ,
+     <:-trans (<:-trans (⇓-<: k₂<∷k₁ (≃⇒<: a₁≃nf-a₁∈*))
+                        (⇓-<: k₂<∷nf-k₂∈* (sound-<: nf-a₁<:nf-a₂)))
+              (≃⇒<: (≃-sym a₂≃nf-a₂∈*))
 
 <:-→-inv : ∀ {a₁ a₂ b₁ b₂ : Term 0} → [] ⊢ a₁ ⇒ b₁ <: a₂ ⇒ b₂ ∈ * →
            [] ⊢ a₂ <: a₁ ∈ * × [] ⊢ b₁ <: b₂ ∈ *
 <:-→-inv a₁⇒b₁<:a₂⇒b₂∈* =
-  map sound-<: sound-<: (DeclInv.<:-→-inv (complete-<: a₁⇒b₁<:a₂⇒b₂∈*))
+  let nf-a₁⇒b₁<:nf-a₂⇒b₂          = complete-<:-⋯ a₁⇒b₁<:a₂⇒b₂∈*
+      nf-a₂<:nf-a₁ , nf-b₁<:nf-b₂ = CanInv.<:-→-inv nf-a₁⇒b₁<:nf-a₂⇒b₂
+      a₁⇒b₁∈* , a₂⇒b₂∈*           = <:-valid a₁⇒b₁<:a₂⇒b₂∈*
+      a₁≃nf-a₁∈* , b₁≃nf-b₁∈*     = Tp∈-→-≃-⌞⌟-nf a₁⇒b₁∈*
+      a₂≃nf-a₂∈* , b₂≃nf-b₂∈*     = Tp∈-→-≃-⌞⌟-nf a₂⇒b₂∈*
+  in <:-trans (<:-trans (≃⇒<: a₂≃nf-a₂∈*) (sound-<: nf-a₂<:nf-a₁))
+              (≃⇒<: (≃-sym a₁≃nf-a₁∈*)) ,
+     <:-trans (<:-trans (≃⇒<: b₁≃nf-b₁∈*) (sound-<: nf-b₁<:nf-b₂))
+              (≃⇒<: (≃-sym b₂≃nf-b₂∈*))
 
 -- Arrows are not canonical subtypes of universals and vice-versa.
 
 ⇒-≮:-Π : ∀ {a₁ b₁ : Term 0} {k₂ a₂} → ¬ [] ⊢ a₁ ⇒ b₁ <: Π k₂ a₂ ∈ *
-⇒-≮:-Π a₁⇒b₁<:∀k₂a₂∈* = DeclInv.⇒-≮:-Π (complete-<: a₁⇒b₁<:∀k₂a₂∈*)
+⇒-≮:-Π a₁⇒b₁<:∀k₂a₂∈* = CanInv.⇒-≮:-Π (complete-<:-⋯ a₁⇒b₁<:∀k₂a₂∈*)
 
 Π-≮:-⇒ : ∀ {k₁ a₁} {a₂ b₂ : Term 0} → ¬ [] ⊢ Π k₁ a₁ <: a₂ ⇒ b₂ ∈ *
-Π-≮:-⇒ ∀k₁a₁<:a₂⇒b₂∈* = DeclInv.Π-≮:-⇒ (complete-<: ∀k₁a₁<:a₂⇒b₂∈*)
+Π-≮:-⇒ ∀k₁a₁<:a₂⇒b₂∈* = CanInv.Π-≮:-⇒ (complete-<:-⋯ ∀k₁a₁<:a₂⇒b₂∈*)
