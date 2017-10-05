@@ -33,8 +33,8 @@ open SimpleCtx
 open Substitution hiding (subst)
 open SimpHSubstLemmas
 open RenamingCommutes
-open ParallelHereditarySubstitution
-open ParallelEtaExpansion
+open WeakHereditarySubstitutionEquality
+open WeakEqEtaExpansion
 open KindedRenaming
 open KindedHereditarySubstitution
 open Kinding

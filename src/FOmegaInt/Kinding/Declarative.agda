@@ -9,11 +9,10 @@ open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Typed
-open import Data.Fin.Substitution.TypedParallel
+open import Data.Fin.Substitution.TypedRelation
 open import Data.Nat using (ℕ)
 open import Data.Product using (_,_; _×_; proj₁)
 open import Function using (_∘_)
---open import Relation.Binary.TransReasoning
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
 
 open import FOmegaInt.Syntax
@@ -175,7 +174,7 @@ module Kinding where
     ∈-var : ∀ x {a} → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢ var x ∈ tp a
 
   -- Combined type equality and syntactic term variable equality (used
-  -- for parallel substitutions).
+  -- for well-formed equality lifted to substitutions).
   data _⊢_≃⊎≡_∈_ {n} (Γ : Ctx n) : Term n → Term n → TermAsc n → Set where
     ≃-tp  : ∀ {a b k} → Γ ⊢ a ≃ b ∈ k           → Γ ⊢ a     ≃⊎≡ b     ∈ kd k
     ≃-var : ∀ x {a} → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢ var x ≃⊎≡ var x ∈ tp a
@@ -397,7 +396,7 @@ LiftToTpOrTm : ∀ {T} → Lift T Term → AscTyping T → Set
 LiftToTpOrTm l _⊢T_∈_ = LiftTyped l typedSub _⊢_∈_
   where open AscTypedSub l _⊢T_∈_ using (typedSub)
 
--- Application of "typed" substitutions to terms, types, kinds.
+-- Application of "typed" substitutions to types and kinds.
 record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
                      (lt : LiftToTpOrTm l _⊢T_∈_) : Set where
   open LiftTyped lt hiding (weaken-/)
@@ -848,9 +847,9 @@ open KindedSubstitution
 
 
 ----------------------------------------------------------------------
--- Well-kinded parallel substitutions
+-- Well-formed equality lifted to substitutions
 
-module KindedParallelSubstitution where
+module WfSubstitutionEquality where
   open Substitution        hiding (subst)
   open SimpleExt simple    using  (extension)
   open TermSubst termSubst using  (termLift)
@@ -859,24 +858,24 @@ module KindedParallelSubstitution where
     module KL = TermLikeLemmas termLikeLemmasKind
     module AL = TermLikeLemmas termLikeLemmasTermAsc
     module S  = SimpleExt simple
-    module P  = SimpleExt parSimple
+    module Z  = SimpleExt zippedSimple
 
-  -- Term-typed parallel substitutions: pairs of substitutions that
-  -- are point-wise equal.
-  typedParSub : TypedParSub TermAsc Term Term TermAsc
-  typedParSub = record
+  -- Well-formed equal substitutions: pairs of substitutions that are
+  -- point-wise equal.
+  wfEqSub : TypedSubRel TermAsc Term Term TermAsc
+  wfEqSub = record
     { _⊢_∼_∈_     = _⊢_≃⊎≡_∈_
     ; _⊢_wf       = _⊢_wf
     ; application = record { _/_ = λ a ρσ → a TermAsc/ (π₁ ρσ) }
     ; weakenOps   = record { weaken = weakenTermAsc }
     }
 
-  open TypedParSub typedParSub public using (_,_)
+  open TypedSubRel wfEqSub public using (_,_)
     renaming (_⊢/_∼_∈_ to _⊢/_≃_∈_; lookup to ≃-lookup)
 
-  -- Extensions of parallel type and term substitutions.
-  typedParExtension : TypedParExtension extension extension typedParSub
-  typedParExtension = record
+  -- Extensions of equal type and term substitutions.
+  wfEqExtension : TypedRelExtension extension extension wfEqSub
+  wfEqExtension = record
     { rawTypedExtension = record
       { ∈-weaken = ≃⊎≡-weaken
       ; weaken-/ = λ{ {_} {_} {_} {b , c} a → weaken-/-π₁ a b c }
@@ -888,18 +887,18 @@ module KindedParallelSubstitution where
 
       weaken-/-π₁ : ∀ {m n} {ρσ : Sub (Term ⊗ Term) m n} a b c →
                     weakenTermAsc (a TermAsc/ π₁ ρσ) ≡
-                      weakenTermAsc a TermAsc/ π₁ ((b , c) P./∷ ρσ)
+                      weakenTermAsc a TermAsc/ π₁ ((b , c) Z./∷ ρσ)
       weaken-/-π₁ {_} {_} {ρσ} a b c = begin
           weakenTermAsc (a TermAsc/ π₁ ρσ)
         ≡⟨ AL.weaken-/ a ⟩
           weakenTermAsc a TermAsc/ (b S./∷ (π₁ ρσ))
         ≡⟨ cong ((weakenTermAsc a TermAsc/_) ∘ proj₁) (/∷-unzip {t = c} ρσ) ⟩
-          weakenTermAsc a TermAsc/ π₁ ((b , c) P./∷ ρσ)
+          weakenTermAsc a TermAsc/ π₁ ((b , c) Z./∷ ρσ)
         ∎
 
   -- Simple typed term substitutions.
-  typedParSimple : TypedParSimple simple simple typedParSub
-  typedParSimple = record
+  wfEqSimple : TypedRelSimple simple simple wfEqSub
+  wfEqSimple = record
     { rawTypedSimple = record
       { rawTypedExtension = rawTypedExtension
       ; ∈-var             = ≃⊎≡-var
@@ -910,35 +909,35 @@ module KindedParallelSubstitution where
       }
     }
     where
-      open TypedParExtension typedParExtension
+      open TypedRelExtension wfEqExtension
       open ≡-Reasoning
 
-      id-vanishes-π₁ : ∀ {n} (a : TermAsc n) → a TermAsc/ π₁ P.id ≡ a
+      id-vanishes-π₁ : ∀ {n} (a : TermAsc n) → a TermAsc/ π₁ Z.id ≡ a
       id-vanishes-π₁ a = begin
-        a TermAsc/ π₁ P.id   ≡⟨ cong ((a TermAsc/_) ∘ proj₁) (sym id-unzip) ⟩
+        a TermAsc/ π₁ Z.id   ≡⟨ cong ((a TermAsc/_) ∘ proj₁) (sym id-unzip) ⟩
         a TermAsc/ id        ≡⟨ AL.id-vanishes a ⟩
         a                    ∎
 
-      /-wk-π₁ : ∀ {n} {a : TermAsc n} → a TermAsc/ π₁ P.wk ≡ weakenTermAsc a
+      /-wk-π₁ : ∀ {n} {a : TermAsc n} → a TermAsc/ π₁ Z.wk ≡ weakenTermAsc a
       /-wk-π₁ {_} {a} = begin
-        a TermAsc/ π₁ P.wk   ≡⟨ cong ((a TermAsc/_) ∘ proj₁) (sym wk-unzip) ⟩
+        a TermAsc/ π₁ Z.wk   ≡⟨ cong ((a TermAsc/_) ∘ proj₁) (sym wk-unzip) ⟩
         a TermAsc/ wk        ≡⟨ sym (AL./-wk) ⟩
         weakenTermAsc a      ∎
 
       wk-sub-vanishes-π₁ : ∀ {n} (a : TermAsc n) b c →
-                           a TermAsc/ π₁ P.wk TermAsc/ π₁ (P.sub (b , c)) ≡ a
+                           a TermAsc/ π₁ Z.wk TermAsc/ π₁ (Z.sub (b , c)) ≡ a
       wk-sub-vanishes-π₁ a b c = begin
-          a TermAsc/ π₁ P.wk TermAsc/ π₁ (P.sub (b , c))
-        ≡⟨ cong ((a TermAsc/ π₁ P.wk TermAsc/_) ∘ proj₁) (sym (sub-unzip b c)) ⟩
-          a TermAsc/ π₁ P.wk TermAsc/ sub b
+          a TermAsc/ π₁ Z.wk TermAsc/ π₁ (Z.sub (b , c))
+        ≡⟨ cong ((a TermAsc/ π₁ Z.wk TermAsc/_) ∘ proj₁) (sym (sub-unzip b c)) ⟩
+          a TermAsc/ π₁ Z.wk TermAsc/ sub b
         ≡⟨ cong (λ ρ,σ → a TermAsc/ proj₁ ρ,σ TermAsc/ sub b) (sym wk-unzip) ⟩
           a TermAsc/ wk TermAsc/ sub b
         ≡⟨ AL.wk-sub-vanishes a ⟩
           a
         ∎
 
-  open TypedParSimple typedParSimple public
-    hiding (typedParExtension; ∼∈-var; ∼∈-weaken; ∼∈-wf; wf-wf)
+  open TypedRelSimple wfEqSimple public
+    hiding (typedRelExtension; ∼∈-var; ∼∈-weaken; ∼∈-wf; wf-wf)
 
   infixl 4  _⊢/_≃′_∈_
 
@@ -949,16 +948,17 @@ module KindedParallelSubstitution where
 
   -- A shorthand.
   --
-  -- TODO: explain why we use this particular representation of
-  -- parallel substitutions here.
+  -- TODO: explain why we use this particular representation of equal
+  -- substitutions here.
   _⊢/_≃′_∈_ : ∀ {m n} → Ctx n → Sub Term m n → Sub Term m n → Ctx m → Set
   Δ ⊢/ σ ≃′ ρ ∈ Γ = Δ ⊢/ σ ∈ Γ × Δ ⊢/ ρ ∈ Γ × Δ ⊢/ σ ≃ ρ ∈ Γ × Δ ⊢/ ρ ≃ σ ∈ Γ
 
-  -- Symmetry of the parallel substitutions.
+  -- Symmetry of substitution equality.
   ≃′-sym : ∀ {m n Δ Γ} {ρ σ : Sub Term m n} → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢/ σ ≃′ ρ ∈ Γ
   ≃′-sym (ρ∈Γ , σ∈Γ , ρ≃σ∈Γ , σ≃ρ∈Γ) = σ∈Γ , ρ∈Γ , σ≃ρ∈Γ , ρ≃σ∈Γ
 
-  -- Lift a kinded substitution over an additional type variable.
+  -- Lift a pair of equal substitutions over an additional type
+  -- variable.
   ≃′-↑ : ∀ {m n Γ Δ} {ρ σ : Sub Term m n} {j k} →
          Δ ⊢ j kd → Δ ⊢ j ≅ k Kind/ ρ → Δ ⊢ j ≅ k Kind/ σ → Δ ⊢/ ρ ≃′ σ ∈ Γ →
          kd j ∷ Δ ⊢/ ρ ↑ ≃′ σ ↑ ∈ kd k ∷ Γ
@@ -975,11 +975,11 @@ module KindedParallelSubstitution where
       z∈k/σ′  = subst (_ ⊢Tp _ ∈_)
                       (cong (weakenKind ∘ (_ Kind/_)) (sym (π₁-zip _ _))) z∈k/σ
 
-  -- Weak parallel substitution lemmas.
+  -- Lemmas about equal substitutions (weak versions).
 
   mutual
 
-    -- Parallel substitutions map well-formed kinds to kind equations.
+    -- Equal substitutions map well-formed kinds to kind equations.
     kd-/≃ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {k ρ σ} →
             Γ ⊢ k kd → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢ k Kind/ ρ ≅ k Kind/ σ
     kd-/≃ (kd-⋯ a∈* b∈*)   ρ≃σ∈Γ = ≅-⋯ (Tp∈-/≃ a∈* ρ≃σ∈Γ) (Tp∈-/≃ b∈* ρ≃σ∈Γ)
@@ -997,7 +997,7 @@ module KindedParallelSubstitution where
       in <∷-antisym (<∷-Π (≅⇒<∷ (≅-sym j/ρ≅j/σ)) (≅⇒<∷ k/ρ≅k/σ) Πjk/ρ-kd)
                     (<∷-Π (≅⇒<∷ j/ρ≅j/σ) (≅⇒<∷ k/σ≅k/ρ) Πjk/σ-kd)
 
-    -- Parallel substitutions map well-kinded types to type equations.
+    -- Equal substitutions map well-kinded types to type equations.
     Tp∈-/≃ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k ρ σ} →
              Γ ⊢Tp a ∈ k → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢ a / ρ ≃ a / σ ∈ k Kind/ ρ
     Tp∈-/≃ (∈-var x Γ-ctx Γ[x]≡kd-k) (_ , _ , ρ≃σ∈Γ , _) =
@@ -1111,7 +1111,9 @@ module KindedParallelSubstitution where
     Tp∈-/≃-≅ (∈-s-i a∈b⋯c)                    ρ≃σ∈Γ = Tp∈-/≃-≅ a∈b⋯c ρ≃σ∈Γ
     Tp∈-/≃-≅ (∈-⇑ a∈k _)                      ρ≃σ∈Γ = Tp∈-/≃-≅ a∈k ρ≃σ∈Γ
 
-  -- Single-variable substitutions map well-formed kinds to kind
+  -- Functionality of kind formation and kinding.
+
+  -- Equal single-variable substitutions map well-formed kinds to kind
   -- equations (weak version).
   kd-[≃′] : ∀ {n} {Γ : Ctx n} {a b j k} →
             kd j ∷ Γ ⊢ k kd → Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ j → Γ ⊢ a ≃ b ∈ j →
@@ -1120,7 +1122,7 @@ module KindedParallelSubstitution where
     kd-/≃ k-kd (∈-sub (∈-tp a∈j) , ∈-sub (∈-tp b∈j) ,
                 ∼∈-sub (≃-tp a≃b∈j) , ∼∈-sub (≃-tp (≃-sym (a≃b∈j))))
 
-  -- Single-variable substitutions map well-kinded types to type
+  -- Equal single-variable substitutions map well-kinded types to type
   -- equations (weak version).
   Tp∈-[≃′] : ∀ {n} {Γ : Ctx n} {a b c j k} →
              kd j ∷ Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ j → Γ ⊢Tp c ∈ j → Γ ⊢ b ≃ c ∈ j →

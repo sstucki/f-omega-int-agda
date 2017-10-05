@@ -8,7 +8,7 @@ module Relation.Binary.TransReasoning where
 open import Level using (suc; _⊔_)
 open import Data.Fin.Substitution.Context using (Ctx)
 open import Data.Fin.Substitution.Typed using (CtxTermRel)
-open import Data.Fin.Substitution.TypedParallel using (TypedRel)
+open import Data.Fin.Substitution.TypedRelation using (TypedRel)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary using (Rel; Transitive)
 
@@ -79,7 +79,7 @@ record TransRelReasoning {a b} {T : Set a}
   _ ∎ = eqTo refl
 
 -- FIXME: the following should go into a different module (probably
--- into Data.Fin.Substitution.{Typed,TypedParallel})
+-- into Data.Fin.Substitution.{Typed,TypedRel})
 
 -- A form of pre-order reasoning for transitive relations in a context.
 record TransCtxTermRelReasoning {T₁ T₂}

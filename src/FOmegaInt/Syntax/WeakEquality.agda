@@ -10,8 +10,7 @@ open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Relation
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.List using ([]; _∷_; _++_)
-open import Data.Vec using ([])
-open import Data.Vec.All using (lookup₂)
+open import Data.Vec as Vec using ([])
 open import Relation.Binary using (IsEquivalence; Setoid)
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary.PropositionalEquality as P
@@ -370,86 +369,80 @@ module ≈-Reasoning {n : ℕ} where
     )
 
 ------------------------------------------------------------------------
--- Parallel renamings and hereditary substitutions w.r.t. weak
--- equality (aka substitution lemmas for weak equality).
+-- Substitution lemmas for weak equality.
 
--- Variable substitutions (renamings) lifted to weak equality.
+-- Renamings in weakly equal terms.
 --
--- The parallel substitution lemmas below establishes that
--- simoultaneous substitutions of (equal) variables in kinds, heads,
--- eliminations and spines preserve weak equality:
+-- The substitution lemmas below establishe that renamings of
+-- variables in kinds, heads, eliminations and spines preserve weak
+-- equality:
 --
 --                                ≈
 --                           a ------→ b
 --                           |         |
---                       -/ρ |         | -/σ
+--                       -/σ |         | -/σ
 --                           ↓    ≈    ↓
---                          a/ρ ····→ b/σ
+--                          a/σ ····→ b/σ
 --
--- where ρ and σ are point-wise equal renamings.
-module ParallelRenaming where
+-- where σ is a renaming.
+module Renaming where
   open Substitution hiding (_↑; wk)
-  open VarEqSubst   hiding (var)
-
-  -- Lift equal names to weakly equal variables.
-  lift : ∀ {n} {x₁ x₂ : Fin n} → x₁ ≡ x₂ → var∙ x₁ ≈ var∙ x₂
-  lift {x₁ = x} refl = ≈-var∙ x
+  open VarSubst     hiding (var)
 
   mutual
 
-    -- Point-wise equal renamings preserve weak equality.
+    -- Renamings preserve weak equality.
 
-    ≋-/Var : ∀ {m n k₁ k₂} {σ₁ σ₂ : Sub Fin m n} →
-             k₁ ≋ k₂ → σ₁ ⟨≡⟩ σ₂ → k₁ Kind′/Var σ₁ ≋ k₂ Kind′/Var σ₂
-    ≋-/Var (≋-Π j₁≋j₂ k₁≋k₂) σ₁⟨≡⟩σ₂ =
-      ≋-Π (≋-/Var j₁≋j₂ σ₁⟨≡⟩σ₂) (≋-/Var k₁≋k₂ (σ₁⟨≡⟩σ₂ ↑))
-    ≋-/Var (≋-⋯ a₁≈a₂ b₁≈b₂) σ₁⟨≡⟩σ₂ =
-      ≋-⋯ (≈-/Var a₁≈a₂ σ₁⟨≡⟩σ₂) (≈-/Var b₁≈b₂ σ₁⟨≡⟩σ₂)
+    ≋-/Var : ∀ {m n k₁ k₂} →
+             k₁ ≋ k₂ → (σ : Sub Fin m n) → k₁ Kind′/Var σ ≋ k₂ Kind′/Var σ
+    ≋-/Var (≋-Π j₁≋j₂ k₁≋k₂) σ =
+      ≋-Π (≋-/Var j₁≋j₂ σ) (≋-/Var k₁≋k₂ (σ ↑))
+    ≋-/Var (≋-⋯ a₁≈a₂ b₁≈b₂) σ =
+      ≋-⋯ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
 
-    ≈-/Var : ∀ {m n a₁ a₂} {σ₁ σ₂ : Sub Fin m n} →
-             a₁ ≈ a₂ → σ₁ ⟨≡⟩ σ₂ → a₁ Elim/Var σ₁ ≈ a₂ Elim/Var σ₂
-    ≈-/Var (≈-∙ a₁≈a₂ bs₁≈bs₂) σ₁⟨≡⟩σ₂ =
-      ≈-∙∙ (≈Hd-/Var a₁≈a₂ σ₁⟨≡⟩σ₂) (≈Sp-/Var bs₁≈bs₂ σ₁⟨≡⟩σ₂)
+    ≈-/Var : ∀ {m n a₁ a₂} →
+             a₁ ≈ a₂ → (σ : Sub Fin m n) → a₁ Elim/Var σ ≈ a₂ Elim/Var σ
+    ≈-/Var (≈-∙ a₁≈a₂ bs₁≈bs₂) σ =
+      ≈-∙∙ (≈Hd-/Var a₁≈a₂ σ) (≈Sp-/Var bs₁≈bs₂ σ)
 
-    ≈Hd-/Var : ∀ {m n a₁ a₂} {σ₁ σ₂ : Sub Fin m n} →
-               a₁ ≈Hd a₂ → σ₁ ⟨≡⟩ σ₂ → a₁ Head/Var′ σ₁ ≈ a₂ Head/Var′ σ₂
-    ≈Hd-/Var (≈-var x)             σ₁⟨≡⟩σ₂ = lift (lookup₂ x σ₁⟨≡⟩σ₂)
-    ≈Hd-/Var ≈-⊥                   σ₁⟨≡⟩σ₂ = ≈-⊥∙
-    ≈Hd-/Var ≈-⊤                   σ₁⟨≡⟩σ₂ = ≈-⊤∙
-    ≈Hd-/Var (≈-∀ k₁≋k₂ a₁≈a₂)     σ₁⟨≡⟩σ₂ =
-      ≈-∀∙ (≋-/Var k₁≋k₂ σ₁⟨≡⟩σ₂) (≈-/Var a₁≈a₂ (σ₁⟨≡⟩σ₂ ↑))
-    ≈Hd-/Var (≈-→ a₁≈a₂ b₁≈b₂)     σ₁⟨≡⟩σ₂ =
-      ≈-⇒∙ (≈-/Var a₁≈a₂ σ₁⟨≡⟩σ₂) (≈-/Var b₁≈b₂ σ₁⟨≡⟩σ₂)
-    ≈Hd-/Var (≈-Λ {k₁} {k₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) σ₁⟨≡⟩σ₂ =
+    ≈Hd-/Var : ∀ {m n a₁ a₂} →
+               a₁ ≈Hd a₂ → (σ : Sub Fin m n) → a₁ Head/Var′ σ ≈ a₂ Head/Var′ σ
+    ≈Hd-/Var (≈-var x)             σ = ≈-var∙ (Vec.lookup x σ)
+    ≈Hd-/Var ≈-⊥                   σ = ≈-⊥∙
+    ≈Hd-/Var ≈-⊤                   σ = ≈-⊤∙
+    ≈Hd-/Var (≈-∀ k₁≋k₂ a₁≈a₂)     σ =
+      ≈-∀∙ (≋-/Var k₁≋k₂ σ) (≈-/Var a₁≈a₂ (σ ↑))
+    ≈Hd-/Var (≈-→ a₁≈a₂ b₁≈b₂)     σ =
+      ≈-⇒∙ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
+    ≈Hd-/Var (≈-Λ {k₁} {k₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) σ =
       ≈-Λ∙ (begin
              ⌊ k₁ Kind′/Var _ ⌋   ≡⟨ ⌊⌋-Kind′/Var k₁ ⟩
              ⌊ k₁ ⌋               ≡⟨ ⌊k₁⌋≡⌊k₂⌋ ⟩
              ⌊ k₂ ⌋               ≡⟨ sym (⌊⌋-Kind′/Var k₂) ⟩
              ⌊ k₂ Kind′/Var _ ⌋   ∎)
-           (≈-/Var a₁≈a₂ (σ₁⟨≡⟩σ₂ ↑))
+           (≈-/Var a₁≈a₂ (σ ↑))
       where open ≡-Reasoning
-    ≈Hd-/Var (≈-λ a₁≈a₂)           σ₁⟨≡⟩σ₂ = ≈-λ∙ (≈-/Var a₁≈a₂ (σ₁⟨≡⟩σ₂ ↑))
-    ≈Hd-/Var (≈-⊡ a₁≈a₂ b₁≈b₂)     σ₁⟨≡⟩σ₂ =
-      ≈-⊡∙ (≈-/Var a₁≈a₂ σ₁⟨≡⟩σ₂) (≈-/Var b₁≈b₂ σ₁⟨≡⟩σ₂)
+    ≈Hd-/Var (≈-λ a₁≈a₂)           σ = ≈-λ∙ (≈-/Var a₁≈a₂ (σ ↑))
+    ≈Hd-/Var (≈-⊡ a₁≈a₂ b₁≈b₂)     σ =
+      ≈-⊡∙ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
 
-    ≈Sp-/Var : ∀ {m n as₁ as₂} {σ₁ σ₂ : Sub Fin m n} →
-               as₁ ≈Sp as₂ → σ₁ ⟨≡⟩ σ₂ → as₁ //Var σ₁ ≈Sp as₂ //Var σ₂
-    ≈Sp-/Var ≈-[]                σ₁⟨≡⟩σ₂ = ≈-[]
-    ≈Sp-/Var (≈-∷ a₁≈a₂ as₁≈as₂) σ₁⟨≡⟩σ₂ =
-      ≈-∷ (≈-/Var a₁≈a₂ σ₁⟨≡⟩σ₂) (≈Sp-/Var as₁≈as₂ σ₁⟨≡⟩σ₂)
+    ≈Sp-/Var : ∀ {m n as₁ as₂} →
+               as₁ ≈Sp as₂ → (σ : Sub Fin m n) → as₁ //Var σ ≈Sp as₂ //Var σ
+    ≈Sp-/Var ≈-[]                σ = ≈-[]
+    ≈Sp-/Var (≈-∷ a₁≈a₂ as₁≈as₂) σ =
+      ≈-∷ (≈-/Var a₁≈a₂ σ) (≈Sp-/Var as₁≈as₂ σ)
 
   ≈-weakenElim : ∀ {n} {a₁ a₂ : Elim n} →
                  a₁ ≈ a₂ → weakenElim a₁ ≈ weakenElim a₂
   ≈-weakenElim a₁≈a₂ = ≈-/Var a₁≈a₂ wk
 
-open ParallelRenaming
+open Renaming
 
--- Hereditary substitutions lifted to weak equality.
+-- Weak equality lifted to hereditary substitutions.
 --
--- The parallel substitution lemmas below establishes that
--- simoultaneous hereditary substitutions of weakly equal types or
--- terms in kinds, heads, eliminations and spines preserve weak
--- equality:
+-- The substitution lemmas below establishe that simoultaneous
+-- hereditary substitutions of weakly equal types or terms in kinds,
+-- heads, eliminations and spines preserve weak equality:
 --
 --                                ≈
 --                           a ------→ b
@@ -459,22 +452,22 @@ open ParallelRenaming
 --                          a/ρ ····→ b/σ
 --
 -- where ρ and σ are point-wise weakly equal hereditary substitutions.
-module ParallelHereditarySubstitution where
+module WeakHereditarySubstitutionEquality where
   open Substitution
-  open VarEqSubst using () renaming (wk⋆ to ≡-wk⋆)
 
   infix 4 _⟨≈⟩_
 
-  -- Suspended parallel hereditary substations.
+  -- Weak equality of suspended hereditary substations.
   data _⟨≈⟩_ : ∀ {k m n} → HSub k m n → HSub k m n → Set where
     ≈-hsub : ∀ {k m} n {a b : Elim m} → a ≈ b → (n ← a ∈ k) ⟨≈⟩ (n ← b ∈ k)
 
-  -- Lift a parallel hereditary substitution over an additional variable.
+  -- Lift a pair of weakly equal hereditary substitutions over an
+  -- additional variable.
   ≈-H↑ : ∀ {k m n} {ρ σ : HSub k m n} → ρ ⟨≈⟩ σ → ρ H↑ ⟨≈⟩ σ H↑
   ≈-H↑ (≈-hsub n a≈b) = ≈-hsub (suc n) a≈b
 
-  -- Lift a parallel hereditary substitution over multiple additional
-  -- variables.
+  -- Lift a pair of weakely equal hereditary substitutions over
+  -- multiple additional variables.
   ≈-H↑⋆ : ∀ {k m n} i {ρ σ : HSub k m n} → ρ ⟨≈⟩ σ → ρ H↑⋆ i ⟨≈⟩ σ H↑⋆ i
   ≈-H↑⋆ zero    ρ⟨≈⟩σ = ρ⟨≈⟩σ
   ≈-H↑⋆ (suc n) ρ⟨≈⟩σ = ≈-H↑ (≈-H↑⋆ n ρ⟨≈⟩σ)
@@ -497,7 +490,7 @@ module ParallelHereditarySubstitution where
     ≈-/H (≈-∙ (≈-var ._) bs₁≈bs₂) (≈-hsub n {a₁} {a₂} a₁≈a₂) | yes refl =
       ≈-∙∙⟨⟩ _ (begin
         ⌜ var (raise n zero) / sub ⌞ a₁ ⌟ ↑⋆ n ⌝   ≡⟨ helper n a₁ ⟩
-        a₁ Elim/Var V.wk⋆ n                        ≈⟨ ≈-/Var a₁≈a₂ (≡-wk⋆ n) ⟩
+        a₁ Elim/Var V.wk⋆ n                        ≈⟨ ≈-/Var a₁≈a₂ (V.wk⋆ n) ⟩
         a₂ Elim/Var V.wk⋆ n                        ≡⟨ sym (helper n a₂) ⟩
         ⌜ var (raise n zero) / sub ⌞ a₂ ⌟ ↑⋆ n ⌝   ∎)
           (≈Sp-/H bs₁≈bs₂ (≈-hsub n a₁≈a₂))
@@ -614,9 +607,9 @@ module ParallelHereditarySubstitution where
   ≈-↓⌜·⌝ (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
     ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
 
-open ParallelHereditarySubstitution
+open WeakHereditarySubstitutionEquality
 
-module ParallelEtaExpansion where
+module WeakEqEtaExpansion where
   private module TK = TrackSimpleKindsEtaExp
   open Substitution
   open SimpHSubstLemmas
@@ -673,9 +666,9 @@ module ParallelEtaExpansion where
     ∎
     where open ≈-Reasoning
 
-open ParallelEtaExpansion
+open WeakEqEtaExpansion
 
-module ParallelNormalization where
+module WeakEqNormalization where
   open SimpleCtx using (kd; ⌊_⌋Asc; ⌊⌋-ElimAsc/Var; kd-inj′)
   open ContextConversions
 

@@ -101,7 +101,7 @@ module Kinding where
     -- of the "context narrowing" property is easy to establish for
     -- canonical typing (see the ContextNarrowing module below).
     -- Without a proof of this property, the various lemmas about
-    -- parallel hereditary substitution become difficult to establish
+    -- kinded hereditary substitutions become difficult to establish
     -- (see Kinding.HereditarySubstitution).  Unfortunately, proving
     -- that context narrowing is admissible *without* (⇇-⇑) would
     -- require precisely these substitution lemmas, leading to a

@@ -59,8 +59,8 @@ open import FOmegaInt.Reduction.Full
 open import FOmegaInt.Typing
 
 -- An alternate presentation of kinding and subtyping that is better
--- suited for proving parallel substitution and validity lemmas, along
--- with a proof that the two presentations are equivalent.
+-- suited for proving funcionality and validity lemmas, along with a
+-- proof that the two presentations are equivalent.
 open import FOmegaInt.Kinding.Declarative
 open import FOmegaInt.Kinding.Declarative.Validity
 open import FOmegaInt.Kinding.Declarative.Equivalence
@@ -107,15 +107,15 @@ open import FOmegaInt.Typing.Encodings
 -- Modules containing generic functionality
 
 -- Extra lemmas that are derivable in the substitution framework of
--- the Agda standard library, as well as support for substitutions
--- lifted to binary (term) relations, typed substitutions, and typed
--- parallel substitutions.
+-- the Agda standard library, as well as support for binary (term)
+-- relations lifted to substitutions, typed substitutions, and typed
+-- relations lifted to substitutions.
 open import Data.Fin.Substitution.Context
 open import Data.Fin.Substitution.Context.Properties
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Relation
 open import Data.Fin.Substitution.Typed
-open import Data.Fin.Substitution.TypedParallel
+open import Data.Fin.Substitution.TypedRelation
 
 -- Support for generic reduction relations.
 open import Relation.Binary.Reduction

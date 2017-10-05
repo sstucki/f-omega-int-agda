@@ -22,7 +22,7 @@ open TermCtx
 open Kinding
 open WfCtxOps using (lookup-kd)
 open KindedSubstitution
-open KindedParallelSubstitution
+open WfSubstitutionEquality
 
 -- An admissible rule for kinding η-expanded type operators.
 Tp∈-η : ∀ {n} {Γ : Ctx n} {a j k} →

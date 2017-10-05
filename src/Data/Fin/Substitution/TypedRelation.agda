@@ -1,8 +1,8 @@
 ------------------------------------------------------------------------
--- Well-typed parallel substitutions
+-- Well-typed binary relations lifted to substitutions
 ------------------------------------------------------------------------
 
-module Data.Fin.Substitution.TypedParallel where
+module Data.Fin.Substitution.TypedRelation where
 
 import Category.Applicative.Indexed as Applicative
 open import Data.Fin using (Fin; zero; suc)
@@ -23,8 +23,7 @@ open ≡-Reasoning
 infixr 2 _⊗_
 
 ------------------------------------------------------------------------
--- Abstract typed parallel substitutions
--- (i.e. typed binary relations lifted to substitutions)
+-- Abstract typed binary relations lifted point-wise to substitutions
 
 -- A shorthand.
 _⊗_ : (ℕ → Set) → (ℕ → Set) → ℕ → Set
@@ -56,11 +55,8 @@ subst₃ : ∀ {a b c p} {A : Set a} {B : Set b} {C : Set c}
          x₁ ≡ x₂ → y₁ ≡ y₂ → z₁ ≡ z₂ → P x₁ y₁ z₁ → P x₂ y₂ z₂
 subst₃ P refl refl refl p = p
 
--- Abstract typed parallel substitutions
---
--- i.e. abstract typed term relations lifted point-wise to vectors of
--- well-typed terms.
-record TypedParSub (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
+-- Abstract typed term relations lifted point-wise to substitutions
+record TypedSubRel (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
 
   infix 4 _⊢_∼_∈_ _⊢_wf
 
@@ -77,8 +73,9 @@ record TypedParSub (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
   open WellFormedContext _⊢_wf public
   private module C = WeakenOps weakenOps
 
-  -- We associate to every typed parallel substitution a typed
-  -- (simple) substitution for pairs of Tm₁ and Tm₂-terms.
+  -- We associate with every typed relation _⊢_∼_∈_ lifted to a pair
+  -- of Tm₁- and Tm₂-substitutions a _⊢_∈_-typed (simple) substitution
+  -- of pairs of Tm₁- and Tm₂-terms.
   typedSub : TypedSub Tp₁ (Tm₁ ⊗ Tm₂) Tp₂
   typedSub = record
     { _⊢_∈_       = toTyping _⊢_∼_∈_
@@ -91,16 +88,17 @@ record TypedParSub (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
 
   infix  4 _⊢/_∼_∈_
 
-  -- Typed parallel substitutions.
+  -- Typed relations lifted to substitutions.
   --
-  -- A typed parallel substitution Δ ⊢/ σ ∼ ρ ∈ Γ is a pair σ,
-  -- ρ of substitutions which, when applied to related terms
-  -- Γ ⊢ s ∼ t ∈ a in a source context Γ, yield related well-typed terms
-  -- Δ ⊢ s / σ ∼ t / ρ ∈ a / zip σ ρ in a well-formed target context Δ.
+  -- A typed substitution relation Δ ⊢/ σ ∼ ρ ∈ Γ is a pair σ, ρ of
+  -- substitutions which, when applied to related terms Γ ⊢ s ∼ t ∈ a
+  -- in a source context Γ, yield related well-typed terms Δ ⊢ s / σ ∼
+  -- t / ρ ∈ a / zip σ ρ in a well-formed target context Δ.
   _⊢/_∼_∈_ : ∀ {m n} → Ctx Tp₂ n → Sub Tm₁ m n → Sub Tm₂ m n → Ctx Tp₁ m → Set
   Δ ⊢/ σ ∼ ρ ∈ Γ = Δ ⊢/ zip σ ρ ∈ Γ
 
-  -- Look up an entry in a typed parallel substitution.
+  -- Look up a pair of related entries in a pair of related
+  -- substitutions.
   lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ ρ}
            (x : Fin m) → Δ ⊢/ σ ∼ ρ ∈ Γ →
            Δ ⊢ Vec.lookup x σ ∼ Vec.lookup x ρ ∈ C.lookup x Γ / zip σ ρ
@@ -109,7 +107,7 @@ record TypedParSub (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
            (TypedSub.lookup typedSub x σ∼ρ∈Γ)
 
 
--- Helpers functions for relating extensions of (untyped) parallel
+-- Helpers functions for relating extensions of (untyped) zipped
 -- substitutions to their projections.
 
 module ZipUnzipExtension {Tm₁ Tm₂}
@@ -121,10 +119,10 @@ module ZipUnzipExtension {Tm₁ Tm₂}
     module E₁ = Extension ext₁
     module E₂ = Extension ext₂
 
-  -- Extensions of (untyped) parallel Tm⊗Tm substitutions.
-  parExtension : Extension (Tm₁ ⊗ Tm₂)
-  parExtension = record { weaken = Prod.map E₁.weaken E₂.weaken }
-  open Extension parExtension
+  -- Extensions of (untyped) Tm⊗Tm substitutions.
+  zippedExtension : Extension (Tm₁ ⊗ Tm₂)
+  zippedExtension = record { weaken = Prod.map E₁.weaken E₂.weaken }
+  open Extension zippedExtension
 
   -- Some useful shorthands
 
@@ -153,20 +151,20 @@ module ZipUnzipExtension {Tm₁ Tm₂}
   /∷-unzip σ = cong (Prod.map (_∷_ _) (_∷_ _)) (map-unzip _ _ σ)
 
 
--- Extensions of abstract typed parallel substitutions.
+-- Extensions of abstract typed relations lifted to substitutions.
 
-record TypedParExtension {Tp₁ Tm₁ Tm₂ Tp₂}
+record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂}
                          (ext₁ : Extension Tm₁)
                          (ext₂ : Extension Tm₂)
-                         (typedParSub : TypedParSub Tp₁ Tm₁ Tm₂ Tp₂)
+                         (typedSubRel : TypedSubRel Tp₁ Tm₁ Tm₂ Tp₂)
                          : Set where
 
-  open TypedParSub typedParSub
+  open TypedSubRel typedSubRel
   private
     module E₁ = Extension ext₁
     module E₂ = Extension ext₂
 
-  open ZipUnzipExtension ext₁ ext₂ renaming (parExtension to ext)
+  open ZipUnzipExtension ext₁ ext₂ renaming (zippedExtension to ext)
 
   field rawTypedExtension : RawTypedExtension _⊢_wf _⊢_∈_ application
                                               weakenOps ext ext
@@ -191,7 +189,7 @@ record TypedParExtension {Tp₁ Tm₁ Tm₂ Tp₂}
     subst (flip (_⊢/_∈_ _) _) (/∷-zip _ _) (TE.∈-/∷ s∼t∈a/σρ σ∼ρ∈Γ)
 
 
--- Helpers functions for relating simple (untyped) parallel
+-- Helpers functions for relating simple (untyped) zipped
 -- substitutions to their projections.
 
 module ZipUnzipSimple {Tm₁ Tm₂}
@@ -205,13 +203,13 @@ module ZipUnzipSimple {Tm₁ Tm₂}
 
   open ZipUnzipExtension S₁.extension S₂.extension public
 
-  -- Simple (untyped) parallel Tm⊗Tm substitutions.
-  parSimple : Simple (Tm₁ ⊗ Tm₂)
-  parSimple = record
+  -- Simple (untyped) Tm⊗Tm substitutions.
+  zippedSimple : Simple (Tm₁ ⊗ Tm₂)
+  zippedSimple = record
     { weaken = Prod.map S₁.weaken S₂.weaken
     ; var    = λ x → S₁.var x , S₂.var x
     }
-  open SimpleExt parSimple
+  open SimpleExt zippedSimple
 
   -- Lifting commutes with zipping.
   ↑-zip : ∀ {m n} (σ : Sub Tm₁ m n) ρ →
@@ -268,15 +266,15 @@ module ZipUnzipSimple {Tm₁ Tm₂}
   sub-unzip s t = cong (Prod.map (_∷_ s) (_∷_ t)) id-unzip
 
 
--- Some simple abstract typed parallel substitutions.
+-- Abstract typed relations lifted to some simple substitutions.
 
-record TypedParSimple {Tp Tm₁ Tm₂}
+record TypedRelSimple {Tp Tm₁ Tm₂}
                       (simple₁ : Simple Tm₁)
                       (simple₂ : Simple Tm₂)
-                      (typedParSub : TypedParSub Tp Tm₁ Tm₂ Tp)
+                      (typedSubRel : TypedSubRel Tp Tm₁ Tm₂ Tp)
                       : Set where
 
-  open TypedParSub typedParSub
+  open TypedSubRel typedSubRel
   private
     module S₁ = SimpleExt simple₁
     module S₂ = SimpleExt simple₂
@@ -291,7 +289,7 @@ record TypedParSimple {Tp Tm₁ Tm₂}
     ext₂ : Extension Tm₂
     ext₂ = record { weaken = S₂.weaken }
 
-  open ZipUnzipSimple simple₁ simple₂ renaming (parSimple to simple)
+  open ZipUnzipSimple simple₁ simple₂ renaming (zippedSimple to simple)
 
   field rawTypedSimple : RawTypedSimple _⊢_wf _⊢_∈_ application
                                         weakenOps simple simple
@@ -309,10 +307,10 @@ record TypedParSimple {Tp Tm₁ Tm₂}
     )
   open Simple simple
 
-  typedParExtension : TypedParExtension ext₁ ext₂ typedParSub
-  typedParExtension = record { rawTypedExtension = rawTypedExtension }
+  typedRelExtension : TypedRelExtension ext₁ ext₂ typedSubRel
+  typedRelExtension = record { rawTypedExtension = rawTypedExtension }
     where open RawTypedSimple TS.rawTypedSimple
-  open TypedParExtension typedParExtension public using (∼∈-/∷)
+  open TypedRelExtension typedRelExtension public using (∼∈-/∷)
 
   -- Lifting.
   ∼∈-↑ : ∀ {m n} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {a σ ρ} →
@@ -321,21 +319,21 @@ record TypedParSimple {Tp Tm₁ Tm₂}
   ∼∈-↑ a/σρ-wf σ∼ρΓ =
     subst (flip (_⊢/_∈_ _) _) (↑-zip _ _) (TS.∈-↑ a/σρ-wf σ∼ρΓ)
 
-  -- The parallel identity substitution.
+  -- Identity substitutions in typed related terms.
   ∼∈-id  : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢/ S₁.id ∼ S₂.id ∈ Γ
   ∼∈-id Γ-wf = subst (flip (_⊢/_∈_ _) _) id-zip (TS.∈-id Γ-wf)
 
-  -- Parallel weakening.
+  -- Weakening of typed related terms.
   ∼∈-wk : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → a ∷ Γ ⊢/ S₁.wk ∼ S₂.wk ∈ Γ
   ∼∈-wk a-wf = subst (flip (_⊢/_∈_ _) _) wk-zip (TS.∈-wk a-wf)
 
-  -- A parallel substitution which only replaces the first variable.
+  -- Related substitutions which only replace the first variable.
   ∼∈-sub : ∀ {n} {Γ : Ctx Tp n} {s t a} → Γ ⊢ s ∼ t ∈ a →
            Γ ⊢/ S₁.sub s ∼ S₂.sub t ∈ a ∷ Γ
   ∼∈-sub s∼t∈a =
     subst (flip (_⊢/_∈_ _) _) (sub-zip _ _) (TS.∈-sub s∼t∈a)
 
-  -- A parallel substitution which only changes the type of the first
+  -- Related substitutions which only change the type of the first
   -- variable in the context.
   ∼∈-tsub : ∀ {n} {Γ : Ctx Tp n} {a b} →
             b ∷ Γ ⊢ S₁.var zero ∼ S₂.var zero ∈ C.weaken a →
@@ -345,23 +343,23 @@ record TypedParSimple {Tp Tm₁ Tm₂}
 
 -- Abstract typed liftings from Tm₁/Tm₂ to Tm₁′/Tm₂′.
 
-record LiftTypedPar {Tp Tm₁ Tm₂ Tm₁′ Tm₂′}
+record LiftTypedRel {Tp Tm₁ Tm₂ Tm₁′ Tm₂′}
                     (l₁ : Lift Tm₁ Tm₁′)
                     (l₂ : Lift Tm₂ Tm₂′)
-                    (typedParSub : TypedParSub Tp Tm₁ Tm₂ Tp)
+                    (typedSubRel : TypedSubRel Tp Tm₁ Tm₂ Tp)
                     (_⊢₂_∼_∈_ : TypedRel Tp Tm₁′ Tm₂′ Tp)
                     : Set where
 
-  open TypedParSub typedParSub renaming (_⊢_∼_∈_ to _⊢₁_∼_∈_)
+  open TypedSubRel typedSubRel renaming (_⊢_∼_∈_ to _⊢₁_∼_∈_)
   private
     module L₁ = Lift l₁
     module L₂ = Lift l₂
 
-  -- The underlying well-typed simple parallel Tm₁-Tm₂-substitutions.
+  -- The underlying well-typed related simple Tm₁-Tm₂-substitutions.
   field
-    typedParSimple : TypedParSimple L₁.simple L₂.simple typedParSub
+    typedRelSimple : TypedRelSimple L₁.simple L₂.simple typedSubRel
 
-  open TypedParSimple typedParSimple public
+  open TypedRelSimple typedRelSimple public
 
   -- Lifts well-typed Tm₁-terms to well-typed Tm₂-terms.
   field lift : ∀ {n} {Γ : Ctx Tp n} {s t a} →
@@ -381,8 +379,8 @@ module VarEquality {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
     refl : ∀ x → Γ wf → Γ ⊢Var x ≡ x ∈ lookup x Γ
 
 
--- Helpers lemmas for relating (untyped) parallel substitutions to
--- their first projection.
+-- Helpers lemmas for relating (untyped) zipped substitutions to their
+-- first projection.
 
 record ProjLemmas (Tp Tm : ℕ → Set) : Set where
 
@@ -394,7 +392,7 @@ record ProjLemmas (Tp Tm : ℕ → Set) : Set where
     module C = WeakenOps      weakenOps
     module L = ExtAppLemmas   appLemmas
     module H = ZipUnzipSimple L.simple L.simple
-    module S = SimpleExt      H.parSimple
+    module S = SimpleExt      H.zippedSimple
   open SimpleExt   L.simple
   open Application L.application
   open H public
@@ -443,7 +441,7 @@ record ProjLemmas (Tp Tm : ℕ → Set) : Set where
       a
     ∎
 
--- Abstract typed variable equality substitutions (parallel renamings).
+-- Abstract typed variable equality substitutions (renamings).
 
 record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
 
@@ -480,20 +478,20 @@ record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
 
   private module H = ProjLemmas projLemmas
 
-  typedParSub : TypedParSub Tp Fin Fin Tp
-  typedParSub = record
+  typedSubRel : TypedSubRel Tp Fin Fin Tp
+  typedSubRel = record
     { _⊢_∼_∈_     = _⊢Var_≡_∈_
     ; _⊢_wf       = _⊢_wf
     ; application = record { _/_ = λ a σ → a / H.π₁ σ }
     ; weakenOps   = weakenOps
     }
 
-  open TypedParSub typedParSub public
+  open TypedSubRel typedSubRel public
     using () renaming (_⊢/_∼_∈_ to _⊢/Var_≡_∈_)
 
-  -- Extensions of parallel renamings.
-  typedParExtension : TypedParExtension extension extension typedParSub
-  typedParExtension = record
+  -- Extensions of renamings in related terms.
+  typedRelExtension : TypedRelExtension extension extension typedSubRel
+  typedRelExtension = record
     { rawTypedExtension = record
       { ∈-weaken = ≡∈-weaken
       ; weaken-/ = λ {_} {_} {_} {xy} a → H.weaken-/ {st = xy} a
@@ -512,11 +510,11 @@ record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
       ≡∈-wf : ∀ {n} {Γ : Ctx Tp n} {x y a} → Γ ⊢Var x ≡ y ∈ a → Γ wf
       ≡∈-wf (refl x Γ-wf) = Γ-wf
 
-  open TypedParExtension typedParExtension using (rawTypedExtension)
+  open TypedRelExtension typedRelExtension using (rawTypedExtension)
 
-  -- Typed parallel simple renamings.
-  typedParSimple : TypedParSimple simple simple typedParSub
-  typedParSimple = record
+  -- Typed simple renamings in related terms.
+  typedRelSimple : TypedRelSimple simple simple typedSubRel
+  typedRelSimple = record
     { rawTypedSimple = record
       { rawTypedExtension = rawTypedExtension
       ; ∈-var             = refl
@@ -527,5 +525,5 @@ record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
       }
     }
 
-  open TypedParSimple typedParSimple public
-    hiding (typedParExtension; /-wk; id-vanishes; wk-sub-vanishes; wf-wf)
+  open TypedRelSimple typedRelSimple public
+    hiding (typedRelExtension; /-wk; id-vanishes; wk-sub-vanishes; wf-wf)

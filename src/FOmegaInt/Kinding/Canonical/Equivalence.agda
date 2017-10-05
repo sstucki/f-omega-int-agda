@@ -61,7 +61,7 @@ open Substitution using (_Kind[_])
 open ElimCtx
 open SimpleCtx using (kd)
 open ContextConversions
-open ParallelNormalization
+open WeakEqNormalization
 open Kinding
 open KindedRenaming
 open ContextNarrowing

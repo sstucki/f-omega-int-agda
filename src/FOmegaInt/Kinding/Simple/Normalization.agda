@@ -38,9 +38,9 @@ open SimpleCtx    using (kd; tp; ⌊_⌋Asc; kd-inj′)
 open Substitution hiding (subst)
 open ContextConversions
 open RenamingCommutesNorm
-open ParallelHereditarySubstitution
-open ParallelEtaExpansion
-open ParallelNormalization
+open WeakHereditarySubstitutionEquality
+open WeakEqEtaExpansion
+open WeakEqNormalization
 open KindedHereditarySubstitution
 open Simple.Kinding
 open Declarative.Kinding
