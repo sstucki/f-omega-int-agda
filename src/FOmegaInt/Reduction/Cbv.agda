@@ -75,10 +75,10 @@ module ≡v-Reasoning = ↔-Reasoning reduction
 →v⇒→β (a ·₂ b₁→b₂) = _ ·₂ →v⇒→β b₁→b₂
 →v⇒→β (a₁→a₂ ⊡ b)  = →v⇒→β a₁→a₂ ⊡₁ b
 
--- CBV reduction implies parallel reduction.
+-- CBV reduction implies β-reduction.
 →v*⇒→β* : ∀ {n} {a b : Term n} → a →v* b → a →β* b
 →v*⇒→β* = map →v⇒→β
 
--- CBV equivalence implies parallel equivalence.
+-- CBV equivalence implies β-equivalence.
 ≡v⇒≡p : ∀ {n} {a b : Term n} → a ≡v b → a ≡β b
 ≡v⇒≡p = EqClos.map →v⇒→β

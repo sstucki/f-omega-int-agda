@@ -434,7 +434,7 @@ kd-⋯⟨⟩ a∈Πjk b∈Πjk | kd-Π j-kd k-kd =
 -- when `a' and `b' are proper types.  E.g. the kind `⊥ ⋯⟨ ∅ ⟩ ⊤' is
 -- well-formed, but clearly `⊥ , ⊤ ∉ ø'.
 --
--- However, as following lemma illustrates, we can invert some
+-- However, as the following lemma illustrates, we can invert some
 -- judgments about higher-order intervals with "sensible"
 -- kind-indices, such as those resulting from simple kinds via ⌈_⌉.
 -- Still, a proper inversion lemma would require more work, in
@@ -473,9 +473,7 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
 <∷-⋯⟨⟩ a₂<:a₁∈c⋯d b₁<:b₂∈c⋯d | kd-⋯ _ _ =
   <∷-⋯ (<:-⋯-* a₂<:a₁∈c⋯d) (<:-⋯-* b₁<:b₂∈c⋯d)
 <∷-⋯⟨⟩ a₂<:a₁∈Πjk b₁<:b₂∈Πjk | kd-Π j-kd k-kd =
-  let module TR = TypedRenaming
-
-      a₂∈Πjk , a₁∈Πjk = <:-valid a₂<:a₁∈Πjk
+  let a₂∈Πjk , a₁∈Πjk = <:-valid a₂<:a₁∈Πjk
       b₁∈Πjk , b₂∈Πjk = <:-valid b₁<:b₂∈Πjk
       Γ-ctx   = kd-ctx j-kd
       j-wf    = wf-kd j-kd
@@ -529,9 +527,9 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
 -- A corollary: we can kind (the η-expansion of) a type with explicit
 -- lower and uper bounds in the interval defined by these bounds.
 Tp∈-<:-⋯ : ∀ {n} {Γ : Ctx n} {a b c k} →
-           Γ ⊢Tp a ∈ k → Γ ⊢ b <: a ∈ k → Γ ⊢ a <: c ∈ k →
-           Γ ⊢Tp η-exp k a ∈ b ⋯⟨ k ⟩ c
-Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯⟨⟩ b<:a∈k a<:c∈k)
+           Γ ⊢ b <: a ∈ k → Γ ⊢ a <: c ∈ k → Γ ⊢Tp η-exp k a ∈ b ⋯⟨ k ⟩ c
+Tp∈-<:-⋯ b<:a∈k a<:c∈k =
+  ∈-⇑ (∈-s⟨⟩-i (proj₁ (<:-valid a<:c∈k))) (<∷-⋯⟨⟩ b<:a∈k a<:c∈k)
 
 -- Bound projection rules for higher-order intervals.
 --
@@ -668,7 +666,7 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
          Γ ⊢Tp a · η-exp j d ∈ k Kind[ η-exp j d ]
 ∈-Π′-e a∈Πbcjk b<:d∈j d<:c∈j =
   let d∈j , _ = <:-valid d<:c∈j
-  in ∈-Π-e a∈Πbcjk (∈-⇑ (∈-s⟨⟩-i d∈j) (<∷-⋯⟨⟩ b<:d∈j d<:c∈j))
+  in ∈-Π-e a∈Πbcjk (Tp∈-<:-⋯ b<:d∈j d<:c∈j)
 
 -- A formation rule for bounded universal quantifiers.
 ∈-∀′-f : ∀ {n} {Γ : Ctx n} {a b k c} →
@@ -688,7 +686,7 @@ Tp∈-<:-⋯ a∈k b<:a∈k a<:c∈k = ∈-⇑ (∈-s⟨⟩-i a∈k) (<∷-⋯�
          Γ ⊢Tm a ⊡ η-exp k e ∈ d [ η-exp k e ]
 ∈-∀′-e a∈∀bckd b<:e∈k e<:c∈k =
   let e∈k , _ = <:-valid e<:c∈k
-  in ∈-∀-e a∈∀bckd (∈-⇑ (∈-s⟨⟩-i e∈k) (<∷-⋯⟨⟩ b<:e∈k e<:c∈k))
+  in ∈-∀-e a∈∀bckd (Tp∈-<:-⋯ b<:e∈k e<:c∈k)
 
 
 ------------------------------------------------------------------------

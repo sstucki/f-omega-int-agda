@@ -89,6 +89,14 @@ infixl 8 _/H_ _//H_ _Kind/H_ _Asc/H_ _E/H_
 --
 -- TODO: explain the point of working with "suspended" hereditary
 -- substitutions.
+--
+-- FIXME: there is some green slime in this definition, i.e. the
+-- indices of the type of the constructor _←_∈_ contain computations:
+-- (n + suc m) and (n + m).  This can (and does) cause problems when
+-- pattern matching and could probably be avoided by changing the
+-- definition (e.g. by splitting _←_∈_ into two constructors, one for
+-- the base case where n = 0, and another one _↑H for the lifting case
+-- where n = suc n′).
 data HSub : SKind → ℕ → ℕ → Set where
   _←_∈_ : ∀ n {m} → Elim m → (k : SKind) → HSub k (n + suc m) (n + m)
 
