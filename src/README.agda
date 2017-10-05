@@ -110,6 +110,8 @@ open import FOmegaInt.Typing.Encodings
 -- the Agda standard library, as well as support for substitutions
 -- lifted to binary (term) relations, typed substitutions, and typed
 -- parallel substitutions.
+open import Data.Fin.Substitution.Context
+open import Data.Fin.Substitution.Context.Properties
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Relation
 open import Data.Fin.Substitution.Typed

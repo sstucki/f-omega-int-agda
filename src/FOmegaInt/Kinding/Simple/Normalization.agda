@@ -8,6 +8,7 @@ open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution using (module VarSubst)
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Context.Properties
 open import Data.List using ([]; _∷_; _∷ʳ_; map)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (_,_)

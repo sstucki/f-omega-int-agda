@@ -10,6 +10,8 @@ open import Data.Fin using (Fin; zero; suc; raise)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Context
+open import Data.Fin.Substitution.Context.Properties
 open import Data.Nat using (ℕ; zero; suc; _+_)
 import Data.Nat.Properties as NatProp
 import Data.Nat.Properties.Simple as SimpleNatProp
@@ -22,668 +24,6 @@ import Data.Vec.Properties as VecProp
 open import Function as Fun using (_∘_; flip)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (trans)
 open PropEq.≡-Reasoning
-
-
-------------------------------------------------------------------------
--- Abstract typing contexts and well-typedness relations
-
--- Abstract typing contexts over T-types.
---
--- A typing context Ctx T n maps n variables to T-types containing up
--- to n free variables each.
-module Context where
-
-  infixr 5 _∷_
-
-  -- Extensions of typing contexts.
-  --
-  -- Context extensions are indexed sequences that can be concatenated
-  -- together to form typing contexts.  A CtxExt m n is an extension
-  -- mapping (n - m) variables to T-types with m to n free variables
-  -- each.  I.e. the i-th type (for m ≤ i < n) may refer to any of the
-  -- previous (i - 1) free variables xₘ, ..., xᵢ₋₁.
-  data CtxExt (T : ℕ → Set) (m : ℕ) : ℕ → Set where
-    []  :                              CtxExt T m m
-    _∷_ : ∀ {n} → T n → CtxExt T m n → CtxExt T m (suc n)
-
-  -- Typing contexts.
-  --
-  -- Typing contexts are just initial context extensions, i.e. the
-  -- innermost type must not contain any free variables at all.
-  Ctx : (ℕ → Set) → ℕ → Set
-  Ctx T = CtxExt T 0
-
-  -- Drop the m innermost elements of a context Γ.
-  drop : ∀ {T n} m → Ctx T (m + n) → Ctx T n
-  drop zero         Γ  = Γ
-  drop (suc m) (_ ∷ Γ) = drop m Γ
-
-  -- A map function that point-wise changes the entries of a context
-  -- extension.
-  map : ∀ {T₁ T₂ m n} → (∀ {l} → T₁ l → T₂ l) → CtxExt T₁ m n → CtxExt T₂ m n
-  map f []      = []
-  map f (t ∷ Γ) = f t ∷ map f Γ
-
-  infixr 5 _++_
-
-  -- Concatenate two context extensions.
-  _++_ : ∀ {T k m n} → CtxExt T m n → CtxExt T k m → CtxExt T k n
-  []      ++ Γ = Γ
-  (t ∷ Δ) ++ Γ = t ∷ (Δ ++ Γ)
-
-  -- The empty context [] is a right-unit of concatenation.
-  ++-[] : ∀ {T m n} (Γ : CtxExt T m n) → Γ ++ [] ≡ Γ
-  ++-[] []      = refl
-  ++-[] (t ∷ Γ) = cong (_ ∷_) (++-[] Γ)
-
-  -- Concatenations commute.
-  ++-comm : ∀ {T k l m n}
-            (E : CtxExt T m n) (Δ : CtxExt T l m) (Γ : CtxExt T k l) →
-            (E ++ Δ) ++ Γ ≡ E ++ (Δ ++ Γ)
-  ++-comm []      Δ Γ = refl
-  ++-comm (t ∷ E) Δ Γ = cong (_ ∷_) (++-comm E Δ Γ)
-
-  -- Mapping commutes with concatenation.
-  ++-map : ∀ {T₁ T₂ : ℕ → Set} {k m n} (f : ∀ {l} → T₁ l → T₂ l)
-           (Δ : CtxExt T₁ m n) (Γ : CtxExt T₁ k m) →
-           (map f Δ) ++ (map f Γ) ≡ map f (Δ ++ Γ)
-  ++-map f []      Γ = refl
-  ++-map f (t ∷ Δ) Γ = cong (f t ∷_) (++-map f Δ Γ)
-
-  -- The length of a context extension.
-  length : ∀ {T m n} → CtxExt T m n → ℕ
-  length []      = 0
-  length (_ ∷ Γ) = suc (length Γ)
-
-  -- Lemmas relating the length of a context extension to its
-  -- indices/bounds.
-
-  length-bds : ∀ {T m n} (Γ : CtxExt T m n) → length Γ + m ≡ n
-  length-bds []      = refl
-  length-bds (t ∷ Γ) = cong suc (length-bds Γ)
-
-  length-bds′ : ∀ {T m n} (Γ : CtxExt T m (n + m)) → length Γ ≡ n
-  length-bds′ {T} {m} {n} Γ = cancel-+-left m (begin
-    m + length Γ    ≡⟨ +-comm m _ ⟩
-    length Γ + m    ≡⟨ length-bds Γ ⟩
-    n + m           ≡⟨ +-comm n m ⟩
-    m + n           ∎)
-    where
-      open SimpleNatProp using (+-comm)
-      open NatProp       using (cancel-+-left)
-
-  -- An alternative representation of context extension using
-  -- relative-indexing.
-  data CtxExt′ (T : ℕ → Set) (m : ℕ) : ℕ → Set where
-    []  :                                     CtxExt′ T m 0
-    _∷_ : ∀ {l} → T (l + m) → CtxExt′ T m l → CtxExt′ T m (suc l)
-
-  head′ : ∀ {T m l} → CtxExt′ T m (suc l) → T (l + m)
-  head′ (t ∷ ts) = t
-
-  tail′ : ∀ {T m l} → CtxExt′ T m (suc l) → CtxExt′ T m l
-  tail′ (t ∷ ts) = ts
-
-  -- A map function that point-wise re-indexes and changes the entries
-  -- in a context.
-  map′ : ∀ {T₁ T₂ k m n} → (∀ l → T₁ (l + m) → T₂ (l + n)) →
-         CtxExt′ T₁ m k → CtxExt′ T₂ n k
-  map′ f []            = []
-  map′ f (_∷_ {l} t Γ) = f l t ∷ map′ (λ l → f l) Γ
-
-  -- map′ is a congruence.
-
-  map′-cong : ∀ {T₁ T₂ : ℕ → Set} {k m n}
-              {f g : ∀ i → T₁ (i + m) → T₂ (i + n)} → (∀ {i} → f i ≗ g i) →
-              _≗_ {A = CtxExt′ T₁ m k} (map′ {T₂ = T₂} f) (map′ g)
-  map′-cong f≗g []      = refl
-  map′-cong f≗g (_∷_ {l} t Γ) = cong₂ _∷_ (f≗g {l} t) (map′-cong f≗g Γ)
-
-  -- map′ is functorial.
-
-  map′-id : ∀ {T m n} → _≗_ {A = CtxExt T m n} (map Fun.id) Fun.id
-  map′-id []      = refl
-  map′-id (t ∷ Γ) = cong (t ∷_) (map′-id Γ)
-
-  map′-∘ : ∀ {T₁ T₂ T₃ : ℕ → Set} {k l m n}
-           (f : ∀ i → T₂ (i + m) → T₃ (i + n))
-           (g : ∀ i → T₁ (i + l) → T₂ (i + m)) →
-           (Γ : CtxExt′ T₁ l k) →
-           map′ {T₂ = T₃} (λ i t → f i (g i t)) Γ ≡ map′ {T₁ = T₂} f (map′ g Γ)
-  map′-∘ f g []      = refl
-  map′-∘ f g (t ∷ Γ) = cong (_ ∷_) (map′-∘ f g Γ)
-
-  -- Conversions between the two representations.
-
-  private
-
-    CtxExt⇒CtxExt′-helper : ∀ {T m n} → (Γ : CtxExt T m n) →
-                            CtxExt′ T m (length Γ)
-    CtxExt⇒CtxExt′-helper     []      = []
-    CtxExt⇒CtxExt′-helper {T} (t ∷ Γ) =
-      subst T (sym (length-bds Γ)) t ∷ CtxExt⇒CtxExt′-helper Γ
-
-  CtxExt⇒CtxExt′ : ∀ {T m l} → CtxExt T m (l + m) → CtxExt′ T m l
-  CtxExt⇒CtxExt′ Γ =
-    subst (CtxExt′ _ _) (length-bds′ Γ) (CtxExt⇒CtxExt′-helper Γ)
-
-  CtxExt′⇒CtxExt : ∀ {T m l} → CtxExt′ T m l → CtxExt T m (l + m)
-  CtxExt′⇒CtxExt []       = []
-  CtxExt′⇒CtxExt (t ∷ Γ′) = t ∷ CtxExt′⇒CtxExt Γ′
-
-  -- Some reusable lemmas about subst.
-  --
-  -- FIXME: These should probably go into
-  -- Relation.Binary.PropositionalEquality.
-
-  subst-shift : ∀ {a} {A : Set a} (P Q : A → Set) {x y : A}
-                {f g : A → A} (F : ∀ {z} → P (f z) → Q (g z))
-                (b : x ≡ y) (p : f x ≡ f y) (q : g x ≡ g y) {a : P (f x)} →
-                F (subst P p a) ≡ subst Q q (F a)
-  subst-shift P Q F refl refl refl = refl
-
-  subst-shift₂ : ∀ {a} {A : Set a} (P Q R : A → Set) {x y : A}
-                 {f g h : A → A} (F : ∀ {z} → P (f z) → Q (g z) → R (h z))
-                 (b : x ≡ y) (p : f x ≡ f y) (q : g x ≡ g y) (r : h x ≡ h y)
-                 {a : P (f x)} {b : Q (g x)} →
-                 F (subst P p a) (subst Q q b) ≡ subst R r (F a b)
-  subst-shift₂ P Q R F refl refl refl refl = refl
-
-  subst-∘ : ∀ {a} {A : Set a} (P : A → Set) {x y z : A} {a : P x}
-            (p : x ≡ y) (q : y ≡ z) →
-            subst P q (subst P p a) ≡ subst P (PropEq.trans p q) a
-  subst-∘ P refl refl = refl
-
-  subst-id : ∀ {a} {A : Set a} (P : A → Set) {x : A} {a : P x}
-             (p : x ≡ x) → subst P p a ≡ a
-  subst-id P refl = refl
-
-  -- The two representations of context extensions are isomorphic.
-
-  CtxExt⇒CtxExt′⇒CtxExt-id : ∀ {T m n} (Γ : CtxExt T m (n + m)) →
-                             CtxExt′⇒CtxExt {l = n} (CtxExt⇒CtxExt′ Γ) ≡ Γ
-  CtxExt⇒CtxExt′⇒CtxExt-id {T} {m} {n} Γ =
-    let l≡n     = length-bds′ {n = n} Γ
-        l+m≡n+m = length-bds Γ
-    in begin
-      CtxExt′⇒CtxExt (CtxExt⇒CtxExt′ Γ)
-    ≡⟨ subst-shift (CtxExt′ T m) (CtxExt T m) {f = λ n → n}
-                   (CtxExt′⇒CtxExt {T} {m}) l≡n l≡n l+m≡n+m ⟩
-      subst (CtxExt T m) l+m≡n+m (CtxExt′⇒CtxExt (CtxExt⇒CtxExt′-helper Γ))
-    ≡⟨ cong (subst (CtxExt T m) l+m≡n+m) (helper Γ) ⟩
-      subst (CtxExt T m) l+m≡n+m (subst (CtxExt T m) (sym l+m≡n+m) Γ)
-    ≡⟨ subst-∘ (CtxExt T m) (sym l+m≡n+m) l+m≡n+m ⟩
-      subst (CtxExt T m) (PropEq.trans (sym l+m≡n+m) l+m≡n+m) Γ
-    ≡⟨ subst-id (CtxExt T m) (PropEq.trans (sym l+m≡n+m) l+m≡n+m) ⟩
-      Γ
-    ∎
-    where
-      helper : ∀ {T m n} (Γ : CtxExt T m n) →
-               CtxExt′⇒CtxExt (CtxExt⇒CtxExt′-helper Γ) ≡
-                 subst (CtxExt T m) (sym (length-bds Γ)) Γ
-      helper         []      = refl
-      helper {T} {m} (t ∷ Γ) = let n≡l+m = sym (length-bds Γ) in begin
-          subst T n≡l+m t ∷ CtxExt′⇒CtxExt (CtxExt⇒CtxExt′-helper Γ)
-        ≡⟨ cong ((subst T n≡l+m t) ∷_) (helper Γ) ⟩
-          subst T n≡l+m t ∷ subst (CtxExt T m) n≡l+m Γ
-        ≡⟨ subst-shift₂ T (CtxExt T m) (CtxExt T m) {f = λ n → n} _∷_
-                        n≡l+m n≡l+m n≡l+m (sym (length-bds (t ∷ Γ))) ⟩
-          subst (CtxExt T m) (sym (length-bds (t ∷ Γ))) (t ∷ Γ)
-        ∎
-
-  CtxExt′⇒CtxExt⇒CtxExt′-id : ∀ {T m n} (Γ′ : CtxExt′ T m n) →
-                              CtxExt⇒CtxExt′ (CtxExt′⇒CtxExt Γ′) ≡ Γ′
-  CtxExt′⇒CtxExt⇒CtxExt′-id {T} {m} Γ′ =
-    let Γ   = CtxExt′⇒CtxExt Γ′
-        l≡n = length-bds′ Γ
-    in begin
-      CtxExt⇒CtxExt′ Γ
-    ≡⟨ cong (subst (CtxExt′ T m) l≡n) (helper Γ′) ⟩
-      subst (CtxExt′ T m) l≡n (subst (CtxExt′ T m) (sym l≡n) Γ′)
-    ≡⟨ subst-∘ (CtxExt′ T m) (sym l≡n) l≡n ⟩
-      subst (CtxExt′ T m) (PropEq.trans (sym l≡n) l≡n) Γ′
-    ≡⟨ subst-id (CtxExt′ T m) (PropEq.trans (sym l≡n) l≡n) ⟩
-      Γ′
-    ∎
-    where
-      helper : ∀ {T m n} (Γ′ : CtxExt′ T m n) →
-               CtxExt⇒CtxExt′-helper (CtxExt′⇒CtxExt Γ′) ≡
-                 subst (CtxExt′ T m) (sym (length-bds′ (CtxExt′⇒CtxExt Γ′))) Γ′
-      helper {T} {m} []       =
-        sym (subst-id (CtxExt′ T m) (sym (length-bds′ {T} {m} [])))
-      helper {T} {m} (t ∷ Γ′) =
-        let Γ       = CtxExt′⇒CtxExt Γ′
-            n≡l     = sym (length-bds′ Γ)
-            n+m≡l+m = sym (length-bds Γ)
-        in begin
-          subst T n+m≡l+m t ∷ CtxExt⇒CtxExt′-helper Γ
-        ≡⟨ cong (subst T n+m≡l+m t ∷_) (helper Γ′) ⟩
-          subst T n+m≡l+m t ∷ subst (CtxExt′ T m) n≡l Γ′
-        ≡⟨ subst-shift₂ T (CtxExt′ T m) (CtxExt′ T m) {g = λ n → n} _∷_
-                        n≡l n+m≡l+m n≡l (sym (length-bds′ (t ∷ Γ))) ⟩
-          subst (CtxExt′ T m) (sym (length-bds′ (t ∷ Γ))) (t ∷ Γ′)
-        ∎
-
-  infixr 5 _′++_
-
-  -- A variant of concatenation where the suffix is given in the
-  -- alternative representation.
-  _′++_ : ∀ {T k m n} → CtxExt′ T m n → CtxExt T k m → CtxExt T k (n + m)
-  Δ′ ′++ Γ = CtxExt′⇒CtxExt Δ′ ++ Γ
-
-  -- Mapping commutes with the above variant of concatenation.
-  ′++-map : ∀ {T₁ T₂ : ℕ → Set} {k m n} (f : ∀ {l} → T₁ l → T₂ l)
-            (Δ′ : CtxExt′ T₁ m n) (Γ : CtxExt T₁ k m) →
-            (map′ (λ l t → f t) Δ′) ′++ (map f Γ) ≡ map f (Δ′ ′++ Γ)
-  ′++-map f []       Γ = refl
-  ′++-map f (t ∷ Δ′) Γ = cong (f t ∷_) (′++-map f Δ′ Γ)
-
-  -- Operations on contexts that require weakening of types.
-  record WeakenOps (T : ℕ → Set) : Set where
-
-    -- Weakening of types.
-    field weaken : ∀ {n} → T n → T (1 + n)
-
-    extension : Extension T
-    extension = record { weaken = weaken }
-    open Extension extension hiding (weaken)
-
-    -- Convert a context extension to its vector representation.
-
-    extToVec : ∀ {m n} → Vec (T m) m → CtxExt T m n → Vec (T n) n
-    extToVec ts []      = ts
-    extToVec ts (t ∷ Γ) = weaken t /∷ extToVec ts Γ
-
-    extToVec′ : ∀ {k m n} → Vec (T m) k → CtxExt′ T m n →
-                Vec (T (n + m)) (n + k)
-    extToVec′ ts []      = ts
-    extToVec′ ts (t ∷ Γ) = weaken t /∷ extToVec′ ts Γ
-
-    -- Convert a context to its vector representation.
-    toVec : ∀ {n} → Ctx T n → Vec (T n) n
-    toVec = extToVec []
-
-    -- Lookup the type of a variable in a context extension.
-
-    extLookup : ∀ {m n} → Fin n → Vec (T m) m → CtxExt T m n → T n
-    extLookup x ts Γ = Vec.lookup x (extToVec ts Γ)
-
-    extLookup′ : ∀ {k m n} → Fin (n + k) → Vec (T m) k →
-                 CtxExt′ T m n → T (n + m)
-    extLookup′ x ts Γ = Vec.lookup x (extToVec′ ts Γ)
-
-    -- Lookup the type of a variable in a context.
-    lookup : ∀ {n} → Fin n → Ctx T n → T n
-    lookup x = extLookup x []
-
-    -- Some helful lemmas about context extensions.
-
-    -- Conversion to vector representation commutes with
-    -- concatenation.
-
-    extToVec-++ : ∀ {k m n} ts (Δ : CtxExt T m n) (Γ : CtxExt T k m) →
-                  extToVec ts (Δ ++ Γ) ≡ extToVec (extToVec ts Γ) Δ
-    extToVec-++ ts []      Γ = refl
-    extToVec-++ ts (t ∷ Δ) Γ =
-      cong ((_ ∷_) ∘ Vec.map weaken) (extToVec-++ ts Δ Γ)
-
-    extToVec-′++ : ∀ {k m n} ts (Δ′ : CtxExt′ T m n) (Γ : CtxExt T k m) →
-                   extToVec ts (Δ′ ′++ Γ) ≡ extToVec′ (extToVec ts Γ) Δ′
-    extToVec-′++ ts []       Γ = refl
-    extToVec-′++ ts (t ∷ Δ′) Γ =
-      cong ((_ ∷_) ∘ Vec.map weaken) (extToVec-′++ ts Δ′ Γ)
-
-    -- Lookup commutes with concatenation.
-
-    lookup-++ : ∀ {k m n} x ts (Δ : CtxExt T m n) (Γ : CtxExt T k m) →
-                extLookup x ts (Δ ++ Γ) ≡ extLookup x (extToVec ts Γ) Δ
-    lookup-++ x ts Δ Γ = cong (Vec.lookup x) (extToVec-++ ts Δ Γ)
-
-    lookup-′++ : ∀ {k m n} x ts (Δ′ : CtxExt′ T m n) (Γ : CtxExt T k m) →
-                 extLookup x ts (Δ′ ′++ Γ) ≡ extLookup′ x (extToVec ts Γ) Δ′
-    lookup-′++ x ts Δ′ Γ = cong (Vec.lookup x) (extToVec-′++ ts Δ′ Γ)
-
-    open Data.Fin using (lift; raise)
-
-    -- We can skip the first element when looking up others.
-
-    lookup-suc : ∀ {m n} x t (ts : Vec (T m) m) (Γ : CtxExt T m n) →
-                 extLookup (suc x) ts (t ∷ Γ) ≡ weaken (extLookup x ts Γ)
-    lookup-suc x t ts Γ = op-<$> (lookup-morphism x) _ _
-      where open VecProp using (lookup-morphism)
-
-    lookup′-suc : ∀ {k m n} x t (ts : Vec (T m) k) (Γ′ : CtxExt′ T m n) →
-                  extLookup′ (suc x) ts (t ∷ Γ′) ≡ weaken (extLookup′ x ts Γ′)
-    lookup′-suc x t ts Γ′ = op-<$> (lookup-morphism x) _ _
-      where open VecProp using (lookup-morphism)
-
-    -- We can skip a spliced-in element when looking up others.
-
-    lookup′-lift : ∀ {k m n} x t (ts : Vec (T m) k) (Γ′ : CtxExt′ T m n) →
-                   extLookup′ x ts Γ′ ≡ extLookup′ (lift n suc x) (t ∷ ts) Γ′
-    lookup′-lift             x       t ts []       = refl
-    lookup′-lift             zero    t ts (u ∷ Δ′) = refl
-    lookup′-lift {n = suc n} (suc x) t ts (u ∷ Δ′) = begin
-        extLookup′ (suc x) ts (u ∷ Δ′)
-      ≡⟨ lookup′-suc x u ts Δ′ ⟩
-        weaken (extLookup′ x ts Δ′)
-      ≡⟨ cong weaken (lookup′-lift x t ts Δ′) ⟩
-        weaken (extLookup′ (lift n suc x) (t ∷ ts) Δ′)
-      ≡⟨ sym (lookup′-suc (lift n suc x) u (t ∷ ts) Δ′) ⟩
-        extLookup′ (suc (lift n suc x)) (t ∷ ts) (u ∷ Δ′)
-      ∎
-      where open VecProp using (lookup-morphism)
-
-    -- Lookup in the prefix of a concatenation results in weakening.
-
-    lookup-weaken⋆′ : ∀ {k m} l x ts (Δ′ : CtxExt′ T m l) (Γ : CtxExt T k m) →
-                      extLookup (raise l x) ts (Δ′ ′++ Γ) ≡
-                        weaken⋆ l (extLookup x ts Γ)
-    lookup-weaken⋆′ zero    x ts []       Γ = refl
-    lookup-weaken⋆′ (suc l) x ts (t ∷ Δ′) Γ = begin
-        extLookup (suc (raise l x)) ts (t ∷ Δ′ ′++ Γ)
-      ≡⟨ op-<$> (VecProp.lookup-morphism (raise l x)) _ _ ⟩
-        weaken (extLookup (raise l x) ts (Δ′ ′++ Γ))
-      ≡⟨ cong weaken (lookup-weaken⋆′ l x ts Δ′ Γ) ⟩
-        weaken (weaken⋆ l (extLookup x ts Γ))
-      ∎
-
-    lookup-weaken⋆ : ∀ {k m} l x ts (Δ : CtxExt T m (l + m))
-                     (Γ : CtxExt T k m) →
-                     extLookup (raise l x) ts (Δ ++ Γ) ≡
-                       weaken⋆ l (extLookup x ts Γ)
-    lookup-weaken⋆ l x ts Δ Γ =
-      subst (_≡ _) (cong (λ Δ → extLookup (raise l x) ts (Δ ++ Γ))
-                         (CtxExt⇒CtxExt′⇒CtxExt-id Δ))
-            (lookup-weaken⋆′ l x ts (CtxExt⇒CtxExt′ Δ) Γ)
-
-  -- Lemmas relating conversions of context extensions to vector
-  -- representation with conversions of the underling entries.
-  module ConversionLemmas {T₁ T₂}
-                          (weakenOps₁ : WeakenOps T₁)
-                          (weakenOps₂ : WeakenOps T₂) where
-    open VecProp using (map-cong; map-∘)
-    private
-      module W₁ = WeakenOps weakenOps₁
-      module W₂ = WeakenOps weakenOps₂
-
-    -- Conversion to vector representation commutes with mapping,
-    -- provided that the mapped function commutes with weakening.
-    extToVec-map : ∀ {m n} (f : ∀ {l} → T₁ l → T₂ l) ts (Γ : CtxExt T₁ m n) →
-                   (∀ {j} (t : T₁ j) → W₂.weaken (f t) ≡ f (W₁.weaken t)) →
-                   W₂.extToVec (Vec.map f ts) (map f Γ) ≡
-                     Vec.map f (W₁.extToVec ts Γ)
-    extToVec-map f ts []      hyp = refl
-    extToVec-map f ts (t ∷ Γ) hyp = cong₂ _∷_ (hyp t) (begin
-        Vec.map W₂.weaken (W₂.extToVec (Vec.map f ts) (map f Γ))
-      ≡⟨ cong (Vec.map W₂.weaken) (extToVec-map f ts Γ hyp) ⟩
-        (Vec.map W₂.weaken (Vec.map f (W₁.extToVec ts Γ)))
-      ≡⟨ sym (map-∘ W₂.weaken f (W₁.extToVec ts Γ)) ⟩
-        (Vec.map (W₂.weaken ∘ f) (W₁.extToVec ts Γ))
-      ≡⟨ map-cong hyp (W₁.extToVec ts Γ) ⟩
-        (Vec.map (f ∘ W₁.weaken) (W₁.extToVec ts Γ))
-      ≡⟨ map-∘ f W₁.weaken (W₁.extToVec ts Γ) ⟩
-        (Vec.map f (Vec.map W₁.weaken (W₁.extToVec ts Γ)))
-      ∎)
-
-    -- Conversion to vector representation commutes with re-indexing,
-    -- provided that the reindexing function commutes with weakening.
-    extToVec′-map′ : ∀ {k l m n} (f : ∀ j → T₁ (j + m) → T₂ (j + n))
-                     (ts : Vec (T₁ m) k) (Γ′ : CtxExt′ T₁ m l) →
-                     (∀ {j} (t : T₁ (j + m)) →
-                       W₂.weaken (f j t) ≡ f (suc j) (W₁.weaken t)) →
-                     W₂.extToVec′ (Vec.map (f 0) ts) (map′ f Γ′) ≡
-                       Vec.map (f l) (W₁.extToVec′ ts Γ′)
-    extToVec′-map′ f ts []             _   = refl
-    extToVec′-map′ f ts (_∷_ {l} t Γ′) hyp = cong₂ _∷_ (hyp {l} t) (begin
-        Vec.map W₂.weaken (W₂.extToVec′ (Vec.map (f 0) ts) (map′ f Γ′))
-      ≡⟨ cong (Vec.map W₂.weaken) (extToVec′-map′ f ts Γ′ hyp) ⟩
-        (Vec.map W₂.weaken (Vec.map (f _) (W₁.extToVec′ ts Γ′)))
-      ≡⟨ sym (map-∘ W₂.weaken (f l) (W₁.extToVec′ ts Γ′)) ⟩
-        (Vec.map (W₂.weaken ∘ f l) (W₁.extToVec′ ts Γ′))
-      ≡⟨ map-cong (hyp {l}) (W₁.extToVec′ ts Γ′) ⟩
-        (Vec.map (f (suc l) ∘ W₁.weaken) (W₁.extToVec′ ts Γ′))
-      ≡⟨ map-∘ (f (suc l)) W₁.weaken (W₁.extToVec′ ts Γ′) ⟩
-        (Vec.map (f (suc l)) (Vec.map W₁.weaken (W₁.extToVec′ ts Γ′)))
-      ∎)
-
-    -- Lookup commutes with mapping, provided that the mapped function
-    -- commutes with weakening.
-    lookup-map : ∀ {m n} x (f : ∀ {j} → T₁ j → T₂ j) ts (Γ : CtxExt T₁ m n) →
-                 (∀ {j} (t : T₁ j) → W₂.weaken (f t) ≡ f (W₁.weaken t)) →
-                 W₂.extLookup x (Vec.map f ts) (map f Γ) ≡
-                   f (W₁.extLookup x ts Γ)
-    lookup-map x f ts Γ hyp = begin
-        W₂.extLookup x (Vec.map f ts) (map f Γ)
-      ≡⟨ cong (Vec.lookup x) (extToVec-map f ts Γ hyp) ⟩
-        Vec.lookup x (Vec.map f (W₁.extToVec ts Γ))
-      ≡⟨ op-<$> (VecProp.lookup-morphism x) _ _ ⟩
-        f (W₁.extLookup x ts Γ)
-      ∎
-
-    -- Lookup commutes with re-indexing, provided that the reindexing
-    -- function commutes with weakening.
-    lookup′-map′ : ∀ {k l m n} x (f : ∀ j → T₁ (j + m) → T₂ (j + n))
-                   (ts : Vec (T₁ m) k) (Γ′ : CtxExt′ T₁ m l) →
-                   (∀ {j} (t : T₁ (j + m)) →
-                     W₂.weaken (f j t) ≡ f (suc j) (W₁.weaken t)) →
-                   W₂.extLookup′ x (Vec.map (f 0) ts) (map′ f Γ′) ≡
-                     f l (W₁.extLookup′ x ts Γ′)
-    lookup′-map′ {l = l} x f ts Γ′ hyp = begin
-        W₂.extLookup′ x (Vec.map (f 0) ts) (map′ f Γ′)
-      ≡⟨ cong (Vec.lookup x) (extToVec′-map′ f ts Γ′ hyp) ⟩
-        Vec.lookup x (Vec.map (f l) (W₁.extToVec′ ts Γ′))
-      ≡⟨ op-<$> (VecProp.lookup-morphism x) _ _ ⟩
-        f l (W₁.extLookup′ x ts Γ′)
-      ∎
-
-  -- Operations on contexts that require substitutions in types.
-  record SubstOps (T T′ : ℕ → Set) : Set where
-
-    field
-      application : Application T T′ -- Application of T′ substitutions to Ts.
-      simple      : Simple T′        -- Simple T′ substitutions.
-
-    open Application application public
-    open Simple      simple      public
-
-    -- Application of substitutions to context extensions.
-
-    _E′/_ : ∀ {k m n} → CtxExt′ T m k → Sub T′ m n → CtxExt′ T n k
-    Γ′ E′/ σ = map′ (λ l t → t / σ ↑⋆ l) Γ′
-
-    _E/_ : ∀ {k m n} → CtxExt T m (k + m) → Sub T′ m n → CtxExt T n (k + n)
-    _E/_ {k} Γ σ = CtxExt′⇒CtxExt (CtxExt⇒CtxExt′ {l = k} Γ E′/ σ)
-
-
-open Context
-
--- Abstract well-formedness.
---
--- An abtract well-formedness relation _⊢_wf : Wf Tp is a binary
--- relation which, in a given Tp-context, asserts the well-formedness
--- of Tp-types.
-Wf : (ℕ → Set) → Set₁
-Wf Tp = ∀ {n} → Ctx Tp n → Tp n → Set
-
--- Well-formed contexts.
---
--- A well-formed typing context (Γ wf) is a context Γ in which every
--- participating T-type is well-formed.
-module WellFormedContext {T} (_⊢_wf : Wf T) where
-  infix  4 _wf _⊢_wfExt _⊢_wfExt′
-  infixr 5 _∷_
-
-  -- Well-formed typing contexts.
-  data _wf : ∀ {n} → Ctx T n → Set where
-    []  :                                              [] wf
-    _∷_ : ∀ {n t} {Γ : Ctx T n} → Γ ⊢ t wf → Γ wf → t ∷ Γ wf
-
-  -- Well-formed context extensions.
-
-  data _⊢_wfExt {m} (Γ : Ctx T m) : ∀ {n} → CtxExt T m n → Set where
-    []  : Γ ⊢ [] wfExt
-    _∷_ : ∀ {n t} {Δ : CtxExt T m n} →
-          (Δ ++ Γ) ⊢ t wf → Γ ⊢ Δ wfExt → Γ ⊢ t ∷ Δ wfExt
-
-  _⊢_wfExt′ : ∀ {m n} → Ctx T m → CtxExt′ T m n → Set
-  Γ ⊢ Δ′ wfExt′ = Γ ⊢ (CtxExt′⇒CtxExt Δ′) wfExt
-
-  -- Inversions.
-
-  wf-∷₁ : ∀ {n} {Γ : Ctx T n} {a} → a ∷ Γ wf → Γ ⊢ a wf
-  wf-∷₁ (a-wf ∷ _) = a-wf
-
-  wf-∷₂ : ∀ {n} {Γ : Ctx T n} {a} → a ∷ Γ wf → Γ wf
-  wf-∷₂ (_ ∷ Γ-wf) = Γ-wf
-
-  wfExt-∷₁ : ∀ {m n} {Γ : Ctx T m} {Δ : CtxExt T m n} {a} →
-             Γ ⊢ a ∷ Δ wfExt → (Δ ++ Γ) ⊢ a wf
-  wfExt-∷₁ (a-wf ∷ _) = a-wf
-
-  wfExt-∷₂ : ∀ {m n} {Γ : Ctx T m} {Δ : CtxExt T m n} {a} →
-             Γ ⊢ a ∷ Δ wfExt → Γ ⊢ Δ wfExt
-  wfExt-∷₂ (_ ∷ Γ-wf) = Γ-wf
-
-  -- Conversions between well-formed extensions of the empty context
-  -- are well-formed contexts.
-
-  ⊢wfExt⇒wf : ∀ {n} {Γ : Ctx T n} → [] ⊢ Γ wfExt → Γ wf
-  ⊢wfExt⇒wf []               = []
-  ⊢wfExt⇒wf (t-wf ∷ Γ-wfExt) =
-    subst (_⊢ _ wf) (++-[] _) t-wf ∷ ⊢wfExt⇒wf Γ-wfExt
-
-  wf⇒⊢wfExt : ∀ {n} {Γ : Ctx T n} → Γ wf → [] ⊢ Γ wfExt
-  wf⇒⊢wfExt []            = []
-  wf⇒⊢wfExt (t-wf ∷ Γ-wf) =
-    subst (_⊢ _ wf) (sym (++-[] _)) t-wf ∷ wf⇒⊢wfExt Γ-wf
-
-  -- Well-formed extensions of the empty context are isomorphic to
-  -- well-formed contexts.
-
-  ⊢wfExt⇒wf⇒⊢wfExt-id : ∀ {n} {Γ : Ctx T n} (Γ-wfExt : [] ⊢ Γ wfExt) →
-                        wf⇒⊢wfExt (⊢wfExt⇒wf Γ-wfExt) ≡ Γ-wfExt
-  ⊢wfExt⇒wf⇒⊢wfExt-id []                             = refl
-  ⊢wfExt⇒wf⇒⊢wfExt-id (_∷_ {t = t} {Δ} t-wf Γ-wfExt) =
-    cong₂ _∷_ (begin
-      subst (_⊢ t wf) (sym (++-[] Δ)) (subst (_⊢ t wf) (++-[] Δ) t-wf)
-    ≡⟨ subst-∘ (_⊢ t wf) (++-[] Δ) (sym (++-[] Δ)) ⟩
-      subst (_⊢ t wf) (PropEq.trans (++-[] Δ) (sym (++-[] Δ))) t-wf
-    ≡⟨ subst-id (_⊢ t wf) (PropEq.trans (++-[] Δ) (sym (++-[] Δ))) ⟩
-      t-wf
-    ∎) (⊢wfExt⇒wf⇒⊢wfExt-id Γ-wfExt)
-
-  wf⇒⊢wfExt⇒wf-id : ∀ {n} {Γ : Ctx T n} (Γ-wf : Γ wf) →
-                    ⊢wfExt⇒wf (wf⇒⊢wfExt Γ-wf) ≡ Γ-wf
-  wf⇒⊢wfExt⇒wf-id []                          = refl
-  wf⇒⊢wfExt⇒wf-id (_∷_ {t = t} {Γ} t-wf Γ-wf) =
-    cong₂ _∷_ (begin
-      subst (_⊢ t wf) (++-[] Γ) (subst (_⊢ t wf) (sym (++-[] Γ)) t-wf)
-    ≡⟨ subst-∘ (_⊢ t wf) (sym (++-[] Γ)) (++-[] Γ) ⟩
-      subst (_⊢ t wf) (PropEq.trans (sym (++-[] Γ)) (++-[] Γ)) t-wf
-    ≡⟨ subst-id (_⊢ t wf) (PropEq.trans (sym (++-[] Γ)) (++-[] Γ)) ⟩
-      t-wf
-    ∎) (wf⇒⊢wfExt⇒wf-id Γ-wf)
-
-  -- Concatenation preserves well-formedness of contexts.
-  wf-++-wfExt : ∀ {m n} {Δ : CtxExt T m n} {Γ : Ctx T m} →
-                Γ ⊢ Δ wfExt → Γ wf → Δ ++ Γ wf
-  wf-++-wfExt []               Γ-wf = Γ-wf
-  wf-++-wfExt (t-wf ∷ Δ-wfExt) Γ-wf = t-wf ∷ wf-++-wfExt Δ-wfExt Γ-wf
-
-  -- Concatenation preserves well-formedness of context extensions.
-  wfExt-++-wfExt : ∀ {k m n} {E : CtxExt T m n} {Δ : CtxExt T k m}
-                   {Γ : Ctx T k} →
-                   Δ ++ Γ ⊢ E wfExt → Γ ⊢ Δ wfExt → Γ ⊢ E ++ Δ wfExt
-  wfExt-++-wfExt []                             Δ-wfExt = Δ-wfExt
-  wfExt-++-wfExt (_∷_ {t = t} {E} t-wf E-wfExt) Δ-wfExt =
-    subst (_⊢ t wf) (sym (++-comm E _ _)) t-wf ∷ wfExt-++-wfExt E-wfExt Δ-wfExt
-
-  -- Splitting of well-formed contexts.
-  wf-split : ∀ {m n} {Δ : CtxExt T m n} {Γ : Ctx T m} →
-             Δ ++ Γ wf → Γ ⊢ Δ wfExt × Γ wf
-  wf-split {Δ = []}    Γ-wf             = [] , Γ-wf
-  wf-split {Δ = t ∷ Δ} (t-wf ∷ Δ++Γ-wf) =
-    let Δ-wfExt , Γ-wf = wf-split Δ++Γ-wf
-    in t-wf ∷ Δ-wfExt , Γ-wf
-
-  -- Splitting of well-formed context extensions.
-  wfExt-split : ∀ {k m n} {E : CtxExt T m n} {Δ : CtxExt T k m} {Γ : Ctx T k} →
-                Γ ⊢ E ++ Δ wfExt → Δ ++ Γ ⊢ E wfExt × Γ ⊢ Δ wfExt
-  wfExt-split {E = []}    Δ-wfExt             = [] , Δ-wfExt
-  wfExt-split {E = t ∷ E} (t-wf ∷ E++Δ-wfExt) =
-    let E-wfExt , Δ-wfExt = wfExt-split E++Δ-wfExt
-    in subst (_⊢ _ wf) (++-comm E _ _) t-wf ∷ E-wfExt , Δ-wfExt
-
-  -- Operations on well-formed contexts that require weakening of
-  -- well-formedness judgments.
-  record WfWeakenOps (weakenOps : WeakenOps T) : Set where
-    private module W = WeakenOps weakenOps
-
-    -- Weakening of well-formedness judgments.
-    field wf-weaken : ∀ {n} {Γ : Ctx T n} {a b} → Γ ⊢ a wf → Γ ⊢ b wf →
-                      (a ∷ Γ) ⊢ W.weaken b wf
-
-    -- Convert a well-formed context to its All representation.
-    toAll : ∀ {n} {Γ : Ctx T n} → Γ wf → All (λ t → Γ ⊢ t wf) (W.toVec Γ)
-    toAll []            = []
-    toAll (t-wf ∷ Γ-wf) =
-      wf-weaken t-wf t-wf ∷ gmap (wf-weaken t-wf) (toAll Γ-wf)
-
-    -- Convert a well-formed context extension to its All representation.
-    extToAll : ∀ {m n} {Γ : Ctx T m} {Δ : CtxExt T m n} →
-               All (λ t → Γ ⊢ t wf) (W.toVec Γ) → Γ ⊢ Δ wfExt →
-               All (λ a → (Δ ++ Γ) ⊢ a wf) (W.toVec (Δ ++ Γ))
-    extToAll ts-wf []               = ts-wf
-    extToAll ts-wf (t-wf ∷ Δ-wfExt) =
-      wf-weaken t-wf t-wf ∷ gmap (wf-weaken t-wf) (extToAll ts-wf Δ-wfExt)
-
-    -- Lookup the well-formedness proof of a variable in a context.
-    lookup : ∀ {n} {Γ : Ctx T n} (x : Fin n) → Γ wf → Γ ⊢ (W.lookup x Γ) wf
-    lookup x = All.lookup x ∘ toAll
-
-    -- Lookup the well-formedness proof of a variable in a context extension.
-    extLookup : ∀ {m n} {Γ : Ctx T m} {Δ : CtxExt T m n} (x : Fin n) →
-                All (λ t → Γ ⊢ t wf) (W.toVec Γ) → Γ ⊢ Δ wfExt →
-                (Δ ++ Γ) ⊢ (W.lookup x (Δ ++ Γ)) wf
-    extLookup x ts-wf = All.lookup x ∘ (extToAll ts-wf)
-
--- Trivial well-formedness.
---
--- This module provides a trivial well-formedness relation and the
--- corresponding trivially well-formed contexts.  This is useful when
--- implmenting typed substitutions on types that either lack or do not
--- necessitate a notion of well-formedness.
-module ⊤-WellFormed {T} (weakenOps : WeakenOps T) where
-
-  infix  4 _⊢_wf
-
-  -- Trivial well-formedness.
-  _⊢_wf : Wf T
-  _ ⊢ _ wf = ⊤
-
-  open WellFormedContext _⊢_wf public
-
-  -- Trivial well-formedness of contexts.
-  ctx-wf : ∀ {n} (Γ : Ctx T n) → Γ wf
-  ctx-wf []      = []
-  ctx-wf (a ∷ Γ) = tt ∷ ctx-wf Γ
-
-  -- Trivial well-formedness of context extensions.
-
-  ctx-wfExt : ∀ {m n} (Δ : CtxExt T m n) {Γ : Ctx T m} → Γ ⊢ Δ wfExt
-  ctx-wfExt []      = []
-  ctx-wfExt (a ∷ Δ) = tt ∷ ctx-wfExt Δ
-
-  ctx-wfExt′ : ∀ {m n} (Δ′ : CtxExt′ T m n) {Γ : Ctx T m} → Γ ⊢ Δ′ wfExt′
-  ctx-wfExt′ Δ′ = ctx-wfExt (CtxExt′⇒CtxExt Δ′)
-
-  module ⊤-WfWeakenOps where
-
-    wfWeakenOps : WfWeakenOps weakenOps
-    wfWeakenOps = record { wf-weaken = λ _ _ → tt }
-
-    open WfWeakenOps public
 
 
 ------------------------------------------------------------------------
@@ -734,8 +74,8 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
     -- Application of Tm₂-substitutions to (source) Tp₁-types
     application : Application Tp₁ Tm
 
-    -- Operations on (source) Tp₁ contexts.
-    weakenOps : WeakenOps Tp₁
+    -- Weakening of Tp₁-types.
+    weakenOps : Extension Tp₁
 
   open Application       application       public using (_/_; _⊙_)
   open WellFormedContext _⊢_wf             public
@@ -769,7 +109,7 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
 record RawTypedExtension {Tp₁ Tm₁ Tp₂ Tm₂}
                          (_⊢_wf : Wf Tp₂) (_⊢_∈_ : CtxTermRel Tp₂ Tm₁ Tp₁)
                          (application : Application Tp₁ Tm₂)
-                         (weakenOps   : WeakenOps Tp₁)
+                         (weakenOps   : Extension Tp₁)
                          (extension₁  : Extension Tm₁)
                          (extension₂  : Extension Tm₂)
                          : Set where
@@ -832,7 +172,7 @@ record TypedExtension {Tp₁ Tm Tp₂}
   private module R = RawTypedExtension rawTypedExtension
   open R public hiding (∈-/∷)
   open Extension ext hiding (weaken)
-  open WeakenOps weakenOps
+  open WeakenOps weakenOps hiding (_/∷_)
 
   -- Extension by a typed term.
   ∈-/∷ : ∀ {m n} {Γ : Ctx Tp₁ m} {Δ : Ctx Tp₂ n} {t a b σ} →
@@ -845,7 +185,7 @@ record TypedExtension {Tp₁ Tm Tp₂}
 record RawTypedSimple {Tp Tm₁ Tm₂}
                       (_⊢_wf : Wf Tp) (_⊢_∈_ : CtxTermRel Tp Tm₁ Tp)
                       (application : Application Tp Tm₂)
-                      (weakenOps   : WeakenOps Tp)
+                      (weakenOps   : Extension Tp)
                       (simple₁ : Simple Tm₁) (simple₂ : Simple Tm₂)
                       : Set where
 
@@ -886,10 +226,7 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
   open VecProp using (map-cong; map-id; map-∘)
 
   -- Context operations that require Tm₂ substitutions in Tp-types.
-  substOps : SubstOps Tp Tm₂
-  substOps = record { application = application; simple = simple₂ }
-
-  open SubstOps substOps using (_E′/_)
+  open SubstOps application simple₂ using (_E′/_)
 
   -- Some useful helper lemmas.
 
@@ -980,10 +317,11 @@ record TypedSimple {Tp Tm}
 
   private module R = RawTypedSimple rawTypedSimple
   open R public
-    hiding (rawTypedExtension; ∈-/∷; ∈-↑; ∈-id; ∈-wk; ∈-sub; ∈-tsub; ∈-↑⋆)
-  open Simple simple hiding (weaken)
+    hiding (rawTypedExtension; ∈-/∷; ∈-↑; ∈-↑⋆; ∈-id; ∈-wk; ∈-sub; ∈-tsub)
+  open Simple    simple             hiding (weaken)
   open WeakenOps weakenOps
-  open SubstOps  substOps  using (_E′/_)
+  open SubstOps  application simple using (_E′/_)
+  open WellFormedContextLemmas _⊢_wf
 
   typedExtension : TypedExtension _ _
   typedExtension = record { rawTypedExtension = R.rawTypedExtension }
@@ -1050,7 +388,6 @@ record TypedSimple {Tp Tm}
            (∈-↑⋆ {E = Δ} (subst (_ ⊢_wfExt′) (sym (E′/-id-vanishes Δ)) Δ-wfExt)
                  (∈-tsub z∈a))
 
-
 -- TODO: applications of well-typed substitutions to well-typed terms.
 
 
@@ -1075,7 +412,7 @@ record LiftTyped {Tp Tm₁ Tm₂}
   field lift : ∀ {n} {Γ : Ctx Tp n} {t a} → Γ ⊢₁ t ∈ a → Γ ⊢₂ (L.lift t) ∈ a
 
 -- Abstract variable typings.
-module VarTyping {Tp} (weakenOps : WeakenOps Tp) (_⊢_wf : Wf Tp) where
+module VarTyping {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
   open WeakenOps weakenOps
   open WellFormedContext _⊢_wf
 
@@ -1089,7 +426,7 @@ module VarTyping {Tp} (weakenOps : WeakenOps Tp) (_⊢_wf : Wf Tp) where
 record TypedVarSubst {Tp} (_⊢_wf : Wf Tp) : Set where
   field
     application : Application Tp Fin
-    weakenOps   : WeakenOps Tp
+    weakenOps   : Extension Tp
 
   open WellFormedContext   _⊢_wf
   open VarTyping weakenOps _⊢_wf public
@@ -1178,8 +515,8 @@ record ContextSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
     -- Simple Tm-substitutions (e.g. id).
     simple : Simple Tm
 
-    -- Operations on the (source) Tp₁-context.
-    weakenOps : WeakenOps Tp₁
+    -- Weakening of Tp₁-types.
+    weakenOps : Extension Tp₁
 
   open Simple    simple        using (id)
   open WeakenOps weakenOps     using (toVec)

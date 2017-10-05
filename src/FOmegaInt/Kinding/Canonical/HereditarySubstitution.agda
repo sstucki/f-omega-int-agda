@@ -8,6 +8,7 @@ open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Context.Properties
 open import Data.Fin.Substitution.Typed
 open import Data.List using ([]; _∷_; _∷ʳ_; map)
 open import Data.Nat using (ℕ; zero; suc; _+_)
@@ -25,7 +26,7 @@ open import FOmegaInt.Kinding.Canonical as CanonicalKinding
 open import FOmegaInt.Kinding.Simple    as SimpleKinding
 
 open Syntax
-open ElimCtx            hiding (extension)
+open ElimCtx
 open SimpleCtx          using (⌊_⌋Asc; kd; tp)
 open ContextConversions using (⌊_⌋Ctx)
 open Substitution       hiding (subst)
@@ -39,6 +40,7 @@ open KindedHereditarySubstitution
 open CanonicalKinding.KindedRenaming
   using (kd-weaken⋆; Nf⇇-weaken⋆; <:⇇-weaken⋆)
 open ContextNarrowing
+open WellFormedContextLemmas (_⊢_wf)
 
 
 ----------------------------------------------------------------------

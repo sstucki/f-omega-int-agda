@@ -6,7 +6,8 @@
 module Relation.Binary.TransReasoning where
 
 open import Level using (suc; _⊔_)
-open import Data.Fin.Substitution.Typed using (module Context; CtxTermRel)
+open import Data.Fin.Substitution.Context using (Ctx)
+open import Data.Fin.Substitution.Typed using (CtxTermRel)
 open import Data.Fin.Substitution.TypedParallel using (TypedRel)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary using (Rel; Transitive)
@@ -83,8 +84,6 @@ record TransRelReasoning {a b} {T : Set a}
 -- A form of pre-order reasoning for transitive relations in a context.
 record TransCtxTermRelReasoning {T₁ T₂}
                                 (_⊢_∼_ : CtxTermRel T₁ T₂ T₂) : Set₁ where
-  open Context using (Ctx)
-
   -- Transitivity of _⊢_∼_∈_ for a given context.
   field ∼-trans : ∀ {n} {Γ : Ctx T₁ n} → Transitive (Γ ⊢_∼_)
 
@@ -97,8 +96,6 @@ record TransCtxTermRelReasoning {T₁ T₂}
 -- A form of pre-order reasoning for typed transitive relations.
 record TypedTransRelReasoning {T₁ T₂ T₃}
                               (_⊢_∼_∈_ : TypedRel T₁ T₂ T₂ T₃) : Set₁ where
-  open Context using (Ctx)
-
   -- Transitivity of _⊢_∼_∈_ for a given context and T₃-"type".
   field ∼-trans : ∀ {n} {Γ : Ctx T₁ n} {t} → Transitive (Γ ⊢_∼_∈ t)
 

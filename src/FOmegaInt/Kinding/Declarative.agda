@@ -204,7 +204,7 @@ module Kinding where
 -- Properties of typings
 
 open Syntax
-open TermCtx hiding (extension)
+open TermCtx
 open Kinding
 
 -- An inversion lemma for _⊢_wf.
@@ -754,8 +754,7 @@ module KindedSubstitution where
     }
 
   open LiftTyped liftTyped public hiding
-    ( typedExtension; typedSimple; substOps
-    ; ∈-var; ∈-weaken; ∈-wf; wf-wf; ∈-sub-↑⋆)
+    (typedExtension; typedSimple; ∈-var; ∈-weaken; ∈-wf; wf-wf; ∈-sub-↑⋆)
 
   typedSubstApp : TypedSubstApp termLift liftTyped
   typedSubstApp = record

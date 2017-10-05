@@ -8,6 +8,7 @@ open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Context.Properties
 open import Data.Fin.Substitution.Typed
 open import Data.List using ([]; _∷_; _∷ʳ_; map)
 open import Data.List.All using (All; []; _∷_)
@@ -202,7 +203,7 @@ module Kinding where
 -- Simple properties of canonical kindings
 
 open Syntax
-open ElimCtx hiding (extension)
+open ElimCtx
 open SimpleCtx using (kd; tp; ⌊_⌋Asc)
 open Kinding
 open ContextConversions using (⌊_⌋Ctx; module ⌊⌋Ctx-Lemmas)
@@ -784,6 +785,7 @@ Var∈-valid (⇇-⇑ x∈j j<∷k k-kd)       = k-kd
 -- ascriptions in their contexts.
 module ContextNarrowing where
   open ≡-Reasoning
+  open WellFormedContextLemmas _⊢_wf
 
   private
     module KL = TermLikeLemmas termLikeLemmasKind′

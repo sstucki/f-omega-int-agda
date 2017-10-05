@@ -9,7 +9,8 @@ open import Data.Fin using (Fin; suc; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Typed using (module Context)
+import Data.Fin.Substitution.Context as Context
+open import Data.Fin.Substitution.Context.Properties
 open import Data.Star using (Star; ε; _◅_)
 open import Data.Nat using (ℕ; suc; zero)
 open import Data.Product using (proj₂)
@@ -1167,28 +1168,25 @@ record KdOrTpCtx (T : ℕ → Set) : Set₁ where
   -- of TermLikeLemmas.
   field
     termLikeLemmas : TermLikeLemmas (KdOrTp T) Term
-  open TermLikeLemmas termLikeLemmas using (_/_; weaken; termLemmas)
-  open TermLemmas     termLemmas     using (simple)
+  open TermLikeLemmas termLikeLemmas
+    using (termApplication; weaken; termLemmas)
+  open TermLemmas termLemmas using (simple)
 
-  weakenOps : WeakenOps (KdOrTp T)
+  weakenOps : Extension (KdOrTp T)
   weakenOps = record { weaken = weaken }
 
-  open WeakenOps weakenOps public hiding (weaken)
+  open WeakenOps        weakenOps           public hiding (weaken; weaken⋆)
+  open WeakenOpsLemmas  weakenOps           public
   open ConversionLemmas weakenOps weakenOps public
 
-  substOps : SubstOps (KdOrTp T) Term
-  substOps = record
-    { application = record { _/_ = _/_ }
-    ; simple      = simple
-    }
-  open SubstOps substOps public using (_E/_; _E′/_)
+  open SubstOps termApplication simple public using (_E/_; _E′/_)
 
   infix 10 _E′[_]
 
   -- A shorthand for single-variable substitutions in context
   -- extensions.
   _E′[_] : ∀ {m n} → CtxExt′ (suc m) n → Term m → CtxExt′ m n
-  Γ′ E′[ a ] = Γ′ E′/ SubstOps.sub substOps a
+  Γ′ E′[ a ] = Γ′ E′/ SubstOps.sub termApplication simple a
 
 open Substitution
 
@@ -1229,17 +1227,18 @@ module SimpleCtx where
   CtxExt  = Context.CtxExt  SAsc
   CtxExt′ = Context.CtxExt′ SAsc
 
-  weakenOps : WeakenOps SAsc
+  weakenOps : Extension SAsc
   weakenOps = record { weaken = Function.id }
 
-  open WeakenOps weakenOps public hiding (weaken)
+  open WeakenOps        weakenOps           public hiding (weaken; weaken⋆)
+  open WeakenOpsLemmas  weakenOps           public
   open ConversionLemmas weakenOps weakenOps public
 
   -- Change the indexing of a context extension.
   re-idx : ∀ {k m n} → CtxExt′ k n → CtxExt′ m n
   re-idx Γ′ = map′ (λ _ k → k) Γ′
 
-  open Extension extension public using () renaming (weaken⋆ to weakenSAsc⋆)
+  open Extension weakenOps public using () renaming (weaken⋆ to weakenSAsc⋆)
 
   weakenSAsc⋆-id : ∀ m {n a} → weakenSAsc⋆ m {n} a ≡ a
   weakenSAsc⋆-id zero    = refl

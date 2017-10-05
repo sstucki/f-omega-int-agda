@@ -9,6 +9,7 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Context
 open import Data.Fin.Substitution.Typed
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (_×_; _,_)
@@ -16,10 +17,8 @@ open import Data.Vec as Vec using (_∷_; map; zip; unzip)
 open import Data.Vec.All using (lookup₂)
 open import Data.Vec.Properties
 open import Function using (flip; _∘_)
-open import Relation.Binary.PropositionalEquality as P
-open P.≡-Reasoning
-
-open Context
+open import Relation.Binary.PropositionalEquality
+open ≡-Reasoning
 
 infixr 2 _⊗_
 
@@ -72,8 +71,8 @@ record TypedParSub (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
     -- Application of Tm₁⊗Tm₂-substitutions to (source) Tp₁-types
     application : Application Tp₁ (Tm₁ ⊗ Tm₂)
 
-    -- Operations on (source) Tp₁ contexts.
-    weakenOps : WeakenOps Tp₁
+    -- Weakening of Tp₁-types.
+    weakenOps : Extension Tp₁
 
   open WellFormedContext _⊢_wf public
   private module C = WeakenOps weakenOps
@@ -371,7 +370,7 @@ record LiftTypedPar {Tp Tm₁ Tm₂ Tm₁′ Tm₂′}
 
 -- Abstract typed variable equality.
 
-module VarEquality {Tp} (weakenOps : WeakenOps Tp) (_⊢_wf : Wf Tp) where
+module VarEquality {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
   open WeakenOps weakenOps
   open WellFormedContext _⊢_wf
 
@@ -388,7 +387,7 @@ module VarEquality {Tp} (weakenOps : WeakenOps Tp) (_⊢_wf : Wf Tp) where
 record ProjLemmas (Tp Tm : ℕ → Set) : Set where
 
   field
-    weakenOps   : WeakenOps Tp
+    weakenOps   : Extension Tp
     appLemmas   : AppLemmas Tp Tm
 
   private
@@ -450,7 +449,7 @@ record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
 
   field
     application : Application Tp Fin
-    weakenOps   : WeakenOps Tp
+    weakenOps   : Extension Tp
 
   open WellFormedContext     _⊢_wf
   open VarEquality weakenOps _⊢_wf public
