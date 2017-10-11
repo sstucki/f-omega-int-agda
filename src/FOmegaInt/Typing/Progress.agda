@@ -5,9 +5,10 @@
 -- This module contains a variant of the "progress" theorem for Fω
 -- with interval kinds.  Progress says roughly that well-typed terms
 -- do not get stuck.  I.e. a well-typed term is either a value or it
--- can take a CBV reduction step.  Together with the subject reduction
--- (aka "preservation") theorem from FOmegaInt.Typing.Preservation,
--- progress ensures type safety.  For detials, see e.g.
+-- can take a call-by-value (CBV) reduction step.  Together with the
+-- subject reduction (aka "preservation") theorem from
+-- FOmegaInt.Typing.Preservation, progress ensures type safety.  For
+-- detials, see e.g.
 --
 --  * B. C. Pierce, TAPL (2002), pp. 95.
 --

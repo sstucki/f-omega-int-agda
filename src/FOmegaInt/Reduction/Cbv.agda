@@ -80,5 +80,5 @@ module ≡v-Reasoning = ↔-Reasoning reduction
 →v*⇒→β* = map →v⇒→β
 
 -- CBV equivalence implies β-equivalence.
-≡v⇒≡p : ∀ {n} {a b : Term n} → a ≡v b → a ≡β b
-≡v⇒≡p = EqClos.map →v⇒→β
+≡v⇒≡β : ∀ {n} {a b : Term n} → a ≡v b → a ≡β b
+≡v⇒≡β = EqClos.map →v⇒→β

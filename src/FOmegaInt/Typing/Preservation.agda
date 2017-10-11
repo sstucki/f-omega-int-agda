@@ -15,6 +15,10 @@
 -- hold for arbitrary β-reductions in *types* (see `pres-Tp∈-→β*' in
 -- the Kinding.Declarative.Validity module for a proof).
 --
+-- NOTE.  Here we use the CBV evaluation strategy, but this is
+-- unnecessarily restrictive.  Other evaluation strategies work so
+-- long as they do not allow reductions under type abstractions.
+--
 -- Together with the "progress" theorem from Typing.Progress, subject
 -- reduction ensures type safety.  For detials, see e.g.
 --
@@ -43,10 +47,6 @@ open Typing
 open TypedSubstitution using (Tm∈-[]; <:-[])
 
 -- Types of closed terms are preserved under single-step reduction.
---
--- FIXME. Here we use CBV, but this is unnecessarily restrictive.
--- Other reduction strategies could work in principle so long as they
--- do not allow reductions under type abstractions.
 pres : ∀ {a b c} → [] ⊢Tm a ∈ c → a →v b → [] ⊢Tm b ∈ c
 pres (∈-var () _ _)
 pres (∈-∀-i k-kd a∈b)    ()
@@ -67,10 +67,6 @@ pres (∈-⇑ a∈c c<:d)      a→b   = ∈-⇑ (pres a∈c a→b) c<:d
 
 -- Weak preservation (aka subject reduction): types of closed terms
 -- are preserved under reduction.
---
--- FIXME. Here we use CBV, but this is unnecessarily restrictive.
--- Other reduction strategies could work in principle so long as they
--- do not allow reductions under type abstractions.
 pres* : ∀ {a b c} → [] ⊢Tm a ∈ c → a →v* b → [] ⊢Tm b ∈ c
 pres* a∈c ε            = a∈c
 pres* a∈d (a→b ◅ b→*c) = pres* (pres a∈d a→b) b→*c
