@@ -6,7 +6,6 @@
 
 module FOmegaInt.Syntax.Normalization where
 
-import Category.Applicative.Indexed as Applicative
 open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas using (module VarLemmas)
@@ -530,8 +529,7 @@ open RenamingCommutesNorm
 module _ where
   open Substitution
   open ≡-Reasoning
-  open VecProps using (map-cong; map-∘; lookup-morphism)
-  open Applicative.Morphism using (op-<$>)
+  open VecProps using (map-cong; map-∘)
 
   -- Normalization commutes conversion from context to vector representation.
   nfCtx-toVec : ∀ {n} (Γ : TermCtx.Ctx n) →
@@ -558,7 +556,7 @@ module _ where
       lookup x (nfCtx Γ)
     ≡⟨ cong (Vec.lookup x) (nfCtx-toVec Γ) ⟩
       Vec.lookup x (Vec.map (nfAsc (nfCtx Γ)) (TermCtx.toVec Γ))
-    ≡⟨ op-<$> (lookup-morphism x) _ _ ⟩
+    ≡⟨ VecProps.lookup-map x _ _ ⟩
       nfAsc (nfCtx Γ) (TermCtx.lookup x Γ)
     ∎
 

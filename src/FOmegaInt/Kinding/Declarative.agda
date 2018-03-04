@@ -870,25 +870,26 @@ module WfSubstitutionEquality where
     ; weakenOps   = record { weaken = weakenTermAsc }
     }
 
-  open TypedSubRel wfEqSub public using (_,_)
+  open TypedSubRel wfEqSub public using ()
     renaming (_⊢/_∼_∈_ to _⊢/_≃_∈_; lookup to ≃-lookup)
+  open TypedSub KindedSubstitution.typedSub using (_,_)
 
   -- Extensions of equal type and term substitutions.
   wfEqExtension : TypedRelExtension extension extension wfEqSub
   wfEqExtension = record
     { rawTypedExtension = record
       { ∈-weaken = ≃⊎≡-weaken
-      ; weaken-/ = λ{ {_} {_} {_} {b , c} a → weaken-/-π₁ a b c }
+      ; weaken-/ = λ{ {_} {_} {ρσ} {b , c} a → weaken-/-π₁ ρσ a b c }
       ; ∈-wf     = ≃⊎≡-ctx
       }
     }
     where
       open ≡-Reasoning
 
-      weaken-/-π₁ : ∀ {m n} {ρσ : Sub (Term ⊗ Term) m n} a b c →
+      weaken-/-π₁ : ∀ {m n} (ρσ : Sub (Term ⊗ Term) m n) a b c →
                     weakenTermAsc (a TermAsc/ π₁ ρσ) ≡
                       weakenTermAsc a TermAsc/ π₁ ((b , c) Z./∷ ρσ)
-      weaken-/-π₁ {_} {_} {ρσ} a b c = begin
+      weaken-/-π₁ {_} {_} ρσ a b c = begin
           weakenTermAsc (a TermAsc/ π₁ ρσ)
         ≡⟨ AL.weaken-/ a ⟩
           weakenTermAsc a TermAsc/ (b S./∷ (π₁ ρσ))
@@ -1000,10 +1001,10 @@ module WfSubstitutionEquality where
     -- Equal substitutions map well-kinded types to type equations.
     Tp∈-/≃ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k ρ σ} →
              Γ ⊢Tp a ∈ k → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢ a / ρ ≃ a / σ ∈ k Kind/ ρ
-    Tp∈-/≃ (∈-var x Γ-ctx Γ[x]≡kd-k) (_ , _ , ρ≃σ∈Γ , _) =
-      (≃⊎≡-kd-inv (cong (_TermAsc/ _) Γ[x]≡kd-k)
+    Tp∈-/≃ {ρ = ρ} {σ} (∈-var x Γ-ctx Γ[x]≡kd-k) (_ , _ , ρ≃σ∈Γ , _) =
+      (≃⊎≡-kd-inv (cong (_TermAsc/ ρ) Γ[x]≡kd-k)
                   (subst (_ ⊢ _ ≃⊎≡ _ ∈_)
-                         (cong (_ TermAsc/_) (π₁-zip _ _))
+                         (cong (_ TermAsc/_) (π₁-zip ρ σ))
                          (≃-lookup x ρ≃σ∈Γ)))
     Tp∈-/≃ (∈-⊥-f Γ-ctx) ((_ , Δ-ctx) , _) = ≃-refl (∈-⊥-f Δ-ctx)
     Tp∈-/≃ (∈-⊤-f Γ-ctx) ((_ , Δ-ctx) , _) = ≃-refl (∈-⊤-f Δ-ctx)

@@ -4,17 +4,15 @@
 
 module Data.Fin.Substitution.TypedRelation where
 
-import Category.Applicative.Indexed as Applicative
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Context
+open import Data.Fin.Substitution.Context hiding (map)
 open import Data.Fin.Substitution.Typed
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (_×_; _,_)
 open import Data.Vec as Vec using (_∷_; map; zip; unzip)
-open import Data.Vec.All using (lookup₂)
 open import Data.Vec.Properties
 open import Function using (flip; _∘_)
 open import Relation.Binary.PropositionalEquality
@@ -240,21 +238,21 @@ module ZipUnzipSimple {Tm₁ Tm₂}
   -- Zipping preserves weakening substitutions.
   wk-zip : ∀ {n} → wk {n} ≡ zip S₁.wk S₂.wk
   wk-zip {n} = begin
-      Vec.map weaken id
-    ≡⟨ cong (Vec.map weaken) id-zip ⟩
-      Vec.map weaken (zip S₁.id S₂.id)
+      map weaken id
+    ≡⟨ cong (map weaken) id-zip ⟩
+      map weaken (zip S₁.id S₂.id)
     ≡⟨ map-zip S₁.weaken S₂.weaken _ _ ⟩
-      zip (Vec.map S₁.weaken S₁.id) (Vec.map S₂.weaken S₂.id)
+      zip (map S₁.weaken S₁.id) (map S₂.weaken S₂.id)
     ∎
 
   -- Unzipping preserves weakening substitutions.
   wk-unzip : ∀ {n} → (S₁.wk , S₂.wk) ≡ unzip (wk {n})
   wk-unzip {n} = begin
-      (Vec.map S₁.weaken S₁.id , Vec.map S₂.weaken S₂.id)
-    ≡⟨ cong (Prod.map (Vec.map S₁.weaken) (Vec.map S₂.weaken)) id-unzip ⟩
-      (Vec.map S₁.weaken (π₁ id) , Vec.map S₂.weaken (π₂ id))
+      (map S₁.weaken S₁.id , map S₂.weaken S₂.id)
+    ≡⟨ cong (Prod.map (map S₁.weaken) (map S₂.weaken)) id-unzip ⟩
+      (map S₁.weaken (π₁ id) , map S₂.weaken (π₂ id))
     ≡⟨ map-unzip S₁.weaken S₂.weaken id ⟩
-      unzip (Vec.map weaken id)
+      unzip (map weaken id)
     ∎
 
   -- Zipping preserves sigle-variable substitutions.
@@ -494,17 +492,15 @@ record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
   typedRelExtension = record
     { rawTypedExtension = record
       { ∈-weaken = ≡∈-weaken
-      ; weaken-/ = λ {_} {_} {_} {xy} a → H.weaken-/ {st = xy} a
+      ; weaken-/ = λ {_} {_} {ρ} {xy} a → H.weaken-/ {σ = ρ} {xy} a
       ; ∈-wf     = ≡∈-wf
       }
     }
     where
-      open Applicative.Morphism using (op-<$>)
-
       ≡∈-weaken : ∀ {n} {Γ : Ctx Tp n} {x y a b} → Γ ⊢ a wf →
                   Γ ⊢Var x ≡ y ∈ b → a ∷ Γ ⊢Var suc x ≡ suc y ∈ C.weaken b
       ≡∈-weaken a-wf (refl x Γ-wf) =
-        subst (_⊢Var_≡_∈_ _ _ _) (op-<$> (lookup-morphism x) _ _)
+        subst (_⊢Var_≡_∈_ _ _ _) (lookup-map x _ _)
               (refl (suc x) (a-wf ∷ Γ-wf))
 
       ≡∈-wf : ∀ {n} {Γ : Ctx Tp n} {x y a} → Γ ⊢Var x ≡ y ∈ a → Γ wf

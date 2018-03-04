@@ -4,8 +4,6 @@
 
 module Data.Fin.Substitution.Typed where
 
-import Category.Applicative.Indexed as Applicative
-open Applicative.Morphism using (op-<$>)
 open import Data.Fin using (Fin; zero; suc; raise)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
@@ -19,8 +17,8 @@ open import Data.Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
 open import Data.Vec.All as All using (All; All₂; []; _∷_; map₂)
-open import Data.Vec.All.Properties using (gmap; gmap₂; gmap₂₁; gmap₂₂)
-import Data.Vec.Properties as VecProp
+open import Data.Vec.All.Properties using (gmap; gmap₂)
+open import Data.Vec.Properties using (map-cong; map-id; map-∘; lookup-map)
 open import Function as Fun using (_∘_; flip)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (trans)
 open PropEq.≡-Reasoning
@@ -39,11 +37,11 @@ CtxTermRel Tp₁ Tm Tp₂ = ∀ {n} → Ctx Tp₁ n → Tm n → Tp₂ n → Set
 
 module _ {Tp Tm₁ Tm₂ : ℕ → Set} where
 
-  -- Term relations lifted point-wise to corresponding substitutions.
+  -- Term relations lifted pointwise to corresponding substitutions.
   --
   -- Given a relation R on Tm₁ and Tm₂ terms in a Tp context, the
   -- family of relations (LiftCtxTermRel R) relates Tm₁ and Tm₂
-  -- substitutions point-wise.
+  -- substitutions pointwise.
   LiftCtxTermRel : ∀ {m} → CtxTermRel Tp Tm₁ Tm₂ →
                    CtxTermRel Tp (Sub Tm₁ m) (Sub Tm₂ m)
   LiftCtxTermRel P Γ σ₁ σ₂ = All₂ (P Γ) σ₁ σ₂
@@ -97,8 +95,7 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
   lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ}
            (x : Fin m) → Δ ⊢/ σ ∈ Γ → Δ ⊢ Vec.lookup x σ ∈ C.lookup x Γ / σ
   lookup x (σ⟨∈⟩Γ⊙σ , _) =
-    subst (_⊢_∈_ _ _) (op-<$> (VecProp.lookup-morphism x) _ _)
-          (All.lookup₂ x σ⟨∈⟩Γ⊙σ)
+    subst (_⊢_∈_ _ _) (lookup-map x _ _) (All.lookup₂ x σ⟨∈⟩Γ⊙σ)
 
 
 ------------------------------------------------------------------------
@@ -135,8 +132,6 @@ record RawTypedExtension {Tp₁ Tm₁ Tp₂ Tm₂}
     ∈-wf : ∀ {n} {Δ : Ctx Tp₂ n} {t a} → Δ ⊢ t ∈ a → Δ wf
 
   -- A helper lemma.
-
-  open VecProp using (map-cong; map-∘)
 
   map-weaken-/ : ∀ {m n} (σ : Sub Tp₁ m m) (ρ : Sub Tm₂ m n) t →
                  Vec.map C.weaken (σ ⊙ ρ) ≡ Vec.map C.weaken σ ⊙ (t E₂./∷ ρ)
@@ -223,7 +218,6 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
     wf-wf : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → Γ wf
 
   open RawTypedExtension rawTypedExtension public
-  open VecProp using (map-cong; map-id; map-∘)
 
   -- Context operations that require Tm₂ substitutions in Tp-types.
   open SubstOps application simple₂ using (_E′/_)
@@ -232,9 +226,9 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
 
   ⊙-id : ∀ {m n} {ρ : Sub Tp m n} → ρ ⊙ S₂.id ≡ ρ
   ⊙-id {ρ = ρ} = begin
-    Vec.map (_/ S₂.id) ρ  ≡⟨ VecProp.map-cong id-vanishes ρ ⟩
-    Vec.map Fun.id     ρ  ≡⟨ VecProp.map-id ρ ⟩
-    ρ                 ∎
+    Vec.map (_/ S₂.id) ρ  ≡⟨ map-cong id-vanishes ρ ⟩
+    Vec.map Fun.id     ρ  ≡⟨ map-id ρ ⟩
+    ρ                     ∎
 
   weaken-sub-vanishes : ∀ {n t} (a : Tp n) → C.weaken a / S₂.sub t ≡ a
   weaken-sub-vanishes {t = t} a = begin
@@ -291,8 +285,8 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
   ∈-sub : ∀ {n} {Γ : Ctx Tp n} {t u a} →
           Γ ⊢ t ∈ a → Γ ⊢ S₁.sub t ⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ S₂.sub u
   ∈-sub t∈a =
-    t∈a′ ∷ subst (_ ⊢ _ ⟨ _⊢_∈_ ⟩_) (VecProp.map-∘ (_/ S₂.sub _) C.weaken _)
-                 (gmap₂₂ (subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)))
+    t∈a′ ∷ subst₂ (_ ⊢_⟨ _⊢_∈_ ⟩_) (map-id _) (map-∘ (_/ S₂.sub _) C.weaken _)
+                  (gmap₂ (subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)))
                          (∈-id′ Γ-wf))
     where
       Γ-wf = ∈-wf t∈a
@@ -483,7 +477,7 @@ record TypedVarSubst {Tp} (_⊢_wf : Wf Tp) : Set where
       ∈-weaken : ∀ {n} {Γ : Ctx Tp n} {x a b} → Γ ⊢ a wf → Γ ⊢Var x ∈ b →
                  a ∷ Γ ⊢Var suc x ∈ C.weaken b
       ∈-weaken a-wf (var x Γ-wf) =
-        subst (_⊢Var_∈_ _ _) (op-<$> (VecProp.lookup-morphism x) _ _)
+        subst (_⊢Var_∈_ _ _) (lookup-map x _ _)
               (var (suc x) (a-wf ∷ Γ-wf))
 
       weaken-/ : ∀ {m n} {σ : Sub Fin m n} {t} a →
@@ -566,8 +560,8 @@ record Equivalence {Tp₁ Tm Tp₂}
   -- The identity substitution is the right-identity of _⊙_.
   ⊙-id : ∀ {m n} {σ : Sub Tp₁ m n} → σ ⊙ id ≡ σ
   ⊙-id {σ = σ} = begin
-    Vec.map (_/ id) σ   ≡⟨ VecProp.map-cong id-vanishes σ ⟩
-    Vec.map Fun.id  σ   ≡⟨ VecProp.map-id σ ⟩
+    Vec.map (_/ id) σ   ≡⟨ map-cong id-vanishes σ ⟩
+    Vec.map Fun.id  σ   ≡⟨ map-id σ ⟩
     σ               ∎
 
   -- There is a context substitution for every typed identity

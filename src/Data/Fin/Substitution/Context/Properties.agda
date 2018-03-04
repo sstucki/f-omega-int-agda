@@ -4,8 +4,6 @@
 
 module Data.Fin.Substitution.Context.Properties where
 
-import Category.Applicative.Indexed as Applicative
-open Applicative.Morphism using (op-<$>)
 open import Data.Fin using (Fin; zero; suc; lift; raise)
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; zero; suc; _+_)
@@ -223,13 +221,11 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
 
   lookup-suc : ∀ {m n} x t (ts : Vec (T m) m) (Γ : CtxExt T m n) →
                extLookup (suc x) ts (t ∷ Γ) ≡ weaken (extLookup x ts Γ)
-  lookup-suc x t ts Γ = op-<$> (lookup-morphism x) _ _
-    where open VecProp using (lookup-morphism)
+  lookup-suc x t ts Γ = VecProp.lookup-map x _ _
 
   lookup′-suc : ∀ {k m n} x t (ts : Vec (T m) k) (Γ′ : CtxExt′ T m n) →
                 extLookup′ (suc x) ts (t ∷ Γ′) ≡ weaken (extLookup′ x ts Γ′)
-  lookup′-suc x t ts Γ′ = op-<$> (lookup-morphism x) _ _
-    where open VecProp using (lookup-morphism)
+  lookup′-suc x t ts Γ′ = VecProp.lookup-map x _ _
 
   -- We can skip a spliced-in element when looking up others.
 
@@ -246,7 +242,6 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
     ≡⟨ sym (lookup′-suc (lift n suc x) u (t ∷ ts) Δ′) ⟩
       extLookup′ (suc (lift n suc x)) (t ∷ ts) (u ∷ Δ′)
     ∎
-    where open VecProp using (lookup-morphism)
 
   -- Lookup in the prefix of a concatenation results in weakening.
 
@@ -256,7 +251,7 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
   lookup-weaken⋆′ zero    x ts []       Γ = refl
   lookup-weaken⋆′ (suc l) x ts (t ∷ Δ′) Γ = begin
       extLookup (suc (raise l x)) ts (t ∷ Δ′ ′++ Γ)
-    ≡⟨ op-<$> (VecProp.lookup-morphism (raise l x)) _ _ ⟩
+    ≡⟨ VecProp.lookup-map (raise l x) _ _ ⟩
       weaken (extLookup (raise l x) ts (Δ′ ′++ Γ))
     ≡⟨ cong weaken (lookup-weaken⋆′ l x ts Δ′ Γ) ⟩
       weaken (weaken⋆ l (extLookup x ts Γ))
@@ -334,7 +329,7 @@ module ConversionLemmas {T₁ T₂}
       W₂.extLookup x (Vec.map f ts) (map f Γ)
     ≡⟨ cong (Vec.lookup x) (extToVec-map f ts Γ hyp) ⟩
       Vec.lookup x (Vec.map f (W₁.extToVec ts Γ))
-    ≡⟨ op-<$> (VecProp.lookup-morphism x) _ _ ⟩
+    ≡⟨ VecProp.lookup-map x _ _ ⟩
       f (W₁.extLookup x ts Γ)
     ∎
 
@@ -350,7 +345,7 @@ module ConversionLemmas {T₁ T₂}
       W₂.extLookup′ x (Vec.map (f 0) ts) (map′ f Γ′)
     ≡⟨ cong (Vec.lookup x) (extToVec′-map′ f ts Γ′ hyp) ⟩
       Vec.lookup x (Vec.map (f l) (W₁.extToVec′ ts Γ′))
-    ≡⟨ op-<$> (VecProp.lookup-morphism x) _ _ ⟩
+    ≡⟨ VecProp.lookup-map x _ _ ⟩
       f l (W₁.extLookup′ x ts Γ′)
     ∎
 
