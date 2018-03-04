@@ -16,9 +16,10 @@ import Data.Nat.Properties.Simple as SimpleNatProp
 open import Data.Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.Vec.All as All using (All; All₂; []; _∷_; map₂)
-open import Data.Vec.All.Properties using (gmap; gmap₂)
+open import Data.Vec.All as All using (All; []; _∷_)
 open import Data.Vec.Properties using (map-cong; map-id; map-∘; lookup-map)
+open import Data.Vec.Relation.Pointwise.Inductive as PW
+  using (Pointwise; []; _∷_; map; map⁺)
 open import Function as Fun using (_∘_; flip)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (trans)
 open PropEq.≡-Reasoning
@@ -44,7 +45,7 @@ module _ {Tp Tm₁ Tm₂ : ℕ → Set} where
   -- substitutions pointwise.
   LiftCtxTermRel : ∀ {m} → CtxTermRel Tp Tm₁ Tm₂ →
                    CtxTermRel Tp (Sub Tm₁ m) (Sub Tm₂ m)
-  LiftCtxTermRel P Γ σ₁ σ₂ = All₂ (P Γ) σ₁ σ₂
+  LiftCtxTermRel P Γ σ₁ σ₂ = Pointwise (P Γ) σ₁ σ₂
 
   infix 4 _⊢_⟨_⟩_
 
@@ -95,7 +96,7 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
   lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ}
            (x : Fin m) → Δ ⊢/ σ ∈ Γ → Δ ⊢ Vec.lookup x σ ∈ C.lookup x Γ / σ
   lookup x (σ⟨∈⟩Γ⊙σ , _) =
-    subst (_⊢_∈_ _ _) (lookup-map x _ _) (All.lookup₂ x σ⟨∈⟩Γ⊙σ)
+    subst (_⊢_∈_ _ _) (lookup-map x _ _) (PW.lookup σ⟨∈⟩Γ⊙σ x)
 
 
 ------------------------------------------------------------------------
@@ -152,7 +153,7 @@ record RawTypedExtension {Tp₁ Tm₁ Tp₂ Tm₂}
       t∈a/ρ′   = subst (_⊢_∈_ _ _) (weaken-/ _) t∈a/ρ
       σ⟨∈⟩Γ⊙ρ′ =
         t∈a/ρ′ ∷ (subst ((LiftCtxTermRel _⊢_∈_) _ _) (map-weaken-/ _ _ _)
-                        (gmap₂ (∈-weaken b-wf) σ⟨∈⟩Γ⊙ρ))
+                        (map⁺ (∈-weaken b-wf) σ⟨∈⟩Γ⊙ρ))
 
 record TypedExtension {Tp₁ Tm Tp₂}
                       (ext : Extension Tm)
@@ -275,7 +276,7 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
   -- Weakening.
   ∈-wk : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf →
          a ∷ Γ ⊢ S₁.wk ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ S₂.wk
-  ∈-wk a-wf = gmap₂ (weaken′ a-wf) (∈-id′ (wf-wf a-wf))
+  ∈-wk a-wf = map⁺ (weaken′ a-wf) (∈-id′ (wf-wf a-wf))
     where
       weaken′ : ∀ {n} {Γ : Ctx Tp n} {t a b} → Γ ⊢ a wf → Γ ⊢ t ∈ b →
                 (a ∷ Γ) ⊢ S₁.weaken t ∈ (b / S₂.wk)
@@ -286,8 +287,8 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
           Γ ⊢ t ∈ a → Γ ⊢ S₁.sub t ⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ S₂.sub u
   ∈-sub t∈a =
     t∈a′ ∷ subst₂ (_ ⊢_⟨ _⊢_∈_ ⟩_) (map-id _) (map-∘ (_/ S₂.sub _) C.weaken _)
-                  (gmap₂ (subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)))
-                         (∈-id′ Γ-wf))
+                  (map⁺ (subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)))
+                        (∈-id′ Γ-wf))
     where
       Γ-wf = ∈-wf t∈a
       t∈a′ = subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)) t∈a
@@ -525,11 +526,11 @@ record ContextSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
   -- the context of a well-typed Tm-term, i.e. where the underlying
   -- untyped substitution is the identity.
   data _⊢/id-∈_ {n} (Δ : Ctx Tp₂ n) (Γ : Ctx Tp₁ n) : Set where
-    _,_ : All₂ (λ t a → Δ ⊢ t ∈ a) id (toVec Γ) → Δ wf → Δ ⊢/id-∈ Γ
+    _,_ : Pointwise (λ t a → Δ ⊢ t ∈ a) id (toVec Γ) → Δ wf → Δ ⊢/id-∈ Γ
 
   -- Project out the first component of a context substitution.
   proj₁ : ∀ {n} {Γ : Ctx Tp₁ n} {Δ : Ctx Tp₂ n} →
-          Δ ⊢/id-∈ Γ → All₂ (λ t a → Δ ⊢ t ∈ a) id (toVec Γ)
+          Δ ⊢/id-∈ Γ → Pointwise (λ t a → Δ ⊢ t ∈ a) id (toVec Γ)
   proj₁ (∈-id , _) = ∈-id
 
 -- Equivalences between (simple) typed substitutions and their
@@ -600,7 +601,7 @@ record ContextSimple {Tp Tm}
   ctx-/∷ : ∀ {n} {Γ : Ctx Tp n} {Δ : Ctx Tp n} {a b} →
            b ∷ Δ ⊢ U.var zero ∈ C.weaken a → Δ ⊢/id-∈ Γ → b ∷ Δ ⊢/id-∈ a ∷ Γ
   ctx-/∷ z∈a (∈-id , Δ-wf) =
-    z∈a ∷ gmap₂ (∈-weaken (wf-∷₁ b∷Δ-wf)) ∈-id , b∷Δ-wf
+    z∈a ∷ PW.map⁺ (∈-weaken (wf-∷₁ b∷Δ-wf)) ∈-id , b∷Δ-wf
     where b∷Δ-wf = ∈-wf z∈a
 
   -- Lifting.

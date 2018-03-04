@@ -16,6 +16,7 @@ open import Data.Nat using (ℕ; suc; zero)
 open import Data.Product using (proj₂)
 open import Data.Vec as Vec using ([]; _∷_)
 open import Data.List as List using (List; []; _∷_; foldl; map; _++_; _∷ʳ_)
+open import Data.List.Properties using (++-monoid)
 import Data.Maybe as Maybe
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality as P hiding ([_])
@@ -276,12 +277,12 @@ kd-inj refl = refl
 -- The empty spine is a right unit of _∙∙_
 ∙∙-[] : ∀ {n} (a : Elim n) → a ∙∙ [] ≡ a
 ∙∙-[] (a ∙ as) = cong (a ∙_) (proj₂ identity as)
-  where open Monoid (List.monoid (Elim _)) hiding (_∙_)
+  where open Monoid (++-monoid (Elim _)) hiding (_∙_)
 
 -- Spine application commutes with spine concatenation.
 ∙∙-++ : ∀ {n} (a : Elim n) bs cs → a ∙∙ bs ∙∙ cs ≡ a ∙∙ (bs ++ cs)
 ∙∙-++ (a ∙ as) bs cs = cong (a ∙_) (assoc as bs cs)
-  where open Monoid (List.monoid (Elim _)) hiding (_∙_)
+  where open Monoid (++-monoid (Elim _)) hiding (_∙_)
 
 -- Spine application can be expressed as a left fold.
 ∙∙IsFold : ∀ {n} (a : Elim n) bs → a ∙∙ bs ≡ foldl _⌜·⌝_ a bs

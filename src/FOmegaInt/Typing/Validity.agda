@@ -10,8 +10,7 @@ open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Product as Prod using (∃; _,_; _×_; proj₁; proj₂)
 open import Data.Vec as Vec using ([]; _∷_)
-open import Data.Vec.All as VecAll using (All₂; []; _∷_)
-open import Data.Vec.All.Properties using (gmap; gmap₂)
+import Data.Vec.Relation.Pointwise.Inductive as Pointwise
 open import Data.Star using (ε; _◅_)
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality hiding ([_])
@@ -108,21 +107,22 @@ Tp∈-η a∈Πjk | a∈Πjk′ with E.Tp∈-valid a∈Πjk′
 -- Operations on well-formed context equality that require weakening
 -- and validity of ascription equality.
 module CtxEqOps where
+  open Pointwise using (Pointwise; []; _∷_; map⁺)
   open TypedRenaming using (≃wf-weaken)
 
   -- Convert a context equation to its All₂ representation.
   ≃ctx-toAll : ∀ {m} {Γ Δ : Ctx m} → Γ ≃ Δ ctx →
-               All₂ (Γ ⊢_≃_wf) (toVec Γ) (toVec Δ)
+               Pointwise (Γ ⊢_≃_wf) (toVec Γ) (toVec Δ)
   ≃ctx-toAll ≃-[]          = []
   ≃ctx-toAll (≃-∷ a≃b Γ≃Δ) =
     let a-wf , _ = ≃wf-valid a≃b
-    in ≃wf-weaken a-wf a≃b ∷ gmap₂ (≃wf-weaken a-wf) (≃ctx-toAll Γ≃Δ)
+    in ≃wf-weaken a-wf a≃b ∷ map⁺ (≃wf-weaken a-wf) (≃ctx-toAll Γ≃Δ)
 
   -- Ascriptions looked up in equal contexts are equal.
 
   lookup-≃ : ∀ {m} {Γ Δ : Ctx m} x → Γ ≃ Δ ctx →
              Γ ⊢ lookup x Γ ≃ lookup x Δ wf
-  lookup-≃ x Γ≃Δ = VecAll.lookup₂ x (≃ctx-toAll Γ≃Δ)
+  lookup-≃ x Γ≃Δ = Pointwise.lookup (≃ctx-toAll Γ≃Δ) x
 
   lookup-≃-kd : ∀ {m} {Γ Δ : Ctx m} {j k} x → Γ ≃ Δ ctx →
                 lookup x Γ ≡ kd j → lookup x Δ ≡ kd k → Γ ⊢ j ≅ k

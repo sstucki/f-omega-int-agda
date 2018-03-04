@@ -15,8 +15,9 @@ open import Data.List.All using (All; []; _∷_)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (∃; _,_; _×_)
 open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.Vec.All as VecAll using (All₂; []; _∷_)
-open import Data.Vec.All.Properties using (gmap₂)
+open import Data.Vec.All as VecAll using ([]; _∷_)
+open import Data.Vec.Relation.Pointwise.Inductive as Pointwise
+  using (Pointwise; []; _∷_; map⁺)
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality
 
@@ -1274,14 +1275,15 @@ data _⊢_≅_ext {m} (Γ : Ctx m) : ∀ {n} → CtxExt′ m n → CtxExt′ m n
 ≅wf-weaken a-wf (≅-kd j≅k) = ≅-kd (≅-weaken a-wf j≅k)
 ≅wf-weaken a-wf (≅-tp a≃b) = ≅-tp (≃-weaken a-wf a≃b)
 
--- Convert a context equality to its All representation.
-≅-extToAll : ∀ {m n} {Δ₁ Δ₂ : CtxExt′ m n} {Γ₁ Γ₂ : Ctx m} →
-             All₂ (Γ₁ ⊢_≅_wf) (toVec Γ₁) (toVec Γ₂) → Γ₁ ⊢ Δ₁ ≅ Δ₂ ext →
-             All₂ (Δ₁ ′++ Γ₁ ⊢_≅_wf) (toVec (Δ₁ ′++ Γ₁)) (toVec (Δ₂ ′++ Γ₂))
-≅-extToAll as≅bs []            = as≅bs
-≅-extToAll as≅bs (a≅b ∷ Δ₁≅Δ₂) =
+-- Convert a context equality to its Pointwise representation.
+≅-extToPW : ∀ {m n} {Δ₁ Δ₂ : CtxExt′ m n} {Γ₁ Γ₂ : Ctx m} →
+            Pointwise (Γ₁ ⊢_≅_wf) (toVec Γ₁) (toVec Γ₂) → Γ₁ ⊢ Δ₁ ≅ Δ₂ ext →
+            Pointwise (Δ₁ ′++ Γ₁ ⊢_≅_wf)
+                      (toVec (Δ₁ ′++ Γ₁)) (toVec (Δ₂ ′++ Γ₂))
+≅-extToPW as≅bs []            = as≅bs
+≅-extToPW as≅bs (a≅b ∷ Δ₁≅Δ₂) =
   let a-wf , _ = ≅wf-valid a≅b
-  in ≅wf-weaken a-wf a≅b ∷ gmap₂ (≅wf-weaken a-wf) (≅-extToAll as≅bs Δ₁≅Δ₂)
+  in ≅wf-weaken a-wf a≅b ∷ map⁺ (≅wf-weaken a-wf) (≅-extToPW as≅bs Δ₁≅Δ₂)
 
 -- Ascriptions looked up in equal contexts are equal.
 
@@ -1289,10 +1291,10 @@ lookup-≅ : ∀ {m n} {Δ E : CtxExt′ m n} {Γ : Ctx m} x →
            Γ ctx → Γ ⊢ Δ ≅ E ext →
            Δ ′++ Γ ⊢ lookup x (Δ ′++ Γ) ≅ lookup x (E ′++ Γ) wf
 lookup-≅ x Γ-ctx Δ≅E =
-  VecAll.lookup₂ x (≅-extToAll (helper (WfCtxOps.toAll Γ-ctx)) Δ≅E)
+  Pointwise.lookup (≅-extToPW (helper (WfCtxOps.toAll Γ-ctx)) Δ≅E) x
   where
     helper : ∀ {m n Γ} {as : Vec (ElimAsc m) n} →
-             VecAll.All (Γ ⊢_wf) as → All₂ (Γ ⊢_≅_wf) as as
+             VecAll.All (Γ ⊢_wf) as → Pointwise (Γ ⊢_≅_wf) as as
     helper []             = []
     helper (a-wf ∷ as-wf) = ≅wf-refl a-wf ∷ helper as-wf
 

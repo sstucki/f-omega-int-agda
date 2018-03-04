@@ -8,8 +8,7 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; zero; suc)
-open import Data.Vec.All using (All₂; []; _∷_; lookup₂)
-open import Data.Vec.All.Properties using (gmap₂)
+open import Data.Vec.Relation.Pointwise.Inductive hiding (refl)
 import Function as Fun
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong)
 
@@ -35,7 +34,7 @@ module LiftTermRel (T₁ T₂ : ℕ → Set) where
   -- Given a relation R on T₁ and T₂ terms, the family of relations
   -- (lift R) relates T₁ and T₂ substitutions point-wise.
   lift : TermRel T₁ T₂ → SubRel T₁ T₂
-  lift P σ₁ σ₂ = All₂ P σ₁ σ₂
+  lift P σ₁ σ₂ = Pointwise P σ₁ σ₂
 
   infix 4 _⟨_⟩_
 
@@ -65,7 +64,7 @@ module _ {T₁ T₂} (_∼_ : TermRel T₁ T₂) where
     -- Extension.
     _/∷_ : ∀ {m n t₁ t₂} {σ₁ : Sub T₁ m n} {σ₂ : Sub T₂ m n} →
            t₁ ∼ t₂ → σ₁ ⟨ _∼_ ⟩ σ₂ → t₁ E₁./∷ σ₁ ⟨ _∼_ ⟩ t₂ E₂./∷ σ₂
-    t₁∼t₂ /∷ σ₁∼σ₂ = t₁∼t₂ ∷ gmap₂ weaken σ₁∼σ₂
+    t₁∼t₂ /∷ σ₁∼σ₂ = t₁∼t₂ ∷ map⁺ weaken σ₁∼σ₂
 
   -- Simple substitutions lifted to relations.
   record RelSimple (simple₁ : Simple T₁) (simple₂ : Simple T₂) : Set where
@@ -104,7 +103,7 @@ module _ {T₁ T₂} (_∼_ : TermRel T₁ T₂) where
 
     wk⋆ : ∀ k {n} → S₁.wk⋆ k {n} ⟨ _∼_ ⟩ S₂.wk⋆ k {n}
     wk⋆ zero    = id
-    wk⋆ (suc k) = gmap₂ weaken (wk⋆ k)
+    wk⋆ (suc k) = map⁺ weaken (wk⋆ k)
 
     wk : ∀ {n} → S₁.wk {n} ⟨ _∼_ ⟩ S₂.wk {n}
     wk = wk⋆ 1
@@ -132,7 +131,7 @@ module _ {T₁ T₂} (_∼_ : TermRel T₁ T₂) where
     -- Reverse composition. (Fits well with post-application.)
     _⊙_ : ∀ {m n k} {σ₁ : Sub T₁ m n} {σ₂} {σ₁′ : Sub T₁′ n k} {σ₂′} →
           σ₁ ⟨ _∼_ ⟩ σ₂ → σ₁′ ⟨ R ⟩′ σ₂′ → σ₁ A₁.⊙ σ₁′ ⟨ _∼_ ⟩ σ₂ A₂.⊙ σ₂′
-    σ₁∼σ₂ ⊙ σ₁∼σ₂′ = gmap₂ (λ t₁∼t₂ → t₁∼t₂ / σ₁∼σ₂′) σ₁∼σ₂
+    σ₁∼σ₂ ⊙ σ₁∼σ₂′ = map⁺ (λ t₁∼t₂ → t₁∼t₂ / σ₁∼σ₂′) σ₁∼σ₂
 
   -- A combination of the two records above.
   record RelSubst (subst₁ : Subst T₁) (subst₂ : Subst T₂) : Set where
@@ -182,7 +181,7 @@ module VarEqSubst where
 
       _/_ : ∀ {m n x₁ x₂} {σ₁ σ₂ : Sub Fin n m} →
             x₁ ≡ x₂ → σ₁ ⟨≡⟩ σ₂ → x₁ V./ σ₁ ≡ x₂ V./ σ₂
-      _/_ {x₁ = x} refl σ₁≡σ₂ = lookup₂ x σ₁≡σ₂
+      _/_ {x₁ = x} refl σ₁≡σ₂ = lookup σ₁≡σ₂ x
 
   open RelSubst subst public
 
