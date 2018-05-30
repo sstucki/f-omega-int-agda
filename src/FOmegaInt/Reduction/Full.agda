@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Full β-reduction in pure type systems (PTS)
+-- Full β-reduction in Fω with interval kinds
 ------------------------------------------------------------------------
 
 module FOmegaInt.Reduction.Full where

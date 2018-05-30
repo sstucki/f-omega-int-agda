@@ -5,7 +5,7 @@
 -- This module proves a variant of subject reduction (aka the
 -- "preservation" theorem) for term reduction in Fω with interval
 -- kinds.  The subject reduction property proved here is weaker than
--- the one typicall found in the literature on other variants of Fω:
+-- the one typically found in the literature on other variants of Fω:
 -- subject reduction does not hold in arbitrary typing contexts in Fω
 -- with interval types because type variables of interval kind can be
 -- used to introduce arbitrary typing (in)equalities into the
@@ -20,7 +20,7 @@
 -- long as they do not allow reductions under type abstractions.
 --
 -- Together with the "progress" theorem from Typing.Progress, subject
--- reduction ensures type safety.  For detials, see e.g.
+-- reduction ensures type safety.  For details, see e.g.
 --
 --  * B. C. Pierce, TAPL (2002), pp. 95.
 --

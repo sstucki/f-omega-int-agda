@@ -8,7 +8,7 @@
 -- can take a call-by-value (CBV) reduction step.  Together with the
 -- subject reduction (aka "preservation") theorem from
 -- FOmegaInt.Typing.Preservation, progress ensures type safety.  For
--- detials, see e.g.
+-- details, see e.g.
 --
 --  * B. C. Pierce, TAPL (2002), pp. 95.
 --

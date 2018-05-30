@@ -71,10 +71,9 @@ mutual
       open WfsCtxOps using (lookup-kd)
       nf-Γ[x]≡kd-nf-j = nfCtx-lookup-kd x Γ Γ[x]≡kd-j
   nf-Tp∈ (∈-var x Γ-ctx Γ[x]≡kd-k) | tp _  | ()
-  nf-Tp∈ (∈-⊥-f Γ-ctx) = ∈-⊥-f
-  nf-Tp∈ (∈-⊤-f Γ-ctx) = ∈-⊤-f
-  nf-Tp∈ (∈-∀-f {k} {a} k-kd a∈*) =
-    ∈-∀-f (nf-kd k-kd) (nf-Tp∈ a∈*)
+  nf-Tp∈ (∈-⊥-f Γ-ctx)    = ∈-⊥-f
+  nf-Tp∈ (∈-⊤-f Γ-ctx)    = ∈-⊤-f
+  nf-Tp∈ (∈-∀-f k-kd a∈*) = ∈-∀-f (nf-kd k-kd) (nf-Tp∈ a∈*)
   nf-Tp∈ (∈-→-f a∈* b∈*)  = ∈-→-f (nf-Tp∈ a∈*) (nf-Tp∈ b∈*)
   nf-Tp∈ (∈-Π-i {j} {a} j-kd a∈k k-kd) =
     let j′ = nfKind _ j
@@ -91,9 +90,8 @@ mutual
   -- well-formed kinds.
   nf-kd : ∀ {n} {Γ : Ctx n} {k} →
           let Γ′ = nfCtx Γ in Γ ⊢ k kd → ⌊ Γ′ ⌋Ctx ⊢ nfKind Γ′ k kds
-  nf-kd (kd-⋯ a∈* b∈*)           = kds-⋯ (nf-Tp∈ a∈*) (nf-Tp∈ b∈*)
-  nf-kd (kd-Π {j} {k} j-kd k-kd) =
-    kds-Π (nf-kd j-kd) (nf-kd k-kd)
+  nf-kd (kd-⋯ a∈* b∈*)   = kds-⋯ (nf-Tp∈ a∈*) (nf-Tp∈ b∈*)
+  nf-kd (kd-Π j-kd k-kd) = kds-Π (nf-kd j-kd) (nf-kd k-kd)
 
   -- Normalization and simultaneous simplification of contexts:
   -- well-formed contexts normalize to simply well-formed simple
