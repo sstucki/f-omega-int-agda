@@ -60,14 +60,17 @@ open P.≡-Reasoning
 --
 module Syntax where
 
-  infixl 9 _·_ _⊡_
+  infixl 9 _·_ _⊡_ _,_ _,∙_
   infixr 7 _⇒_ _⇒∙_
   infix  6 _⋯_
+  infixl 6 _⊗_
 
   -- Raw, T-dependent kinds with up to n free variables.
   data Kind (T : ℕ → Set) (n : ℕ) : Set where
     _⋯_ : (a b : T n)                         → Kind T n  -- interval
     Π   : (j : Kind T n) (k : Kind T (suc n)) → Kind T n  -- dependent arrow
+    ◆   :                                       Kind T n  -- unit
+    Σ   : (j : Kind T n) (k : Kind T (suc n)) → Kind T n  -- dependent pair
 
   -- Raw terms and types with up to n free variables.
   --
@@ -95,6 +98,10 @@ module Syntax where
     ƛ   : (a : Term n)      (b : Term (suc n)) → Term n  -- term abstraction
     _⊡_ : (a b : Term n)                       → Term n  -- type instantiation
     _·_ : (a b : Term n)                       → Term n  -- term application
+    ⟨⟩  :                                        Term n  -- empty tuple
+    _,_ : (a b : Term n)                       → Term n  -- pairing
+    π₁  : (a : Term n)                         → Term n  -- 1st projection
+    π₂  : (a : Term n)                         → Term n  -- 2nd projection
 
   -- A shorthand for the kind of proper types.
   * : ∀ {n} → Kind Term n
@@ -120,9 +127,15 @@ module Syntax where
   mutual
 
     -- Eliminations are applications of (possibly empty) sequences of
-    -- arguments to heads.
+    -- eliminators to heads.
     data Elim (n : ℕ) : Set where
       _∙_ : (a : Head n) (as : Spine n) → Elim n  -- application
+
+    -- Eliminators are arguments (of applications) or projections.
+    data Eltr (n : ℕ) : Set where
+      arg : (a : Elim n) → Eltr n  -- argument
+      π₁  :                Eltr n  -- 1st projection
+      π₂  :                Eltr n  -- 2nd projection
 
     -- Heads are those terms that are not eliminations.
     data Head (n : ℕ) : Set where
@@ -134,10 +147,12 @@ module Syntax where
       Λ   : (k : Kind Elim n) (a : Elim (suc n)) → Head n  -- type abstraction
       ƛ   : (a : Elim n)      (b : Elim (suc n)) → Head n  -- term abstraction
       _⊡_ : (a b : Elim n)                       → Head n  -- type inst.
+      ⟨⟩  :                                        Head n  -- empty tuple
+      _,_ : (a b : Elim n)                       → Head n  -- pairing
 
     -- Spines are (possibly empty) sequences of eliminations.
     Spine : ℕ → Set
-    Spine n = List (Elim n)
+    Spine n = List (Eltr n)
 
   -- Projections.
 
@@ -147,19 +162,25 @@ module Syntax where
   spineOf : ∀ {n} → Elim n → Spine n
   spineOf (a ∙ as) = as
 
-  infixl 9 _⌜·⌝_ _⌞∙⌟_ _∙∙_
+  infixl 9 _·′_ _⌜·⌝_ _∙∙_
 
-  -- Post-application of spines and eliminations to eliminations.
+  -- Post-application of spines, eliminators and eliminations to
+  -- eliminations.
 
   _∙∙_ : ∀ {n} → Elim n → Spine n → Elim n
   a ∙ as ∙∙ bs = a ∙ (as ++ bs)
 
-  _⌜·⌝_ : ∀ {n} → Elim n → Elim n → Elim n
-  a ⌜·⌝ b = a ∙∙ (b ∷ [])
+  _·′_ : ∀ {n} → Elim n → Eltr n → Elim n
+  a ·′ b = a ∙∙ (b ∷ [])
 
-  -- Application of term sequences to terms.
-  _⌞∙⌟_ : ∀ {n} → Term n → List (Term n) → Term n
-  a ⌞∙⌟ as = foldl _·_ a as
+  _⌜·⌝_ : ∀ {n} → Elim n → Elim n → Elim n
+  a ⌜·⌝ b = a ·′ arg b
+
+  ⌜π₁⌝ : ∀ {n} → Elim n → Elim n
+  ⌜π₁⌝ a = a ·′ π₁
+
+  ⌜π₂⌝ : ∀ {n} → Elim n → Elim n
+  ⌜π₂⌝ a = a ·′ π₂
 
   -- Some useful shorthands.
 
@@ -184,6 +205,12 @@ module Syntax where
   ƛ∙ : ∀ {n} → Elim n → Elim (suc n) → Elim n
   ƛ∙ a b = ƛ a b ∙ []
 
+  ⟨⟩∙ : ∀ {n} → Elim n
+  ⟨⟩∙ = ⟨⟩ ∙ []
+
+  _,∙_ : ∀ {n} → Elim n → Elim n → Elim n
+  a ,∙ b = (a , b) ∙ []
+
   ⌜*⌝ : ∀ {n} → Kind Elim n
   ⌜*⌝ = ⊥∙ ⋯ ⊤∙
 
@@ -194,15 +221,22 @@ module Syntax where
     -- Turn raw eliminations into raw terms.
 
     ⌞_⌟ : ∀ {n} → Elim n → Term n
-    ⌞ a ∙ as ⌟ = ⌞ a ⌟Hd ⌞∙⌟ ⌞ as ⌟Sp
+    ⌞ a ∙ as ⌟ = ⌞ a ⌟Hd ⌞∙ as ⌟
 
     ⌞_⌟Kd : ∀ {n} → Kind Elim n → Kind Term n
     ⌞ a ⋯ b ⌟Kd = ⌞ a ⌟ ⋯ ⌞ b ⌟
     ⌞ Π j k ⌟Kd = Π ⌞ j ⌟Kd ⌞ k ⌟Kd
+    ⌞ ◆     ⌟Kd = ◆
+    ⌞ Σ j k ⌟Kd = Σ ⌞ j ⌟Kd ⌞ k ⌟Kd
 
-    ⌞_⌟Sp : ∀ {n} → Spine n → List (Term n)
-    ⌞ []     ⌟Sp = []
-    ⌞ a ∷ as ⌟Sp = ⌞ a ⌟ ∷ ⌞ as ⌟Sp
+    _·⌞_⌟ : ∀ {n} → Term n → Eltr n → Term n
+    a ·⌞ arg b ⌟ = a · ⌞ b ⌟
+    a ·⌞ π₁    ⌟ = π₁ a
+    a ·⌞ π₂    ⌟ = π₂ a
+
+    _⌞∙_⌟ : ∀ {n} → Term n → Spine n → Term n
+    a ⌞∙ []     ⌟ = a
+    a ⌞∙ b ∷ bs ⌟ = a ·⌞ b ⌟ ⌞∙ bs ⌟
 
     ⌞_⌟Hd : ∀ {n} → Head n → Term n
     ⌞ var x ⌟Hd = var x
@@ -213,6 +247,8 @@ module Syntax where
     ⌞ Λ k a ⌟Hd = Λ ⌞ k ⌟Kd ⌞ a ⌟
     ⌞ ƛ a b ⌟Hd = ƛ ⌞ a ⌟ ⌞ b ⌟
     ⌞ a ⊡ b ⌟Hd = ⌞ a ⌟ ⊡ ⌞ b ⌟
+    ⌞ ⟨⟩    ⌟Hd = ⟨⟩
+    ⌞ a , b ⌟Hd = ⌞ a ⌟ , ⌞ b ⌟
 
   mutual
 
@@ -228,20 +264,30 @@ module Syntax where
     ⌜ ƛ a b ⌝ = ƛ∙ ⌜ a ⌝ ⌜ b ⌝
     ⌜ a ⊡ b ⌝ = (⌜ a ⌝ ⊡ ⌜ b ⌝) ∙ []
     ⌜ a · b ⌝ = ⌜ a ⌝ ⌜·⌝ ⌜ b ⌝
+    ⌜ ⟨⟩    ⌝ = ⟨⟩∙
+    ⌜ a , b ⌝ = ⌜ a ⌝ ,∙ ⌜ b ⌝
+    ⌜ π₁ a  ⌝ = ⌜π₁⌝ ⌜ a ⌝
+    ⌜ π₂ a  ⌝ = ⌜π₂⌝ ⌜ a ⌝
 
     ⌜_⌝Kd : ∀ {n} → Kind Term n → Kind Elim n
     ⌜ a ⋯ b ⌝Kd = ⌜ a ⌝ ⋯ ⌜ b ⌝
     ⌜ Π j k ⌝Kd = Π ⌜ j ⌝Kd ⌜ k ⌝Kd
+    ⌜ ◆     ⌝Kd = ◆
+    ⌜ Σ j k ⌝Kd = Σ ⌜ j ⌝Kd ⌜ k ⌝Kd
 
   -- Simple kinds.
   data SKind : Set where
     ★   : SKind
     _⇒_ : SKind → SKind → SKind
+    ⋄   : SKind
+    _⊗_ : SKind → SKind → SKind
 
   -- Kind simplification.
   ⌊_⌋ : ∀ {T n} → Kind T n → SKind
   ⌊ a ⋯ b ⌋ = ★
   ⌊ Π j k ⌋ = ⌊ j ⌋ ⇒ ⌊ k ⌋
+  ⌊ ◆     ⌋ = ⋄
+  ⌊ Σ j k ⌋ = ⌊ j ⌋ ⊗ ⌊ k ⌋
 
   -- A wrapper for raw kind or type ascriptions.
 
@@ -277,54 +323,44 @@ kd-inj refl = refl
 -- The empty spine is a right unit of _∙∙_
 ∙∙-[] : ∀ {n} (a : Elim n) → a ∙∙ [] ≡ a
 ∙∙-[] (a ∙ as) = cong (a ∙_) (proj₂ identity as)
-  where open Monoid (++-monoid (Elim _)) hiding (_∙_)
+  where open Monoid (++-monoid (Eltr _)) hiding (_∙_)
 
 -- Spine application commutes with spine concatenation.
 ∙∙-++ : ∀ {n} (a : Elim n) bs cs → a ∙∙ bs ∙∙ cs ≡ a ∙∙ (bs ++ cs)
 ∙∙-++ (a ∙ as) bs cs = cong (a ∙_) (assoc as bs cs)
-  where open Monoid (++-monoid (Elim _)) hiding (_∙_)
+  where open Monoid (++-monoid (Eltr _)) hiding (_∙_)
 
 -- Spine application can be expressed as a left fold.
-∙∙IsFold : ∀ {n} (a : Elim n) bs → a ∙∙ bs ≡ foldl _⌜·⌝_ a bs
+∙∙IsFold : ∀ {n} (a : Elim n) bs → a ∙∙ bs ≡ foldl _·′_ a bs
 ∙∙IsFold (a ∙ as) []       = ∙∙-[] (a ∙ as)
 ∙∙IsFold (a ∙ as) (b ∷ bs) = begin
     a ∙ (as ++ b ∷ bs)
   ≡⟨ sym (∙∙-++ (a ∙ as) (b ∷ []) bs) ⟩
     a ∙ ((as ∷ʳ b) ++ bs)
   ≡⟨ ∙∙IsFold (a ∙ (as ∷ʳ b)) bs  ⟩
-    foldl _⌜·⌝_ (a ∙ (as ∷ʳ b)) bs
+    foldl _·′_ (a ∙ (as ∷ʳ b)) bs
   ∎
 
 -- Conversion to raw terms commutes with (post-)application.
 
-⌞⌟-· : ∀ {n} (a : Elim n) b → ⌞ a ⌜·⌝ b ⌟ ≡ ⌞ a ⌟ · ⌞ b ⌟
-⌞⌟-· (a ∙ as) b = helper as b
+⌞⌟-·′ : ∀ {n} (a : Elim n) b → ⌞ a ·′ b ⌟ ≡ ⌞ a ⌟ ·⌞ b ⌟
+⌞⌟-·′ (a ∙ as) b = helper as b
   where
     helper : ∀ {n} {a : Term n} bs c →
-             a ⌞∙⌟ ⌞ bs ∷ʳ c ⌟Sp ≡ a ⌞∙⌟ ⌞ bs ⌟Sp · ⌞ c ⌟
+             a ⌞∙ bs ∷ʳ c ⌟ ≡ a ⌞∙ bs ⌟ ·⌞ c ⌟
     helper []       c = refl
     helper (b ∷ bs) c = helper bs c
 
-⌞⌟-∙∙ : ∀ {n} (a : Elim n) bs → ⌞ a ∙∙ bs ⌟ ≡ ⌞ a ⌟ ⌞∙⌟ ⌞ bs ⌟Sp
+⌞⌟-· : ∀ {n} (a : Elim n) b → ⌞ a ⌜·⌝ b ⌟ ≡ ⌞ a ⌟ · ⌞ b ⌟
+⌞⌟-· a b = ⌞⌟-·′ a (arg b)
+
+⌞⌟-∙∙ : ∀ {n} (a : Elim n) bs → ⌞ a ∙∙ bs ⌟ ≡ ⌞ a ⌟ ⌞∙ bs ⌟
 ⌞⌟-∙∙ a []       = cong ⌞_⌟ (∙∙-[] a)
 ⌞⌟-∙∙ a (b ∷ bs) = begin
-  ⌞ a ∙∙ (b ∷ bs) ⌟      ≡⟨ sym (cong ⌞_⌟ (∙∙-++ a (b ∷ []) bs)) ⟩
-  ⌞ a ∙∙ (b ∷ []) ∙∙ bs ⌟          ≡⟨ ⌞⌟-∙∙ (a ∙∙ (b ∷ [])) bs ⟩
-  ⌞ a ∙∙ (b ∷ []) ⌟ ⌞∙⌟ ⌞ bs ⌟Sp   ≡⟨ cong (_⌞∙⌟ ⌞ bs ⌟Sp) (⌞⌟-· a b) ⟩
-  ⌞ a ⌟ · ⌞ b ⌟ ⌞∙⌟ ⌞ bs ⌟Sp  ∎
-
--- Conversion to eliminations commutes with spine application.
-
-⌜⌝-∙ : ∀ {n} (a : Term n) bs → ⌜ a ⌞∙⌟ bs ⌝ ≡ ⌜ a ⌝ ∙∙ map ⌜_⌝ bs
-⌜⌝-∙ a bs = begin
-  ⌜ a ⌞∙⌟ bs ⌝                     ≡⟨ helper a bs ⟩
-  foldl _⌜·⌝_ ⌜ a ⌝ (map ⌜_⌝ bs)   ≡⟨ sym (∙∙IsFold ⌜ a ⌝ (map ⌜_⌝ bs)) ⟩
-  ⌜ a ⌝ ∙∙ map ⌜_⌝ bs              ∎
-  where
-    helper : ∀ {n} (a : Term n) bs →
-             ⌜ a ⌞∙⌟ bs ⌝ ≡ foldl _⌜·⌝_ ⌜ a ⌝ (map ⌜_⌝ bs)
-    helper a []       = refl
-    helper a (b ∷ bs) = helper (a · b) bs
+  ⌞ a ∙∙ (b ∷ bs) ⌟         ≡⟨ sym (cong ⌞_⌟ (∙∙-++ a (b ∷ []) bs)) ⟩
+  ⌞ a ·′ b ∙∙ bs ⌟          ≡⟨ ⌞⌟-∙∙ (a ·′ b) bs ⟩
+  ⌞ a ·′ b ⌟ ⌞∙ bs ⌟        ≡⟨ cong (_⌞∙ bs ⌟) (⌞⌟-·′ a b) ⟩
+  (⌞ a ⌟ ·⌞ b ⌟) ⌞∙ bs ⌟    ∎
 
 -- The two representations of raw terms are isomorphic.
 
@@ -343,25 +379,47 @@ mutual
     ⌞ ⌜ a ⌝ ⌜·⌝ ⌜ b ⌝ ⌟     ≡⟨ ⌞⌟-· ⌜ a ⌝ ⌜ b ⌝ ⟩
     ⌞ ⌜ a ⌝ ⌟ · ⌞ ⌜ b ⌝ ⌟   ≡⟨ cong₂ _·_ (⌞⌟∘⌜⌝-id a) (⌞⌟∘⌜⌝-id b) ⟩
     a · b                   ∎
+  ⌞⌟∘⌜⌝-id ⟨⟩      = refl
+  ⌞⌟∘⌜⌝-id (a , b) = cong₂ _,_ (⌞⌟∘⌜⌝-id a) (⌞⌟∘⌜⌝-id b)
+  ⌞⌟∘⌜⌝-id (π₁ a)  = begin
+    ⌞ ⌜π₁⌝ ⌜ a ⌝ ⌟          ≡⟨ ⌞⌟-·′ ⌜ a ⌝ π₁ ⟩
+    π₁ ⌞ ⌜ a ⌝ ⌟            ≡⟨ cong π₁ (⌞⌟∘⌜⌝-id a) ⟩
+    π₁ a                    ∎
+  ⌞⌟∘⌜⌝-id (π₂ a)  = begin
+    ⌞ ⌜π₂⌝ ⌜ a ⌝ ⌟          ≡⟨ ⌞⌟-·′ ⌜ a ⌝ π₂ ⟩
+    π₂ ⌞ ⌜ a ⌝ ⌟            ≡⟨ cong π₂ (⌞⌟∘⌜⌝-id a) ⟩
+    π₂ a                    ∎
 
   ⌞⌟Kd∘⌜⌝Kd-id : ∀ {n} (k : Kind Term n) → ⌞ ⌜ k ⌝Kd ⌟Kd ≡ k
   ⌞⌟Kd∘⌜⌝Kd-id (a ⋯ b) = cong₂ _⋯_ (⌞⌟∘⌜⌝-id a) (⌞⌟∘⌜⌝-id b)
   ⌞⌟Kd∘⌜⌝Kd-id (Π j k) = cong₂ Π (⌞⌟Kd∘⌜⌝Kd-id j) (⌞⌟Kd∘⌜⌝Kd-id k)
+  ⌞⌟Kd∘⌜⌝Kd-id ◆       = refl
+  ⌞⌟Kd∘⌜⌝Kd-id (Σ j k) = cong₂ Σ (⌞⌟Kd∘⌜⌝Kd-id j) (⌞⌟Kd∘⌜⌝Kd-id k)
 
 mutual
 
   ⌜⌝∘⌞⌟-id : ∀ {n} (a : Elim n) → ⌜ ⌞ a ⌟ ⌝ ≡ a
   ⌜⌝∘⌞⌟-id (a ∙ bs) = begin
-      ⌜ ⌞ a ⌟Hd ⌞∙⌟ ⌞ bs ⌟Sp ⌝
-    ≡⟨ ⌜⌝-∙ ⌞ a ⌟Hd ⌞ bs ⌟Sp ⟩
-      ⌜ ⌞ a ⌟Hd ⌝ ∙∙ map ⌜_⌝ ⌞ bs ⌟Sp
-    ≡⟨ cong₂ _∙∙_ (⌜⌝∘⌞⌟Hd-∙-[] a) (map-⌜⌝∘⌞⌟Sp-id bs) ⟩
+      ⌜ ⌞ a ⌟Hd ⌞∙ bs ⌟ ⌝
+    ≡⟨ ⌜⌝∘⌞∙⌟-∙∙ ⌞ a ⌟Hd bs ⟩
+      ⌜ ⌞ a ⌟Hd ⌝ ∙∙ bs
+    ≡⟨ cong (_∙∙ bs) (⌜⌝∘⌞⌟Hd-∙-[] a) ⟩
       a ∙ [] ∙∙ bs
     ∎
 
-  map-⌜⌝∘⌞⌟Sp-id : ∀ {n} (as : Spine n) → map ⌜_⌝ ⌞ as ⌟Sp ≡ as
-  map-⌜⌝∘⌞⌟Sp-id []       = refl
-  map-⌜⌝∘⌞⌟Sp-id (a ∷ as) = cong₂ _∷_ (⌜⌝∘⌞⌟-id a) (map-⌜⌝∘⌞⌟Sp-id as)
+  ⌜⌝∘·⌞⌟-·′ : ∀ {n} (a : Term n) b → ⌜ a ·⌞ b ⌟ ⌝ ≡ ⌜ a ⌝ ·′ b
+  ⌜⌝∘·⌞⌟-·′ a (arg b) = cong (⌜ a ⌝ ⌜·⌝_) (⌜⌝∘⌞⌟-id b)
+  ⌜⌝∘·⌞⌟-·′ a π₁      = refl
+  ⌜⌝∘·⌞⌟-·′ a π₂      = refl
+
+  ⌜⌝∘⌞∙⌟-∙∙ : ∀ {n} (a : Term n) bs → ⌜ a ⌞∙ bs ⌟ ⌝ ≡ ⌜ a ⌝ ∙∙ bs
+  ⌜⌝∘⌞∙⌟-∙∙ a []       = sym (∙∙-[] ⌜ a ⌝)
+  ⌜⌝∘⌞∙⌟-∙∙ a (b ∷ bs) = begin
+    ⌜ (a ·⌞ b ⌟) ⌞∙ bs ⌟ ⌝     ≡⟨ ⌜⌝∘⌞∙⌟-∙∙ (a ·⌞ b ⌟) bs ⟩
+    ⌜ (a ·⌞ b ⌟) ⌝ ∙∙ bs       ≡⟨ cong (_∙∙ bs) (⌜⌝∘·⌞⌟-·′ a b) ⟩
+    ⌜ a ⌝ ·′ b ∙∙ bs           ≡⟨ ∙∙-++ ⌜ a ⌝ (b ∷ []) bs ⟩
+    ⌜ a ⌝ ∙∙ (b ∷ bs)          ∎
+
 
   ⌜⌝∘⌞⌟Hd-∙-[] : ∀ {n} (a : Head n) → ⌜ ⌞ a ⌟Hd ⌝ ≡ a ∙ []
   ⌜⌝∘⌞⌟Hd-∙-[] (var x) = refl
@@ -372,10 +430,14 @@ mutual
   ⌜⌝∘⌞⌟Hd-∙-[] (Λ k a) = cong₂ Λ∙ (⌜⌝Kd∘⌞⌟Kd-id k) (⌜⌝∘⌞⌟-id a)
   ⌜⌝∘⌞⌟Hd-∙-[] (ƛ a b) = cong₂ ƛ∙ (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
   ⌜⌝∘⌞⌟Hd-∙-[] (a ⊡ b) = cong₂ (λ a b → (a ⊡ b) ∙ []) (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
+  ⌜⌝∘⌞⌟Hd-∙-[] ⟨⟩      = refl
+  ⌜⌝∘⌞⌟Hd-∙-[] (a , b) = cong₂ (λ a b → (a , b) ∙ []) (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
 
   ⌜⌝Kd∘⌞⌟Kd-id : ∀ {n} (k : Kind Elim n) → ⌜ ⌞ k ⌟Kd ⌝Kd ≡ k
   ⌜⌝Kd∘⌞⌟Kd-id (a ⋯ b) = cong₂ _⋯_ (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
   ⌜⌝Kd∘⌞⌟Kd-id (Π j k) = cong₂ Π   (⌜⌝Kd∘⌞⌟Kd-id j) (⌜⌝Kd∘⌞⌟Kd-id k)
+  ⌜⌝Kd∘⌞⌟Kd-id ◆       = refl
+  ⌜⌝Kd∘⌞⌟Kd-id (Σ j k) = cong₂ Σ   (⌜⌝Kd∘⌞⌟Kd-id j) (⌜⌝Kd∘⌞⌟Kd-id k)
 
 -- Simplified kinds are stable under conversions of term
 -- representation.
@@ -383,10 +445,14 @@ mutual
 ⌊⌋-⌜⌝Kd : ∀ {n} (k : Kind Term n) → ⌊ ⌜ k ⌝Kd ⌋ ≡ ⌊ k ⌋
 ⌊⌋-⌜⌝Kd (a ⋯ b) = refl
 ⌊⌋-⌜⌝Kd (Π j k) = cong₂ _⇒_ (⌊⌋-⌜⌝Kd j) (⌊⌋-⌜⌝Kd k)
+⌊⌋-⌜⌝Kd ◆       = refl
+⌊⌋-⌜⌝Kd (Σ j k) = cong₂ _⊗_ (⌊⌋-⌜⌝Kd j) (⌊⌋-⌜⌝Kd k)
 
 ⌊⌋-⌞⌟Kd : ∀ {n} (k : Kind Elim n) → ⌊ ⌞ k ⌟Kd ⌋ ≡ ⌊ k ⌋
 ⌊⌋-⌞⌟Kd (a ⋯ b) = refl
 ⌊⌋-⌞⌟Kd (Π j k) = cong₂ _⇒_ (⌊⌋-⌞⌟Kd j) (⌊⌋-⌞⌟Kd k)
+⌊⌋-⌞⌟Kd ◆       = refl
+⌊⌋-⌞⌟Kd (Σ j k) = cong₂ _⊗_ (⌊⌋-⌞⌟Kd j) (⌊⌋-⌞⌟Kd k)
 
 
 ----------------------------------------------------------------------
@@ -433,7 +499,7 @@ module KdOrTpSubstApp {T T′} (simple : Simple T)
 module SubstApp {T} (l : Lift T Term) where
   open Lift l hiding (var)
 
-  infixl 8 _/_ _Kind/_ _Elim/_ _Head/_ _//_ _Kind′/_
+  infixl 8 _/_ _Kind/_ _Elim/_ _Eltr/_ _Head/_ _//_ _Kind′/_
 
   mutual
 
@@ -448,18 +514,29 @@ module SubstApp {T} (l : Lift T Term) where
     ƛ a b   / σ = ƛ (a / σ) (b / σ ↑)
     a · b   / σ = (a / σ) · (b / σ)
     a ⊡ b   / σ = (a / σ) ⊡ (b / σ)
+    ⟨⟩      / σ = ⟨⟩
+    a , b   / σ = (a / σ) , (b / σ)
+    π₁ a    / σ = π₁ (a / σ)
+    π₂ a    / σ = π₂ (a / σ)
 
     -- Apply a substitution to a kind.
     _Kind/_ : ∀ {m n} → Kind Term m → Sub T m n → Kind Term n
     (a ⋯ b) Kind/ σ = (a / σ) ⋯ (b / σ)
     Π j k   Kind/ σ = Π (j Kind/ σ) (k Kind/ σ ↑)
+    ◆       Kind/ σ = ◆
+    Σ j k   Kind/ σ = Σ (j Kind/ σ) (k Kind/ σ ↑)
 
   mutual
 
     -- Apply a substitution to an elimination.
-
     _Elim/_ : ∀ {m n} → Elim m → Sub T m n → Elim n
     a ∙ as Elim/ σ = (a Head/ σ) ∙∙ (as // σ)
+
+    -- Apply a substitution to an eliminator.
+    _Eltr/_ : ∀ {m n} → Eltr m → Sub T m n → Eltr n
+    arg a Eltr/ σ = arg (a Elim/ σ)
+    π₁    Eltr/ σ = π₁
+    π₂    Eltr/ σ = π₂
 
     -- Apply a substitution to a head.
     _Head/_ : ∀ {m n} → Head m → Sub T m n → Elim n
@@ -471,16 +548,20 @@ module SubstApp {T} (l : Lift T Term) where
     Λ k a   Head/ σ = Λ∙ (k Kind′/ σ) (a Elim/ σ ↑)
     ƛ a b   Head/ σ = ƛ∙ (a Elim/ σ) (b Elim/ σ ↑)
     a ⊡ b   Head/ σ = (a Elim/ σ) ⊡ (b Elim/ σ) ∙ []
+    ⟨⟩      Head/ σ = ⟨⟩∙
+    a , b   Head/ σ = (a Elim/ σ) , (b Elim/ σ) ∙ []
 
     -- Apply a substitution to a spine.
     _//_ : ∀ {m n} → Spine m → Sub T m n → Spine n
     []       // σ = []
-    (a ∷ as) // σ = a Elim/ σ ∷ as // σ
+    (a ∷ as) // σ = a Eltr/ σ ∷ as // σ
 
     -- Apply a substitution to a (elimination-based) kind.
     _Kind′/_ : ∀ {m n} → Kind Elim m → Sub T m n → Kind Elim n
     (a ⋯ b) Kind′/ σ = (a Elim/ σ) ⋯ (b Elim/ σ)
     Π j k   Kind′/ σ = Π (j Kind′/ σ) (k Kind′/ σ ↑)
+    ◆       Kind′/ σ = ◆
+    Σ j k   Kind′/ σ = Σ (j Kind′/ σ) (k Kind′/ σ ↑)
 
   private
     appTerm  = record { _/_ = _/_      }
@@ -540,24 +621,58 @@ module SubstApp {T} (l : Lift T Term) where
   ⊡-/✶-↑✶ k ε        = refl
   ⊡-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (⊡-/✶-↑✶ k σs) refl
 
-  -- Substitutions in interval kinds are compositional.
-  Π-Kind/✶-↑✶ : ∀ k {m n j l} (σs : Subs T m n) →
-            (Π j l) Kind/✶ σs ↑✶ k ≡
-              Π (j Kind/✶ σs ↑✶ k) (l Kind/✶ σs ↑✶ (suc k))
-  Π-Kind/✶-↑✶ k ε        = refl
-  Π-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (Π-Kind/✶-↑✶ k σs) refl
+  -- The empty tuple is invariant under substitution.
+  ⟨⟩-/✶-↑✶ : ∀ k {m n} (σs : Subs T m n) → ⟨⟩ /✶ σs ↑✶ k ≡ ⟨⟩
+  ⟨⟩-/✶-↑✶ k ε        = refl
+  ⟨⟩-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (⟨⟩-/✶-↑✶ k σs) refl
 
-  -- Substitutions in type ascriptions are compositional.
+  -- Substitutions in pairings are compositional.
+  ,-/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
+            (a , b) /✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) , (b /✶ σs ↑✶ k)
+  ,-/✶-↑✶ k ε        = refl
+  ,-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (,-/✶-↑✶ k σs) refl
+
+  -- Substitutions under projections are compositional.
+  π₁-/✶-↑✶ : ∀ k {m n a} (σs : Subs T m n) →
+             (π₁ a) /✶ σs ↑✶ k ≡ π₁ (a /✶ σs ↑✶ k)
+  π₁-/✶-↑✶ k ε        = refl
+  π₁-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (π₁-/✶-↑✶ k σs) refl
+
+  π₂-/✶-↑✶ : ∀ k {m n a} (σs : Subs T m n) →
+             (π₂ a) /✶ σs ↑✶ k ≡ π₂ (a /✶ σs ↑✶ k)
+  π₂-/✶-↑✶ k ε        = refl
+  π₂-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (π₂-/✶-↑✶ k σs) refl
+
+  -- Substitutions in interval kinds are compositional.
   ⋯-Kind/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
-            (a ⋯ b) Kind/✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) ⋯ (b /✶ σs ↑✶ k)
+                (a ⋯ b) Kind/✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) ⋯ (b /✶ σs ↑✶ k)
   ⋯-Kind/✶-↑✶ k ε        = refl
   ⋯-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (⋯-Kind/✶-↑✶ k σs) refl
 
+  -- Substitutions in dependent arrow kinds are compositional.
+  Π-Kind/✶-↑✶ : ∀ k {m n j l} (σs : Subs T m n) →
+                (Π j l) Kind/✶ σs ↑✶ k ≡
+                  Π (j Kind/✶ σs ↑✶ k) (l Kind/✶ σs ↑✶ (suc k))
+  Π-Kind/✶-↑✶ k ε        = refl
+  Π-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (Π-Kind/✶-↑✶ k σs) refl
+
+  -- Substitutions in the unit kind are compositional.
+  ◆-Kind/✶-↑✶ : ∀ k {m n} (σs : Subs T m n) → ◆ Kind/✶ σs ↑✶ k ≡ ◆
+  ◆-Kind/✶-↑✶ k ε        = refl
+  ◆-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (◆-Kind/✶-↑✶ k σs) refl
+
+  -- Substitutions in dependent pair kinds are compositional.
+  Σ-Kind/✶-↑✶ : ∀ k {m n j l} (σs : Subs T m n) →
+                (Σ j l) Kind/✶ σs ↑✶ k ≡
+                  Σ (j Kind/✶ σs ↑✶ k) (l Kind/✶ σs ↑✶ (suc k))
+  Σ-Kind/✶-↑✶ k ε        = refl
+  Σ-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (Σ-Kind/✶-↑✶ k σs) refl
+
   -- Application of substitutions commutes with concatenation of spines.
   ++-// : ∀ {m n} (as bs : Spine m) {σ : Sub T m n} →
-         (as ++ bs) // σ ≡ as // σ ++ bs // σ
+          (as ++ bs) // σ ≡ as // σ ++ bs // σ
   ++-// []       bs = refl
-  ++-// (a ∷ as) bs = cong (a Elim/ _ ∷_) (++-// as bs)
+  ++-// (a ∷ as) bs = cong (a Eltr/ _ ∷_) (++-// as bs)
 
   -- Application of substitutions commutes application of spines.
   ∙∙-/ : ∀ {m n} a (as : Spine m) {σ : Sub T m n} →
@@ -570,18 +685,18 @@ module SubstApp {T} (l : Lift T Term) where
       (a Head/ _) ∙∙ (as // _) ∙∙ (bs // _)
     ∎
 
-  -- Application of substitutions commutes with application of
-  -- eliminations.
-  ⌜·⌝-/ : ∀ {m n} (a b : Elim m) {σ : Sub T m n} →
-          a ⌜·⌝ b Elim/ σ ≡ (a Elim/ σ) ⌜·⌝ (b Elim/ σ)
-  ⌜·⌝-/ (a ∙ as) b {σ} = begin
+  -- Application of substitutions commutes with (post-)application of
+  -- eliminators.
+  ·′-/ : ∀ {m n} (a : Elim m) b {σ : Sub T m n} →
+         a ·′ b Elim/ σ ≡ (a Elim/ σ) ·′ (b Eltr/ σ)
+  ·′-/ (a ∙ as) b {σ} = begin
       (a Head/ σ) ∙∙ ((as ∷ʳ b) // σ)
     ≡⟨ cong ((a Head/ σ) ∙∙_) (++-// as (b ∷ [])) ⟩
       (a Head/ σ) ∙∙ (as // σ ++ (b ∷ []) // σ)
     ≡⟨ sym (∙∙-++ (a Head/ σ) (as // σ) ((b ∷ []) // σ)) ⟩
       (a Head/ σ) ∙∙ (as // σ) ∙∙ ((b ∷ []) // σ)
     ≡⟨ ∙∙IsFold ((a Head/ σ) ∙∙ (as // σ)) ((b ∷ []) // σ) ⟩
-      (a Head/ σ) ∙∙ (as // σ) ⌜·⌝ (b Elim/ σ)
+      (a Head/ σ) ∙∙ (as // σ) ·′ (b Eltr/ σ)
     ∎
 
   -- Application of substitutions commutes with the conversions.
@@ -598,13 +713,25 @@ module SubstApp {T} (l : Lift T Term) where
     ⌜⌝-/ (ƛ a b) = cong₂ ƛ∙ (⌜⌝-/ a) (⌜⌝-/ b)
     ⌜⌝-/ (a · b) {σ} = begin
       ⌜ a / σ ⌝ ⌜·⌝ ⌜ b / σ ⌝               ≡⟨ cong₂ _⌜·⌝_ (⌜⌝-/ a) (⌜⌝-/ b) ⟩
-      (⌜ a ⌝ Elim/ σ) ⌜·⌝ (⌜ b ⌝ Elim/ σ)   ≡⟨ sym (⌜·⌝-/ ⌜ a ⌝ ⌜ b ⌝) ⟩
+      (⌜ a ⌝ Elim/ σ) ⌜·⌝ (⌜ b ⌝ Elim/ σ)   ≡⟨ sym (·′-/ ⌜ a ⌝ (arg ⌜ b ⌝)) ⟩
       ⌜ a ⌝ ⌜·⌝ ⌜ b ⌝ Elim/ σ               ∎
     ⌜⌝-/ (a ⊡ b) = cong₂ (λ a b → (a ⊡ b) ∙ []) (⌜⌝-/ a) (⌜⌝-/ b)
+    ⌜⌝-/ ⟨⟩      = refl
+    ⌜⌝-/ (a , b) = cong₂ (λ a b → (a , b) ∙ []) (⌜⌝-/ a) (⌜⌝-/ b)
+    ⌜⌝-/ (π₁ a) {σ} = begin
+      ⌜π₁⌝ ⌜ a / σ ⌝          ≡⟨ cong ⌜π₁⌝ (⌜⌝-/ a) ⟩
+      ⌜π₁⌝ (⌜ a ⌝ Elim/ σ)    ≡⟨ sym (·′-/ ⌜ a ⌝ π₁) ⟩
+      ⌜π₁⌝ ⌜ a ⌝ Elim/ σ      ∎
+    ⌜⌝-/ (π₂ a) {σ} = begin
+      ⌜π₂⌝ ⌜ a / σ ⌝          ≡⟨ cong ⌜π₂⌝ (⌜⌝-/ a) ⟩
+      ⌜π₂⌝ (⌜ a ⌝ Elim/ σ)    ≡⟨ sym (·′-/ ⌜ a ⌝ π₂) ⟩
+      ⌜π₂⌝ ⌜ a ⌝ Elim/ σ      ∎
 
     ⌜⌝Kd-/ : ∀ {m n} k {σ : Sub T m n} → ⌜ k Kind/ σ ⌝Kd ≡ ⌜ k ⌝Kd Kind′/ σ
     ⌜⌝Kd-/ (a ⋯ b) = cong₂ _⋯_ (⌜⌝-/ a) (⌜⌝-/ b)
     ⌜⌝Kd-/ (Π j k) = cong₂ Π (⌜⌝Kd-/ j) (⌜⌝Kd-/ k)
+    ⌜⌝Kd-/ ◆       = refl
+    ⌜⌝Kd-/ (Σ j k) = cong₂ Σ (⌜⌝Kd-/ j) (⌜⌝Kd-/ k)
 
   ⌞⌟-/ : ∀ {m n} a {σ : Sub T m n} → ⌞ a Elim/ σ ⌟ ≡ ⌞ a ⌟ / σ
   ⌞⌟-/ a {σ} = begin
@@ -616,6 +743,8 @@ module SubstApp {T} (l : Lift T Term) where
   ⌞⌟Kd-/ : ∀ {m n} k {σ : Sub T m n} → ⌞ k Kind′/ σ ⌟Kd ≡ ⌞ k ⌟Kd Kind/ σ
   ⌞⌟Kd-/ (a ⋯ b) = cong₂ _⋯_ (⌞⌟-/ a) (⌞⌟-/ b)
   ⌞⌟Kd-/ (Π j k) = cong₂ Π (⌞⌟Kd-/ j) (⌞⌟Kd-/ k)
+  ⌞⌟Kd-/ ◆       = refl
+  ⌞⌟Kd-/ (Σ j k) = cong₂ Σ (⌞⌟Kd-/ j) (⌞⌟Kd-/ k)
 
   open Application appElim  using () renaming (_/✶_ to _Elim/✶_)
   open Application appKind′ using () renaming (_/✶_ to _Kind′/✶_)
@@ -647,11 +776,15 @@ module SubstApp {T} (l : Lift T Term) where
   ⌊⌋-Kind/ : ∀ {m n} (k : Kind Term m) {σ : Sub T m n} → ⌊ k Kind/ σ ⌋ ≡ ⌊ k ⌋
   ⌊⌋-Kind/ (a ⋯ b) = refl
   ⌊⌋-Kind/ (Π j k) = cong₂ _⇒_ (⌊⌋-Kind/ j) (⌊⌋-Kind/ k)
+  ⌊⌋-Kind/ ◆       = refl
+  ⌊⌋-Kind/ (Σ j k) = cong₂ _⊗_ (⌊⌋-Kind/ j) (⌊⌋-Kind/ k)
 
   ⌊⌋-Kind′/ : ∀ {m n} (k : Kind Elim m) {σ : Sub T m n} →
               ⌊ k Kind′/ σ ⌋ ≡ ⌊ k ⌋
   ⌊⌋-Kind′/ (a ⋯ b) = refl
   ⌊⌋-Kind′/ (Π j k) = cong₂ _⇒_ (⌊⌋-Kind′/ j) (⌊⌋-Kind′/ k)
+  ⌊⌋-Kind′/ ◆       = refl
+  ⌊⌋-Kind′/ (Σ j k) = cong₂ _⊗_ (⌊⌋-Kind′/ j) (⌊⌋-Kind′/ k)
 
   -- Application of substitutions to type and kind ascriptions.
   open KdOrTpSubstApp simple appKind  appTerm public using ()
@@ -686,6 +819,8 @@ module Substitution where
     Λ k a   Head/Var σ = Λ (k Kind′/ σ) (a Elim/ σ ↑)
     ƛ a b   Head/Var σ = ƛ (a Elim/ σ) (b Elim/ σ ↑)
     (a ⊡ b) Head/Var σ = (a Elim/ σ) ⊡ (b Elim/ σ)
+    ⟨⟩      Head/Var σ = ⟨⟩
+    (a , b) Head/Var σ = (a Elim/ σ) , (b Elim/ σ)
 
     -- A lemmas relating the above definition of application to the
     -- previous ones.
@@ -699,6 +834,8 @@ module Substitution where
     Head/Var-∙ (Λ k a) = refl
     Head/Var-∙ (ƛ a b) = refl
     Head/Var-∙ (a ⊡ b) = refl
+    Head/Var-∙ ⟨⟩      = refl
+    Head/Var-∙ (a , b) = refl
 
     headOf-Head/Var : ∀ {m n} {σ : Sub Fin m n} a →
                       a Head/Var σ ≡ headOf (a Head/ σ)
@@ -804,6 +941,29 @@ module Substitution where
         ≡⟨ sym (⊡-/✶-↑✶ _ k σs₂) ⟩
           (a ⊡ b) /✶₂ σs₂ ↑✶₂ k
         ∎
+      /✶-↑✶ σs₁ σs₂ hyp k ⟨⟩ = begin
+        ⟨⟩ /✶₁ σs₁ ↑✶₁ k   ≡⟨ ⟨⟩-/✶-↑✶ _ k σs₁ ⟩
+        ⟨⟩                 ≡⟨ sym (⟨⟩-/✶-↑✶ _ k σs₂) ⟩
+        ⟨⟩ /✶₂ σs₂ ↑✶₂ k   ∎
+      /✶-↑✶ σs₁ σs₂ hyp k (a , b) = begin
+          (a , b) /✶₁ σs₁ ↑✶₁ k
+        ≡⟨ ,-/✶-↑✶ _ k σs₁ ⟩
+          (a /✶₁ σs₁ ↑✶₁ k) , (b /✶₁ σs₁ ↑✶₁ k)
+        ≡⟨ cong₂ _,_ (/✶-↑✶ σs₁ σs₂ hyp k a) (/✶-↑✶ σs₁ σs₂ hyp k b) ⟩
+          (a /✶₂ σs₂ ↑✶₂ k) , (b /✶₂ σs₂ ↑✶₂ k)
+        ≡⟨ sym (,-/✶-↑✶ _ k σs₂) ⟩
+          (a , b) /✶₂ σs₂ ↑✶₂ k
+        ∎
+      /✶-↑✶ σs₁ σs₂ hyp k (π₁ a) = begin
+        (π₁ a) /✶₁ σs₁ ↑✶₁ k    ≡⟨ π₁-/✶-↑✶ _ k σs₁ ⟩
+        π₁ (a /✶₁ σs₁ ↑✶₁ k)    ≡⟨ cong π₁ (/✶-↑✶ σs₁ σs₂ hyp k a) ⟩
+        π₁ (a /✶₂ σs₂ ↑✶₂ k)    ≡⟨ sym (π₁-/✶-↑✶ _ k σs₂) ⟩
+        (π₁ a) /✶₂ σs₂ ↑✶₂ k    ∎
+      /✶-↑✶ σs₁ σs₂ hyp k (π₂ a) = begin
+        (π₂ a) /✶₁ σs₁ ↑✶₁ k    ≡⟨ π₂-/✶-↑✶ _ k σs₁ ⟩
+        π₂ (a /✶₁ σs₁ ↑✶₁ k)    ≡⟨ cong π₂ (/✶-↑✶ σs₁ σs₂ hyp k a) ⟩
+        π₂ (a /✶₂ σs₂ ↑✶₂ k)    ≡⟨ sym (π₂-/✶-↑✶ _ k σs₂) ⟩
+        (π₂ a) /✶₂ σs₂ ↑✶₂ k    ∎
 
       Kind/✶-↑✶ : ∀ {m n} (σs₁ : Subs T₁ m n) (σs₂ : Subs T₂ m n) →
                   (∀ k x → var x /✶₁ σs₁ ↑✶₁ k ≡ var x /✶₂ σs₂ ↑✶₂ k) →
@@ -826,6 +986,20 @@ module Substitution where
           Π (j Kind/✶₂ σs₂ ↑✶₂ k) (l Kind/✶₂ σs₂ ↑✶₂ suc k)
         ≡⟨ sym (Π-Kind/✶-↑✶ _ k σs₂) ⟩
           (Π j l) Kind/✶₂ σs₂ ↑✶₂ k
+        ∎
+      Kind/✶-↑✶ σs₁ σs₂ hyp k ◆ = begin
+        ◆ Kind/✶₁ σs₁ ↑✶₁ k    ≡⟨ ◆-Kind/✶-↑✶ _ k σs₁ ⟩
+        ◆                      ≡⟨ sym (◆-Kind/✶-↑✶ _ k σs₂) ⟩
+        ◆ Kind/✶₂ σs₂ ↑✶₂ k    ∎
+      Kind/✶-↑✶ σs₁ σs₂ hyp k (Σ j l) = begin
+          (Σ j l) Kind/✶₁ σs₁ ↑✶₁ k
+        ≡⟨ Σ-Kind/✶-↑✶ _ k σs₁ ⟩
+          Σ (j Kind/✶₁ σs₁ ↑✶₁ k) (l Kind/✶₁ σs₁ ↑✶₁ suc k)
+        ≡⟨ cong₂ Σ (Kind/✶-↑✶ σs₁ σs₂ hyp k j)
+                   (Kind/✶-↑✶ σs₁ σs₂ hyp (suc k) l) ⟩
+          Σ (j Kind/✶₂ σs₂ ↑✶₂ k) (l Kind/✶₂ σs₂ ↑✶₂ suc k)
+        ≡⟨ sym (Σ-Kind/✶-↑✶ _ k σs₂) ⟩
+          (Σ j l) Kind/✶₂ σs₂ ↑✶₂ k
         ∎
 
     open Application (record { _/_ = SubstApp._Elim/_ lift₁ }) using ()
@@ -956,15 +1130,16 @@ module Substitution where
 
   open TermLemmas termLemmas public hiding (var; termSubst)
   open SubstApp (TermSubst.termLift termSubst) public using
-    ( _Head/_; _//_
-    ; ++-//; ∙∙-/; ⌜·⌝-/; ⌜⌝-/; ⌜⌝Kd-/; ⌞⌟-/; ⌞⌟Kd-/; ⌊⌋-Kind/; ⌊⌋-Kind′/
+    ( _Eltr/_; _Head/_; _//_
+    ; ++-//; ∙∙-/; ·′-/; ⌜⌝-/; ⌜⌝Kd-/; ⌞⌟-/; ⌞⌟Kd-/; ⌊⌋-Kind/; ⌊⌋-Kind′/
     )
   open SubstApp (TermSubst.varLift termSubst) public using () renaming
-    ( _Head/_   to _Head/Var′_
+    ( _Eltr/_   to _Eltr/Var_
+    ; _Head/_   to _Head/Var′_
     ; _//_      to _//Var_
     ; ++-//     to ++-//Var
     ; ∙∙-/      to ∙∙-/Var
-    ; ⌜·⌝-/     to ⌜·⌝-/Var
+    ; ·′-/      to ·′-/Var
     ; ⌜⌝-/      to ⌜⌝-/Var
     ; ⌜⌝Kd-/    to ⌜⌝Kd-/Var
     ; ⌞⌟-/      to ⌞⌟-/Var

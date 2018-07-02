@@ -2,7 +2,7 @@
 -- Untyped hereditary substitution in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --exact-split #-}
+{-# OPTIONS --exact-split --safe --without-K #-}
 
 module FOmegaInt.Syntax.HereditarySubstitution where
 
@@ -28,7 +28,7 @@ open import FOmegaInt.Syntax
 ----------------------------------------------------------------------
 -- Untyped hereditary substitution.
 
-open Syntax
+open Syntax renaming (_,_ to ⟨_,_⟩)
 open ElimCtx hiding (_++_)
 
 -- A specialized comparison predicate for comparing variable names.
@@ -78,8 +78,8 @@ lift-inj (suc n) (suc x) (suc y) hyp =
 
 infix  10 _H↑
 infixl 10 _H↑⋆_
-infixl 9  _∙∙⟨_⟩_ _⌜·⌝⟨_⟩_ _↓⌜·⌝_
-infixl 8 _/H_ _//H_ _Kind/H_ _Asc/H_ _E/H_
+infixl 9  _∙∙⟨_⟩_ _·′⟨_⟩_ _↓⌜·⌝_
+infixl 8 _/H_ _Kind/H_ _Eltr/H_ _//H_ _Asc/H_ _E/H_
 
 -- Suspended hereditary substitions.
 --
@@ -129,23 +129,33 @@ mutual
   ... | yes _  = ⌜ var x / sub ⌞ b ⌟ ↑⋆ i ⌝ ∙∙⟨ k ⟩ (as //H i ← b ∈ k)
                  where open Substitution using (_/_; sub; _↑⋆_)
   ... | no y _ = var y ∙ (as //H i ← b ∈ k)
-  ⊥       ∙ as /H ρ = ⊥ ∙ (as //H ρ)
-  ⊤       ∙ as /H ρ = ⊤ ∙ (as //H ρ)
-  Π k a   ∙ as /H ρ = Π (k Kind/H ρ) (a /H ρ H↑) ∙ (as //H ρ)
-  (a ⇒ b) ∙ as /H ρ = ((a /H ρ) ⇒ (b /H ρ))  ∙ (as //H ρ)
-  Λ k a   ∙ as /H ρ = Λ (k Kind/H ρ) (a /H ρ H↑) ∙ (as //H ρ)
-  ƛ a b   ∙ as /H ρ = ƛ (a /H ρ) (b /H ρ H↑) ∙ (as //H ρ)
-  a ⊡ b   ∙ as /H ρ = (a /H ρ) ⊡ (b /H ρ)    ∙ (as //H ρ)
+  ⊥         ∙ as /H ρ = ⊥ ∙ (as //H ρ)
+  ⊤         ∙ as /H ρ = ⊤ ∙ (as //H ρ)
+  Π k a     ∙ as /H ρ = Π (k Kind/H ρ) (a /H ρ H↑) ∙ (as //H ρ)
+  (a ⇒ b)   ∙ as /H ρ = ((a /H ρ) ⇒ (b /H ρ))  ∙ (as //H ρ)
+  Λ k a     ∙ as /H ρ = Λ (k Kind/H ρ) (a /H ρ H↑) ∙ (as //H ρ)
+  ƛ a b     ∙ as /H ρ = ƛ (a /H ρ) (b /H ρ H↑) ∙ (as //H ρ)
+  a ⊡ b     ∙ as /H ρ = (a /H ρ) ⊡ (b /H ρ)    ∙ (as //H ρ)
+  ⟨⟩        ∙ as /H ρ = ⟨⟩ ∙ (as //H ρ)
+  ⟨ a , b ⟩ ∙ as /H ρ = ⟨ a /H ρ , b /H ρ ⟩    ∙ (as //H ρ)
 
   -- Apply a herediary substition to a kind.
   _Kind/H_ : ∀ {k m n} → Kind Elim m → HSub k m n → Kind Elim n
   (a ⋯ b) Kind/H ρ = (a /H ρ) ⋯ (b /H ρ)
   Π j k   Kind/H ρ = Π (j Kind/H ρ) (k Kind/H ρ H↑)
+  ◆       Kind/H ρ = ◆
+  Σ j k   Kind/H ρ = Σ (j Kind/H ρ) (k Kind/H ρ H↑)
+
+  -- Apply a herediary substition to an eliminator.
+  _Eltr/H_ : ∀ {k m n} → Eltr m → HSub k m n → Eltr n
+  arg a Eltr/H ρ = arg (a /H ρ)
+  π₁    Eltr/H ρ = π₁
+  π₂    Eltr/H ρ = π₂
 
   -- Apply a herediary substition to a spine.
   _//H_ : ∀ {k m n} → Spine m → HSub k m n → Spine n
   []       //H ρ = []
-  (a ∷ as) //H ρ = a /H ρ ∷ as //H ρ
+  (a ∷ as) //H ρ = a Eltr/H ρ ∷ as //H ρ
 
   -- Apply a spine to an elimination, performing β-reduction if possible.
   --
@@ -153,17 +163,25 @@ mutual
   _∙∙⟨_⟩_ : ∀ {n} → Elim n → SKind → Spine n → Elim n
   a ∙∙⟨ k ⟩     []       = a
   a ∙∙⟨ ★ ⟩     (b ∷ bs) = a ∙∙ (b ∷ bs)               -- ! a ill-kinded
-  a ∙∙⟨ j ⇒ k ⟩ (b ∷ bs) = a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs
+  a ∙∙⟨ j ⇒ k ⟩ (b ∷ bs) = a ·′⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs
+  a ∙∙⟨ ⋄ ⟩     (b ∷ bs) = a ∙∙ (b ∷ bs)               -- ! a ill-kinded
+  a ∙∙⟨ j ⊗ k ⟩ (arg b ∷ bs) = a ∙∙ (arg b ∷ bs)       -- ! spine ill-kinded
+  a ∙∙⟨ j ⊗ k ⟩ (π₁    ∷ bs) = a ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ bs
+  a ∙∙⟨ j ⊗ k ⟩ (π₂    ∷ bs) = a ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ bs
 
-  -- Apply one elimination to another, performing β-reduction if possible.
+  -- Apply an elimination to an eliminator, performing β-reduction if
+  -- possible.
   --
   -- NOTE.  Degenerate cases are marked "!".
-  _⌜·⌝⟨_⟩_ : ∀ {n} → Elim n → SKind → Elim n → Elim n
-  a              ⌜·⌝⟨ ★ ⟩     b = a ⌜·⌝ b              -- ! a ill-kinded
-  (a ∙ (c ∷ cs)) ⌜·⌝⟨ j ⇒ k ⟩ b = a ∙ (c ∷ cs) ⌜·⌝ b   -- ! unless a = var x
-  (Λ l a ∙ [])   ⌜·⌝⟨ j ⇒ k ⟩ b = a /H (0 ← b ∈ j)
+  _·′⟨_⟩_ : ∀ {n} → Elim n → SKind → Eltr n → Elim n
+  (a ∙ (c ∷ cs))   ·′⟨ k ⟩ b = a ∙ (c ∷ cs) ·′ b   -- ! unless a = var x
+  (a ∙ [])         ·′⟨ ★ ⟩ b = a ∙ (b ∷ [])        -- ! a ill-kinded
+  (a ∙ [])         ·′⟨ ⋄ ⟩ b = a ∙ (b ∷ [])        -- ! a ill-kinded
+  (Λ l a ∙ [])     ·′⟨ j ⇒ k ⟩ (arg b) = a /H (0 ← b ∈ j)
+  (⟨ a , b ⟩ ∙ []) ·′⟨ j ⊗ k ⟩ π₁      = a
+  (⟨ a , b ⟩ ∙ []) ·′⟨ j ⊗ k ⟩ π₂      = b
   {-# CATCHALL #-}
-  (a ∙ [])       ⌜·⌝⟨ j ⇒ k ⟩ b = a ∙ (b ∷ [])         -- ! unless a = var x
+  (a ∙ [])         ·′⟨ k ⟩ b = a ∙ (b ∷ [])        -- ! unless a = var x
 
 -- Apply a herediary substition to a kind or type ascription.
 _Asc/H_ : ∀ {k m n} → ElimAsc m → HSub k m n → ElimAsc n
@@ -191,7 +209,22 @@ _↓⌜·⌝_ : ∀ {n} → Elim n → Elim n → Elim n
 (a ∙ (b ∷ bs)) ↓⌜·⌝ c = (a ∙ (b ∷ bs)) ⌜·⌝ c
 (Λ k a ∙ [])   ↓⌜·⌝ b = a [ b ∈ ⌊ k ⌋ ]
 {-# CATCHALL #-}
-(a ∙ [])       ↓⌜·⌝ b = a ∙ (b ∷ [])
+(a ∙ [])       ↓⌜·⌝ b = a ∙ (arg b ∷ [])
+
+-- Variants of projection that are reducing (only) if the first
+-- argument is a pairing.
+
+↓⌜π₁⌝ : ∀ {n} → Elim n → Elim n
+↓⌜π₁⌝ (a ∙ (b ∷ bs))   = ⌜π₁⌝ (a ∙ (b ∷ bs))
+↓⌜π₁⌝ (⟨ a , b ⟩ ∙ []) = a
+{-# CATCHALL #-}
+↓⌜π₁⌝ (a ∙ [])         = a ∙ (π₁ ∷ [])
+
+↓⌜π₂⌝ : ∀ {n} → Elim n → Elim n
+↓⌜π₂⌝ (a ∙ (b ∷ bs))   = ⌜π₂⌝ (a ∙ (b ∷ bs))
+↓⌜π₂⌝ (⟨ a , b ⟩ ∙ []) = b
+{-# CATCHALL #-}
+↓⌜π₂⌝ (a ∙ [])         = a ∙ (π₂ ∷ [])
 
 -- Predicates relating suspended substitutions to variables.
 --
@@ -316,6 +349,8 @@ module _ where
               ⌊ j Kind/H ρ ⌋ ≡ ⌊ j ⌋
   ⌊⌋-Kind/H (a ⋯ b) = refl
   ⌊⌋-Kind/H (Π j k) = cong₂ _⇒_ (⌊⌋-Kind/H j) (⌊⌋-Kind/H k)
+  ⌊⌋-Kind/H ◆       = refl
+  ⌊⌋-Kind/H (Σ j k) = cong₂ _⊗_ (⌊⌋-Kind/H j) (⌊⌋-Kind/H k)
 
   ⌊⌋-Asc/H : ∀ {k m n} (a : ElimAsc m) {ρ : HSub k m n} →
              ⌊ a Asc/H ρ ⌋Asc ≡ ⌊ a ⌋Asc
@@ -326,7 +361,7 @@ module _ where
   ++-//H : ∀ {k m n} (as bs : Spine m) {ρ : HSub k m n} →
            (as ++ bs) //H ρ ≡ as //H ρ ++ bs //H ρ
   ++-//H []       bs     = refl
-  ++-//H (a ∷ as) bs {ρ} = cong (a /H ρ ∷_) (++-//H as bs)
+  ++-//H (a ∷ as) bs {ρ} = cong (a Eltr/H ρ ∷_) (++-//H as bs)
 
   -- Iterated lifting corresponds to raising the variable to be
   -- substituted.
@@ -336,25 +371,57 @@ module _ where
 
   -- Reducing applications of neutral terms are applications.
 
-  var-⌜·⌝⟨⟩ : ∀ {n} {x : Fin n} as k {b} →
-              var x ∙ as ⌜·⌝⟨ k ⟩ b ≡ var x ∙ as ⌜·⌝ b
-  var-⌜·⌝⟨⟩ as       ★       = refl
-  var-⌜·⌝⟨⟩ []       (j ⇒ k) = refl
-  var-⌜·⌝⟨⟩ (a ∷ as) (j ⇒ k) = refl
+  var-·′⟨⟩ : ∀ {n} {x : Fin n} as k {b} →
+             var x ∙ as ·′⟨ k ⟩ b ≡ var x ∙ as ·′ b
+  var-·′⟨⟩ (a ∷ as) k       = refl
+  var-·′⟨⟩ []       ★       = refl
+  var-·′⟨⟩ []       (j ⇒ k) = refl
+  var-·′⟨⟩ []       ⋄       = refl
+  var-·′⟨⟩ []       (j ⊗ k) = refl
 
   var-∙∙⟨⟩ : ∀ {n} (x : Fin n) as k bs →
              var x ∙ as ∙∙⟨ k ⟩ bs ≡ var x ∙ as ∙∙ bs
   var-∙∙⟨⟩ x as k       []       = sym (∙∙-[] _)
   var-∙∙⟨⟩ x as ★       (b ∷ bs) = refl
   var-∙∙⟨⟩ x as (j ⇒ k) (b ∷ bs) = begin
-      var x ∙ as ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs
-    ≡⟨ cong (_∙∙⟨ k ⟩ bs) (var-⌜·⌝⟨⟩ as (j ⇒ k)) ⟩
-      var x ∙ as ⌜·⌝ b ∙∙⟨ k ⟩ bs
+      var x ∙ as ·′⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs
+    ≡⟨ cong (_∙∙⟨ k ⟩ bs) (var-·′⟨⟩ as (j ⇒ k)) ⟩
+      var x ∙ as ·′ b ∙∙⟨ k ⟩ bs
     ≡⟨ var-∙∙⟨⟩ x _ k bs ⟩
       var x ∙ as ∙∙ (b ∷ []) ∙∙ bs
     ≡⟨ ∙∙-++ (var x ∙ as) (b ∷ []) bs ⟩
       var x ∙ as ∙∙ (b ∷ bs)
     ∎
+  var-∙∙⟨⟩ x as ⋄       (b     ∷ bs) = refl
+  var-∙∙⟨⟩ x as (j ⊗ k) (arg b ∷ bs) = refl
+  var-∙∙⟨⟩ x as (j ⊗ k) (π₁    ∷ bs) = begin
+      var x ∙ as ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ bs
+    ≡⟨ cong (_∙∙⟨ j ⟩ bs) (var-·′⟨⟩ as (j ⊗ k)) ⟩
+      var x ∙ as ·′ π₁ ∙∙⟨ j ⟩ bs
+    ≡⟨ var-∙∙⟨⟩ x _ j bs ⟩
+      var x ∙ as ∙∙ (π₁ ∷ []) ∙∙ bs
+    ≡⟨ ∙∙-++ (var x ∙ as) (π₁ ∷ []) bs ⟩
+      var x ∙ (as ++ π₁ ∷ bs)
+    ∎
+  var-∙∙⟨⟩ x as (j ⊗ k) (π₂    ∷ bs) = begin
+      var x ∙ as ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ bs
+    ≡⟨ cong (_∙∙⟨ k ⟩ bs) (var-·′⟨⟩ as (j ⊗ k)) ⟩
+      var x ∙ as ·′ π₂ ∙∙⟨ k ⟩ bs
+    ≡⟨ var-∙∙⟨⟩ x _ k bs ⟩
+      var x ∙ as ∙∙ (π₂ ∷ []) ∙∙ bs
+    ≡⟨ ∙∙-++ (var x ∙ as) (π₂ ∷ []) bs ⟩
+      var x ∙ (as ++ π₂ ∷ bs)
+    ∎
+
+  -- Reducing applications of simple and unit terms are applications.
+
+  ·′⟨★⟩-·′ : ∀ {n} (a : Elim n) {b} → a ·′⟨ ★ ⟩ b ≡ a ·′ b
+  ·′⟨★⟩-·′ (a ∙ [])       = refl
+  ·′⟨★⟩-·′ (a ∙ (b ∷ bs)) = refl
+
+  ·′⟨⋄⟩-·′ : ∀ {n} (a : Elim n) {b} → a ·′⟨ ⋄ ⟩ b ≡ a ·′ b
+  ·′⟨⋄⟩-·′ (a ∙ [])       = refl
+  ·′⟨⋄⟩-·′ (a ∙ (b ∷ bs)) = refl
 
   -- Neutral terms headed by the first variable are stable under
   -- lifted hereditary substitutions.
@@ -524,7 +591,8 @@ module _ where
 
 module RenamingCommutes where
   open Substitution using
-    (termLikeLemmasElim; _//Var_; _Head/Var′_; _Head/Var_; _Kind′/Var_)
+    ( termLikeLemmasElim
+    ; _//Var_; _Head/Var′_; _Head/Var_; _Eltr/Var_; _Kind′/Var_)
   open TermLikeLemmas termLikeLemmasElim
     using (varLiftAppLemmas; varLiftSubLemmas)
   open LiftAppLemmas varLiftAppLemmas hiding (lift)
@@ -631,6 +699,10 @@ module RenamingCommutes where
     []-/-↑⋆ i a k (b ⊡ c ∙ bs)   =
       cong₂ _∙_ (cong₂ _⊡_ ([]-/-↑⋆ i a k b) ([]-/-↑⋆ i a k c))
                 ([]Sp-/-↑⋆ i a k bs)
+    []-/-↑⋆ i a k (⟨⟩        ∙ bs) = cong (⟨⟩ ∙_) ([]Sp-/-↑⋆ i a k bs)
+    []-/-↑⋆ i a k (⟨ b , c ⟩ ∙ bs) =
+      cong₂ _∙_ (cong₂ ⟨_,_⟩ ([]-/-↑⋆ i a k b) ([]-/-↑⋆ i a k c))
+                ([]Sp-/-↑⋆ i a k bs)
 
     []Kd-/-↑⋆ : ∀ i {m n} a k j {σ : Sub Fin m n} →
                 j Kind/H (i ← a ∈ k) Kind′/Var σ ↑⋆ i ≡
@@ -639,12 +711,23 @@ module RenamingCommutes where
       cong₂ _⋯_ ([]-/-↑⋆ i a k b) ([]-/-↑⋆ i a k c)
     []Kd-/-↑⋆ i a k (Π j l) =
       cong₂ Π ([]Kd-/-↑⋆ i a k j) ([]Kd-/-↑⋆ (suc i) a k l)
+    []Kd-/-↑⋆ i a k ◆       = refl
+    []Kd-/-↑⋆ i a k (Σ j l) =
+      cong₂ Σ ([]Kd-/-↑⋆ i a k j) ([]Kd-/-↑⋆ (suc i) a k l)
+
+    []El-/-↑⋆ : ∀ i {m n} a k b {σ : Sub Fin m n} →
+                b Eltr/H (i ← a ∈ k) Eltr/Var σ ↑⋆ i ≡
+                  b Eltr/Var (σ ↑) ↑⋆ i Eltr/H (i ← a / σ ∈ k)
+    []El-/-↑⋆ i a k (arg b) = cong arg ([]-/-↑⋆ i a k b)
+    []El-/-↑⋆ i a k π₁      = refl
+    []El-/-↑⋆ i a k π₂      = refl
 
     []Sp-/-↑⋆ : ∀ i {n m} a k bs {σ : Sub Fin m n} →
                 bs //H (i ← a ∈ k) //Var σ ↑⋆ i ≡
                   (bs //Var (σ ↑) ↑⋆ i) //H (i ← a / σ ∈ k)
     []Sp-/-↑⋆ i a k []       = refl
-    []Sp-/-↑⋆ i a k (b ∷ bs) = cong₂ _∷_ ([]-/-↑⋆ i a k b) ([]Sp-/-↑⋆ i a k bs)
+    []Sp-/-↑⋆ i a k (b ∷ bs) =
+      cong₂ _∷_ ([]El-/-↑⋆ i a k b) ([]Sp-/-↑⋆ i a k bs)
 
     -- Reducing applications commute with renaming.
 
@@ -653,33 +736,72 @@ module RenamingCommutes where
     ∙∙⟨⟩-/ a k       []           = refl
     ∙∙⟨⟩-/ a ★       (b ∷ bs)     = S.∙∙-/Var a (b ∷ bs)
     ∙∙⟨⟩-/ a (j ⇒ k) (b ∷ bs) {σ} = begin
-        a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs / σ
-      ≡⟨ ∙∙⟨⟩-/ (a ⌜·⌝⟨ j ⇒ k ⟩ b) k bs ⟩
-        (a ⌜·⌝⟨ j ⇒ k ⟩ b / σ) ∙∙⟨ k ⟩ (bs //Var σ)
-      ≡⟨ cong (_∙∙⟨ k ⟩ (bs //Var σ)) (⌜·⌝⟨⟩-/ a (j ⇒ k) b) ⟩
-        (a / σ) ⌜·⌝⟨ j ⇒ k ⟩ (b / σ) ∙∙⟨ k ⟩ (bs //Var σ)
+        a ·′⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs / σ
+      ≡⟨ ∙∙⟨⟩-/ (a ·′⟨ j ⇒ k ⟩ b) k bs ⟩
+        (a ·′⟨ j ⇒ k ⟩ b / σ) ∙∙⟨ k ⟩ (bs //Var σ)
+      ≡⟨ cong (_∙∙⟨ k ⟩ (bs //Var σ)) (·′⟨⟩-/ a (j ⇒ k) b) ⟩
+        (a / σ) ·′⟨ j ⇒ k ⟩ (b Eltr/Var σ) ∙∙⟨ k ⟩ (bs //Var σ)
+      ∎
+    ∙∙⟨⟩-/ a ⋄       (b     ∷ bs)     = S.∙∙-/Var a (b ∷ bs)
+    ∙∙⟨⟩-/ a (j ⊗ k) (arg b ∷ bs) {σ} = S.∙∙-/Var a (arg b ∷ bs)
+    ∙∙⟨⟩-/ a (j ⊗ k) (π₁    ∷ bs) {σ} = begin
+        a ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ bs / σ
+      ≡⟨ ∙∙⟨⟩-/ (a ·′⟨ j ⊗ k ⟩ π₁) j bs ⟩
+        (a ·′⟨ j ⊗ k ⟩ π₁ / σ) ∙∙⟨ j ⟩ (bs //Var σ)
+      ≡⟨ cong (_∙∙⟨ j ⟩ (bs //Var σ)) (·′⟨⟩-/ a (j ⊗ k) π₁) ⟩
+        (a / σ) ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ (bs //Var σ)
+      ∎
+    ∙∙⟨⟩-/ a (j ⊗ k) (π₂    ∷ bs) {σ} = begin
+        a ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ bs / σ
+      ≡⟨ ∙∙⟨⟩-/ (a ·′⟨ j ⊗ k ⟩ π₂) k bs ⟩
+        (a ·′⟨ j ⊗ k ⟩ π₂ / σ) ∙∙⟨ k ⟩ (bs //Var σ)
+      ≡⟨ cong (_∙∙⟨ k ⟩ (bs //Var σ)) (·′⟨⟩-/ a (j ⊗ k) π₂) ⟩
+        (a / σ) ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ (bs //Var σ)
       ∎
 
-    ⌜·⌝⟨⟩-/ : ∀ {m n} a k b {σ : Sub Fin m n} →
-              a ⌜·⌝⟨ k ⟩ b / σ ≡ (a / σ) ⌜·⌝⟨ k ⟩ (b / σ)
-    ⌜·⌝⟨⟩-/ a ★                    b     = S.⌜·⌝-/Var a b
-    ⌜·⌝⟨⟩-/ (a ∙ (c ∷ cs)) (j ⇒ k) b {σ} = begin
-        a ∙ (c ∷ cs) ⌜·⌝ b / σ
-      ≡⟨ S.⌜·⌝-/Var (a ∙ (c ∷ cs)) b ⟩
-        (a ∙ (c ∷ cs) / σ) ⌜·⌝ (b / σ)
-      ≡⟨ sym (cong (λ a → a ∙∙ _ ⌜·⌝ (b / σ)) (S.Head/Var-∙ a)) ⟩
-        (a Head/Var σ) ∙ ((c ∷ cs) //Var σ) ⌜·⌝⟨ j ⇒ k ⟩ (b / σ)
-      ≡⟨ cong (λ a → a ∙∙ _ ⌜·⌝⟨ j ⇒ k ⟩ (b / σ)) (S.Head/Var-∙ a) ⟩
-        (a ∙ (c ∷ cs) / σ) ⌜·⌝⟨ j ⇒ k ⟩ (b / σ)
+    ·′⟨⟩-/ : ∀ {m n} a k b {σ : Sub Fin m n} →
+             a ·′⟨ k ⟩ b / σ ≡ (a / σ) ·′⟨ k ⟩ (b Eltr/Var σ)
+    ·′⟨⟩-/ (a ∙ (c ∷ cs)) k b {σ} = begin
+        a ∙ (c ∷ cs) ·′ b / σ
+      ≡⟨ S.·′-/Var (a ∙ (c ∷ cs)) b ⟩
+        (a ∙ (c ∷ cs) / σ) ·′ (b Eltr/Var σ)
+      ≡⟨ sym (cong (λ a → a ∙∙ _ ·′ (b Eltr/Var σ)) (S.Head/Var-∙ a)) ⟩
+        (a Head/Var σ) ∙ ((c ∷ cs) //Var σ) ·′⟨ k ⟩ (b Eltr/Var σ)
+      ≡⟨ cong (λ a → a ∙∙ _ ·′⟨ k ⟩ (b Eltr/Var σ)) (S.Head/Var-∙ a) ⟩
+        (a ∙ (c ∷ cs) / σ) ·′⟨ k ⟩ (b Eltr/Var σ)
       ∎
-    ⌜·⌝⟨⟩-/ (var x   ∙ []) (j ⇒ k) b = refl
-    ⌜·⌝⟨⟩-/ (⊥       ∙ []) (j ⇒ k) b = refl
-    ⌜·⌝⟨⟩-/ (⊤       ∙ []) (j ⇒ k) b = refl
-    ⌜·⌝⟨⟩-/ (Π l a   ∙ []) (j ⇒ k) b = refl
-    ⌜·⌝⟨⟩-/ ((a ⇒ b) ∙ []) (j ⇒ k) c = refl
-    ⌜·⌝⟨⟩-/ (Λ l a   ∙ []) (j ⇒ k) b = []-/-↑⋆ 0 b j a
-    ⌜·⌝⟨⟩-/ (ƛ a b   ∙ []) (j ⇒ k) c = refl
-    ⌜·⌝⟨⟩-/ (a ⊡ b   ∙ []) (j ⇒ k) c = refl
+    ·′⟨⟩-/ (a         ∙ []) ★       b {σ}   = begin
+      (a ∙ []) ·′ b / σ                       ≡⟨ S.·′-/Var (a ∙ []) b ⟩
+      (a ∙ [] / σ) ·′ (b S.Eltr/Var σ)        ≡⟨ sym (·′⟨★⟩-·′ (a ∙ [] / σ)) ⟩
+      (a ∙ [] / σ) ·′⟨ ★ ⟩ (b S.Eltr/Var σ)   ∎
+    ·′⟨⟩-/ (var x     ∙ []) (j ⇒ k) b       = refl
+    ·′⟨⟩-/ (⊥         ∙ []) (j ⇒ k) b       = refl
+    ·′⟨⟩-/ (⊤         ∙ []) (j ⇒ k) b       = refl
+    ·′⟨⟩-/ (Π l a     ∙ []) (j ⇒ k) b       = refl
+    ·′⟨⟩-/ ((a ⇒ b)   ∙ []) (j ⇒ k) c       = refl
+    ·′⟨⟩-/ (Λ l a     ∙ []) (j ⇒ k) (arg b) = []-/-↑⋆ 0 b j a
+    ·′⟨⟩-/ (Λ l a     ∙ []) (j ⇒ k) π₁      = refl
+    ·′⟨⟩-/ (Λ l a     ∙ []) (j ⇒ k) π₂      = refl
+    ·′⟨⟩-/ (ƛ a b     ∙ []) (j ⇒ k) c       = refl
+    ·′⟨⟩-/ (a ⊡ b     ∙ []) (j ⇒ k) c       = refl
+    ·′⟨⟩-/ (⟨⟩        ∙ []) (j ⇒ k) b       = refl
+    ·′⟨⟩-/ (⟨ a , b ⟩ ∙ []) (j ⇒ k) c       = refl
+    ·′⟨⟩-/ (a         ∙ []) ⋄       b {σ}   = begin
+      (a ∙ []) ·′ b / σ                       ≡⟨ S.·′-/Var (a ∙ []) b ⟩
+      (a ∙ [] / σ) ·′ (b S.Eltr/Var σ)        ≡⟨ sym (·′⟨⋄⟩-·′ (a ∙ [] / σ)) ⟩
+      (a ∙ [] / σ) ·′⟨ ⋄ ⟩ (b S.Eltr/Var σ)   ∎
+    ·′⟨⟩-/ (var x     ∙ []) (j ⊗ k) b       = refl
+    ·′⟨⟩-/ (⊥         ∙ []) (j ⊗ k) b       = refl
+    ·′⟨⟩-/ (⊤         ∙ []) (j ⊗ k) b       = refl
+    ·′⟨⟩-/ (Π l a     ∙ []) (j ⊗ k) b       = refl
+    ·′⟨⟩-/ ((a ⇒ b)   ∙ []) (j ⊗ k) c       = refl
+    ·′⟨⟩-/ (Λ l a     ∙ []) (j ⊗ k) b       = refl
+    ·′⟨⟩-/ (ƛ a b     ∙ []) (j ⊗ k) c       = refl
+    ·′⟨⟩-/ (a ⊡ b     ∙ []) (j ⊗ k) c       = refl
+    ·′⟨⟩-/ (⟨⟩        ∙ []) (j ⊗ k) b       = refl
+    ·′⟨⟩-/ (⟨ a , b ⟩ ∙ []) (j ⊗ k) π₁      = refl
+    ·′⟨⟩-/ (⟨ a , b ⟩ ∙ []) (j ⊗ k) π₂      = refl
+    ·′⟨⟩-/ (⟨ a , b ⟩ ∙ []) (j ⊗ k) (arg c) = refl
 
   -- Some corollaries of the above.
 
@@ -717,7 +839,7 @@ module RenamingCommutes where
            a ↓⌜·⌝ b / σ ≡ (a / σ) ↓⌜·⌝ (b / σ)
   ↓⌜·⌝-/ (a ∙ (c ∷ cs)) b {σ} = begin
       a ∙ (c ∷ cs) ⌜·⌝ b / σ
-    ≡⟨ S.⌜·⌝-/Var (a ∙ (c ∷ cs)) b ⟩
+    ≡⟨ S.·′-/Var (a ∙ (c ∷ cs)) (arg b) ⟩
       (a ∙ (c ∷ cs) / σ) ⌜·⌝ (b / σ)
     ≡⟨ sym (cong (λ a → a ∙∙ _ ⌜·⌝ (b / σ)) (S.Head/Var-∙ a)) ⟩
       (a Head/Var σ) ∙ ((c ∷ cs) //Var σ) ↓⌜·⌝ (b / σ)
@@ -736,8 +858,54 @@ module RenamingCommutes where
     ≡⟨ cong (λ k → (a / σ ↑) [ b / σ ∈ k ]) (sym (S.⌊⌋-Kind′/Var l)) ⟩
       (a / σ ↑) [ b / σ ∈ ⌊ l Kind′/Var σ ⌋ ]
     ∎
-  ↓⌜·⌝-/ (ƛ a b   ∙ []) c = refl
-  ↓⌜·⌝-/ (a ⊡ b   ∙ []) c = refl
+  ↓⌜·⌝-/ (ƛ a b     ∙ []) c = refl
+  ↓⌜·⌝-/ (a ⊡ b     ∙ []) c = refl
+  ↓⌜·⌝-/ (⟨⟩        ∙ []) b = refl
+  ↓⌜·⌝-/ (⟨ a , b ⟩ ∙ []) c = refl
+
+  -- Potentially reducing projections commute with renaming.
+
+  ↓⌜π₁⌝-/ : ∀ {m n} a {σ : Sub Fin m n} → ↓⌜π₁⌝ a / σ ≡ ↓⌜π₁⌝ (a / σ)
+  ↓⌜π₁⌝-/ (a ∙ (c ∷ cs)) {σ} = begin
+      ⌜π₁⌝ (a ∙ (c ∷ cs)) / σ
+    ≡⟨ S.·′-/Var (a ∙ (c ∷ cs)) π₁ ⟩
+      ⌜π₁⌝ (a ∙ (c ∷ cs) / σ)
+    ≡⟨ sym (cong (⌜π₁⌝ ∘ _∙∙ _) (S.Head/Var-∙ a)) ⟩
+      ↓⌜π₁⌝ ((a Head/Var σ) ∙ ((c ∷ cs) //Var σ))
+    ≡⟨ cong (↓⌜π₁⌝ ∘ _∙∙ _) (S.Head/Var-∙ a) ⟩
+      ↓⌜π₁⌝ (a ∙ (c ∷ cs) / σ)
+    ∎
+  ↓⌜π₁⌝-/ (var x     ∙ []) = refl
+  ↓⌜π₁⌝-/ (⊥         ∙ []) = refl
+  ↓⌜π₁⌝-/ (⊤         ∙ []) = refl
+  ↓⌜π₁⌝-/ (Π l a     ∙ []) = refl
+  ↓⌜π₁⌝-/ ((a ⇒ b)   ∙ []) = refl
+  ↓⌜π₁⌝-/ (Λ l a     ∙ []) = refl
+  ↓⌜π₁⌝-/ (ƛ a b     ∙ []) = refl
+  ↓⌜π₁⌝-/ (a ⊡ b     ∙ []) = refl
+  ↓⌜π₁⌝-/ (⟨⟩        ∙ []) = refl
+  ↓⌜π₁⌝-/ (⟨ a , b ⟩ ∙ []) = refl
+
+  ↓⌜π₂⌝-/ : ∀ {m n} a {σ : Sub Fin m n} → ↓⌜π₂⌝ a / σ ≡ ↓⌜π₂⌝ (a / σ)
+  ↓⌜π₂⌝-/ (a ∙ (c ∷ cs)) {σ} = begin
+      ⌜π₂⌝ (a ∙ (c ∷ cs)) / σ
+    ≡⟨ S.·′-/Var (a ∙ (c ∷ cs)) π₂ ⟩
+      ⌜π₂⌝ (a ∙ (c ∷ cs) / σ)
+    ≡⟨ sym (cong (⌜π₂⌝ ∘ _∙∙ _) (S.Head/Var-∙ a)) ⟩
+      ↓⌜π₂⌝ ((a Head/Var σ) ∙ ((c ∷ cs) //Var σ))
+    ≡⟨ cong (↓⌜π₂⌝ ∘ _∙∙ _) (S.Head/Var-∙ a) ⟩
+      ↓⌜π₂⌝ (a ∙ (c ∷ cs) / σ)
+    ∎
+  ↓⌜π₂⌝-/ (var x     ∙ []) = refl
+  ↓⌜π₂⌝-/ (⊥         ∙ []) = refl
+  ↓⌜π₂⌝-/ (⊤         ∙ []) = refl
+  ↓⌜π₂⌝-/ (Π l a     ∙ []) = refl
+  ↓⌜π₂⌝-/ ((a ⇒ b)   ∙ []) = refl
+  ↓⌜π₂⌝-/ (Λ l a     ∙ []) = refl
+  ↓⌜π₂⌝-/ (ƛ a b     ∙ []) = refl
+  ↓⌜π₂⌝-/ (a ⊡ b     ∙ []) = refl
+  ↓⌜π₂⌝-/ (⟨⟩        ∙ []) = refl
+  ↓⌜π₂⌝-/ (⟨ a , b ⟩ ∙ []) = refl
 
   mutual
 
@@ -780,21 +948,23 @@ module RenamingCommutes where
       ≡⟨ cong (_/ wk ↑⋆ i) (sym (ne-/H-Miss x y miss)) ⟩
         var x ∙ as /H ρ H↑⋆ i / wk ↑⋆ i
       ∎
-    wk-/H-↑⋆ i (⊥ ∙ as)       = cong (⊥ ∙_) (wk-//H-↑⋆ i as)
-    wk-/H-↑⋆ i (⊤ ∙ as)       = cong (⊤ ∙_) (wk-//H-↑⋆ i as)
-    wk-/H-↑⋆ i (Π k a ∙ as)   =
+    wk-/H-↑⋆ i (⊥     ∙ as) = cong (⊥ ∙_) (wk-//H-↑⋆ i as)
+    wk-/H-↑⋆ i (⊤     ∙ as) = cong (⊤ ∙_) (wk-//H-↑⋆ i as)
+    wk-/H-↑⋆ i (Π k a ∙ as) =
       cong₂ _∙_ (cong₂ Π (wk-Kind/H-↑⋆ i k) (wk-/H-↑⋆ (suc i) a))
                 (wk-//H-↑⋆ i as)
     wk-/H-↑⋆ i ((a ⇒ b) ∙ as) =
       cong₂ _∙_ (cong₂ _⇒_ (wk-/H-↑⋆ i a) (wk-/H-↑⋆ i b)) (wk-//H-↑⋆ i as)
-    wk-/H-↑⋆ i (Λ k a ∙ as)   =
+    wk-/H-↑⋆ i (Λ k a ∙ as) =
       cong₂ _∙_ (cong₂ Λ (wk-Kind/H-↑⋆ i k) (wk-/H-↑⋆ (suc i) a))
                 (wk-//H-↑⋆ i as)
-    wk-/H-↑⋆ i (ƛ a b ∙ as)   =
+    wk-/H-↑⋆ i (ƛ a b ∙ as) =
       cong₂ _∙_ (cong₂ ƛ (wk-/H-↑⋆ i a) (wk-/H-↑⋆ (suc i) b)) (wk-//H-↑⋆ i as)
-    wk-/H-↑⋆ i (a ⊡ b ∙ as)   =
+    wk-/H-↑⋆ i (a ⊡ b ∙ as) =
       cong₂ _∙_ (cong₂ _⊡_ (wk-/H-↑⋆ i a) (wk-/H-↑⋆ i b)) (wk-//H-↑⋆ i as)
-
+    wk-/H-↑⋆ i (⟨⟩        ∙ as) = cong (⟨⟩ ∙_) (wk-//H-↑⋆ i as)
+    wk-/H-↑⋆ i (⟨ a , b ⟩ ∙ as) =
+      cong₂ _∙_ (cong₂ ⟨_,_⟩ (wk-/H-↑⋆ i a) (wk-/H-↑⋆ i b)) (wk-//H-↑⋆ i as)
 
     wk-Kind/H-↑⋆ : ∀ i {k m n} j {ρ : HSub k m n} →
                    j Kind′/Var wk ↑⋆ i Kind/H (ρ H↑) H↑⋆ i ≡
@@ -802,12 +972,23 @@ module RenamingCommutes where
     wk-Kind/H-↑⋆ i (a ⋯ b) = cong₂ _⋯_ (wk-/H-↑⋆ i a) (wk-/H-↑⋆ i b)
     wk-Kind/H-↑⋆ i (Π j k) =
       cong₂ Π (wk-Kind/H-↑⋆ i j) (wk-Kind/H-↑⋆ (suc i) k)
+    wk-Kind/H-↑⋆ i ◆       = refl
+    wk-Kind/H-↑⋆ i (Σ j k) =
+      cong₂ Σ (wk-Kind/H-↑⋆ i j) (wk-Kind/H-↑⋆ (suc i) k)
+
+    wk-Eltr/H-↑⋆ : ∀ i {k m n} a {ρ : HSub k m n} →
+                   a Eltr/Var wk ↑⋆ i Eltr/H (ρ H↑) H↑⋆ i ≡
+                     a Eltr/H ρ H↑⋆ i Eltr/Var wk ↑⋆ i
+    wk-Eltr/H-↑⋆ i (arg a) = cong arg (wk-/H-↑⋆ i a)
+
+    wk-Eltr/H-↑⋆ i π₁      = refl
+    wk-Eltr/H-↑⋆ i π₂      = refl
 
     wk-//H-↑⋆ : ∀ i {k m n} as {ρ : HSub k m n} →
                 as //Var wk ↑⋆ i //H (ρ H↑) H↑⋆ i ≡
                   as //H ρ H↑⋆ i //Var wk ↑⋆ i
     wk-//H-↑⋆ i []       = refl
-    wk-//H-↑⋆ i (a ∷ as) = cong₂ _∷_ (wk-/H-↑⋆ i a) (wk-//H-↑⋆ i as)
+    wk-//H-↑⋆ i (a ∷ as) = cong₂ _∷_ (wk-Eltr/H-↑⋆ i a) (wk-//H-↑⋆ i as)
 
   -- A corollary of the above.
   wk-Asc/H-↑⋆ : ∀ i {k m n} a {ρ : HSub k m n} →
@@ -857,6 +1038,12 @@ module RenamingCommutes where
       cong₂ _∙_ (cong₂ _⊡_ (/-wk-↑⋆-hsub-vanishes i a)
                            (/-wk-↑⋆-hsub-vanishes i b))
                 (//-wk-↑⋆-hsub-vanishes i as)
+    /-wk-↑⋆-hsub-vanishes i (⟨⟩ ∙ as)      =
+      cong (⟨⟩ ∙_) (//-wk-↑⋆-hsub-vanishes i as)
+    /-wk-↑⋆-hsub-vanishes i (⟨ a , b ⟩ ∙ as) =
+      cong₂ _∙_ (cong₂ ⟨_,_⟩ (/-wk-↑⋆-hsub-vanishes i a)
+                             (/-wk-↑⋆-hsub-vanishes i b))
+                (//-wk-↑⋆-hsub-vanishes i as)
 
     Kind/-wk-↑⋆-hsub-vanishes : ∀ i {k m} j {b : Elim m} →
                                 j Kind′/Var wk ↑⋆ i Kind/H i ← b ∈ k ≡ j
@@ -865,12 +1052,22 @@ module RenamingCommutes where
     Kind/-wk-↑⋆-hsub-vanishes i (Π j k) =
       cong₂ Π (Kind/-wk-↑⋆-hsub-vanishes i j)
               (Kind/-wk-↑⋆-hsub-vanishes (suc i) k)
+    Kind/-wk-↑⋆-hsub-vanishes i ◆       = refl
+    Kind/-wk-↑⋆-hsub-vanishes i (Σ j k) =
+      cong₂ Σ (Kind/-wk-↑⋆-hsub-vanishes i j)
+              (Kind/-wk-↑⋆-hsub-vanishes (suc i) k)
+
+    Eltr/-wk-↑⋆-hsub-vanishes : ∀ i {k m} a {b : Elim m} →
+                                a Eltr/Var wk ↑⋆ i Eltr/H i ← b ∈ k ≡ a
+    Eltr/-wk-↑⋆-hsub-vanishes i (arg a) = cong arg (/-wk-↑⋆-hsub-vanishes i a)
+    Eltr/-wk-↑⋆-hsub-vanishes i π₁      = refl
+    Eltr/-wk-↑⋆-hsub-vanishes i π₂      = refl
 
     //-wk-↑⋆-hsub-vanishes : ∀ i {k m} as {b : Elim m} →
                              as //Var wk ↑⋆ i //H i ← b ∈ k ≡ as
     //-wk-↑⋆-hsub-vanishes i []       = refl
     //-wk-↑⋆-hsub-vanishes i (a ∷ as) =
-      cong₂ _∷_ (/-wk-↑⋆-hsub-vanishes i a) (//-wk-↑⋆-hsub-vanishes i as)
+      cong₂ _∷_ (Eltr/-wk-↑⋆-hsub-vanishes i a) (//-wk-↑⋆-hsub-vanishes i as)
 
   -- A corollary of the above.
   Asc/-wk-↑⋆-hsub-vanishes : ∀ i {k m} a {b : Elim m} →
@@ -970,7 +1167,7 @@ module _ where
   -- NOTE. Unfortunately, we cannot prove that arbitrary untyped
   -- hereditary substitutions commute, because *untyped* hereditary
   -- substitutions need not commute with reducting applications
-  -- (i.e. the lemmas `∙∙⟨⟩-/H-↑⋆' and `⌜·⌝⟨⟩-/H-↑⋆' do not hold in
+  -- (i.e. the lemmas `∙∙⟨⟩-/H-↑⋆' and `·′⟨⟩-/H-↑⋆' do not hold in
   -- that general case).  We will prove a weaker result, namely that
   -- well-kinded hereditary substitutions in well-kinded types
   -- commute, later.  See e.g. `Nf∈-[]-/H-↑⋆` etc. in module
@@ -999,10 +1196,10 @@ module _ where
     ⌞⌟-[]-β n a k (var .(raise n zero) ∙ bs) | yes refl = begin
         ⌞ var z ∙ bs ⌟ / (sub ⌞ a ⌟ ↑⋆ n)
       ⟶⋆⟨ ⌞∙⌟-[]-β n a k (var z / sub ⌞ a ⌟ ↑⋆ n) (var z) bs ε ⟩
-        (var z / sub ⌞ a ⌟ ↑⋆ n) ⌞∙⌟ ⌞ bs //H n ← a ∈ k ⌟Sp
-      ≡⟨ cong (_⌞∙⌟ ⌞ bs //H n ← a ∈ k ⌟Sp)
+        (var z / sub ⌞ a ⌟ ↑⋆ n) ⌞∙ bs //H n ← a ∈ k ⌟
+      ≡⟨ cong (_⌞∙ bs //H n ← a ∈ k ⌟)
               (sym (⌞⌟∘⌜⌝-id (var z / sub ⌞ a ⌟ ↑⋆ n))) ⟩
-        ⌞ ⌜ var z / sub ⌞ a ⌟ ↑⋆ n ⌝ ⌟ ⌞∙⌟ ⌞ bs //H n ← a ∈ k ⌟Sp
+        ⌞ ⌜ var z / sub ⌞ a ⌟ ↑⋆ n ⌝ ⌟ ⌞∙ bs //H n ← a ∈ k ⌟
       ⟶⋆⟨ ⌞⌟-∙∙-β ⌜ var z / sub ⌞ a ⌟ ↑⋆ n ⌝ k (bs //H n ← a ∈ k) ⟩
         ⌞ ⌜ var z / sub ⌞ a ⌟ ↑⋆ n ⌝ ∙∙⟨ k ⟩ (bs //H n ← a ∈ k) ⌟
       ∎
@@ -1010,8 +1207,8 @@ module _ where
     ⌞⌟-[]-β n a k (var .(lift n suc y) ∙ bs) | no y refl = begin
         ⌞ var z ∙ bs ⌟ / sub ⌞ a ⌟ ↑⋆ n
       ⟶⋆⟨ ⌞∙⌟-[]-β n a k (var z / sub ⌞ a ⌟ ↑⋆ n) (var z) bs ε ⟩
-        (var z / sub ⌞ a ⌟ ↑⋆ n) ⌞∙⌟ ⌞ bs //H n ← a ∈ k ⌟Sp
-      ≡⟨ cong (λ c →  c ⌞∙⌟ ⌞ bs //H n ← a ∈ k ⌟Sp) (lookup-sub-↑⋆ n y) ⟩
+        (var z / sub ⌞ a ⌟ ↑⋆ n) ⌞∙ bs //H n ← a ∈ k ⌟
+      ≡⟨ cong (λ c →  c ⌞∙ bs //H n ← a ∈ k ⌟) (lookup-sub-↑⋆ n y) ⟩
         ⌞ var y ∙ (bs //H n ← a ∈ k) ⌟
       ∎
       where z = lift n suc y
@@ -1042,6 +1239,12 @@ module _ where
       ⟶⋆⟨ →β*-⊡ (⌞⌟-[]-β n a k b) (⌞⌟-[]-β n a k c) ⟩
         ⌞ b /H n ← a ∈ k ⌟ ⊡ ⌞ c /H n ← a ∈ k ⌟
       ∎)
+    ⌞⌟-[]-β n a k (⟨⟩        ∙ bs) = ⌞∙⌟-[]-β n a k ⟨⟩ ⟨⟩ bs ε
+    ⌞⌟-[]-β n a k (⟨ b , c ⟩ ∙ bs) = ⌞∙⌟-[]-β n a k _ _ bs (begin
+        (⌞ ⟨ b , c ⟩ ⌟Hd / sub ⌞ a ⌟ ↑⋆ n)
+      ⟶⋆⟨ →β*-, (⌞⌟-[]-β n a k b) (⌞⌟-[]-β n a k c) ⟩
+        ⟨ ⌞ b /H n ← a ∈ k ⌟ , ⌞ c /H n ← a ∈ k ⌟ ⟩
+      ∎)
 
     ⌞⌟Kd-[]-β : ∀ {m} n a k (j : Kind Elim (n + suc m)) →
                 ⌞ j ⌟Kd Kind/ sub ⌞ a ⌟ ↑⋆ n  Kd→β*  ⌞ j Kind/H n ← a ∈ k ⌟Kd
@@ -1055,49 +1258,98 @@ module _ where
       Kd→*⟨ Kd→β*-Π (⌞⌟Kd-[]-β n a k j) (⌞⌟Kd-[]-β (suc n) a k l) ⟩
         Π ⌞ j Kind/H n ← a ∈ k ⌟Kd ⌞ l Kind/H (suc n) ← a ∈ k ⌟Kd
       ∎Kd
+    ⌞⌟Kd-[]-β n a k ◆       = ε
+    ⌞⌟Kd-[]-β n a k (Σ j l) = beginKd
+        (⌞ Σ j l ⌟Kd Kind/ sub ⌞ a ⌟ ↑⋆ n)
+      Kd→*⟨ Kd→β*-Σ (⌞⌟Kd-[]-β n a k j) (⌞⌟Kd-[]-β (suc n) a k l) ⟩
+        Σ ⌞ j Kind/H n ← a ∈ k ⌟Kd ⌞ l Kind/H (suc n) ← a ∈ k ⌟Kd
+      ∎Kd
 
     ⌞∙⌟-[]-β : ∀ {m} n a k b₁ b₂ (bs : Spine (n + suc m)) →
                b₂ / sub ⌞ a ⌟ ↑⋆ n →β* b₁ →
-               (b₂ ⌞∙⌟ ⌞ bs ⌟Sp) / sub ⌞ a ⌟ ↑⋆ n  →β*
-                 b₁ ⌞∙⌟ ⌞ bs //H n ← a ∈ k ⌟Sp
-    ⌞∙⌟-[]-β n a k b₁ b₂ []       hyp = hyp
-    ⌞∙⌟-[]-β n a k b₁ b₂ (c ∷ cs) hyp =
+               (b₂ ⌞∙ bs ⌟) / sub ⌞ a ⌟ ↑⋆ n  →β*
+                 b₁ ⌞∙ bs //H n ← a ∈ k ⌟
+    ⌞∙⌟-[]-β n a k b₁ b₂ []           hyp = hyp
+    ⌞∙⌟-[]-β n a k b₁ b₂ (arg c ∷ cs) hyp =
       ⌞∙⌟-[]-β n a k (b₁ · ⌞ c /H n ← a ∈ k ⌟) (b₂ · ⌞ c ⌟) cs
                (→β*-· hyp (⌞⌟-[]-β n a k c))
+    ⌞∙⌟-[]-β n a k b₁ b₂ (π₁ ∷ cs) hyp =
+      ⌞∙⌟-[]-β n a k (π₁ b₁) (π₁ b₂) cs (→β*-π₁ hyp)
+    ⌞∙⌟-[]-β n a k b₁ b₂ (π₂ ∷ cs) hyp =
+      ⌞∙⌟-[]-β n a k (π₂ b₁) (π₂ b₂) cs (→β*-π₂ hyp)
 
     -- Reducing applications commute with ⌞_⌟ up to β-reduction.
 
-    ⌞⌟-∙∙-β : ∀ {n} (a : Elim n) k bs → ⌞ a ⌟ ⌞∙⌟ ⌞ bs ⌟Sp →β* ⌞ a ∙∙⟨ k ⟩ bs ⌟
+    ⌞⌟-∙∙-β : ∀ {n} (a : Elim n) k bs → ⌞ a ⌟ ⌞∙ bs ⌟ →β* ⌞ a ∙∙⟨ k ⟩ bs ⌟
     ⌞⌟-∙∙-β a k       []       = ε
     ⌞⌟-∙∙-β a ★       (b ∷ bs) = begin
-      ⌞ a ⌟ ⌞∙⌟ (⌞ b ⌟ ∷ ⌞ bs ⌟Sp) ≡⟨ sym (⌞⌟-∙∙ a (b ∷ bs)) ⟩
-      ⌞ a ∙∙ (b ∷ bs) ⌟            ∎
+      ⌞ a ⌟ ⌞∙ b ∷ bs ⌟    ≡⟨ sym (⌞⌟-∙∙ a (b ∷ bs)) ⟩
+      ⌞ a ∙∙ (b ∷ bs) ⌟    ∎
     ⌞⌟-∙∙-β a (j ⇒ k) (b ∷ bs) = begin
-        ⌞ a ⌟ ⌞∙⌟ (⌞ b ⌟ ∷ ⌞ bs ⌟Sp)
-      ⟶⋆⟨ →β*-⌞∙⌟₁ (⌞⌟-⌜·⌝-β a (j ⇒ k) b) ⌞ bs ⌟Sp  ⟩
-        ⌞ a ⌜·⌝⟨ j ⇒ k ⟩ b ⌟ ⌞∙⌟ ⌞ bs ⌟Sp
-      ⟶⋆⟨ ⌞⌟-∙∙-β (a ⌜·⌝⟨ j ⇒ k ⟩ b) k bs ⟩
-        ⌞ a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs ⌟
+        ⌞ a ⌟ ⌞∙ b ∷ bs ⌟
+      ⟶⋆⟨ →β*-⌞∙⌟₁ (⌞⌟-·′-β a (j ⇒ k) b) bs ⟩
+        ⌞ a ·′⟨ j ⇒ k ⟩ b ⌟ ⌞∙ bs ⌟
+      ⟶⋆⟨ ⌞⌟-∙∙-β (a ·′⟨ j ⇒ k ⟩ b) k bs ⟩
+        ⌞ a ·′⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs ⌟
+      ∎
+    ⌞⌟-∙∙-β a ⋄       (b ∷ bs) = begin
+      ⌞ a ⌟ ⌞∙ b ∷ bs ⌟    ≡⟨ sym (⌞⌟-∙∙ a (b ∷ bs)) ⟩
+      ⌞ a ∙∙ (b ∷ bs) ⌟    ∎
+    ⌞⌟-∙∙-β a (j ⊗ k) (arg b ∷ bs) = begin
+      ⌞ a ⌟ ⌞∙ arg b ∷ bs ⌟    ≡⟨ sym (⌞⌟-∙∙ a (arg b ∷ bs)) ⟩
+      ⌞ a ∙∙ (arg b ∷ bs) ⌟    ∎
+    ⌞⌟-∙∙-β a (j ⊗ k) (π₁    ∷ bs) = begin
+        π₁ ⌞ a ⌟ ⌞∙ bs ⌟
+      ⟶⋆⟨ →β*-⌞∙⌟₁ (⌞⌟-·′-β a (j ⊗ k) π₁) bs ⟩
+        ⌞ a ·′⟨ j ⊗ k ⟩ π₁ ⌟ ⌞∙ bs ⌟
+      ⟶⋆⟨ ⌞⌟-∙∙-β (a ·′⟨ j ⊗ k ⟩ π₁) j bs ⟩
+        ⌞ a ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ bs ⌟
+      ∎
+    ⌞⌟-∙∙-β a (j ⊗ k) (π₂    ∷ bs) = begin
+        π₂ ⌞ a ⌟ ⌞∙ bs ⌟
+      ⟶⋆⟨ →β*-⌞∙⌟₁ (⌞⌟-·′-β a (j ⊗ k) π₂) bs ⟩
+        ⌞ a ·′⟨ j ⊗ k ⟩ π₂ ⌟ ⌞∙ bs ⌟
+      ⟶⋆⟨ ⌞⌟-∙∙-β (a ·′⟨ j ⊗ k ⟩ π₂) k bs ⟩
+        ⌞ a ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ bs ⌟
       ∎
 
-    ⌞⌟-⌜·⌝-β : ∀ {n} (a : Elim n) k b → ⌞ a ⌟ · ⌞ b ⌟ →β* ⌞ a ⌜·⌝⟨ k ⟩ b ⌟
-    ⌞⌟-⌜·⌝-β a ★ b = begin
-      ⌞ a ⌟ · ⌞ b ⌟              ≡⟨ sym (⌞⌟-· a b) ⟩
-      ⌞ a ⌜·⌝ b ⌟                ∎
-    ⌞⌟-⌜·⌝-β (a ∙ (c ∷ cs)) (j ⇒ k) b = begin
-      ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡⟨ sym (⌞⌟-· (a ∙ (c ∷ cs)) b) ⟩
-      ⌞ a ∙ (c ∷ cs) ⌜·⌝ b ⌟     ∎
-    ⌞⌟-⌜·⌝-β (var x   ∙ []) (j ⇒ k) b = ε
-    ⌞⌟-⌜·⌝-β (⊥       ∙ []) (j ⇒ k) b = ε
-    ⌞⌟-⌜·⌝-β (⊤       ∙ []) (j ⇒ k) b = ε
-    ⌞⌟-⌜·⌝-β (Π l a   ∙ []) (j ⇒ k) b = ε
-    ⌞⌟-⌜·⌝-β ((a ⇒ b) ∙ []) (j ⇒ k) c = ε
-    ⌞⌟-⌜·⌝-β (Λ l a ∙ []) (j ⇒ k) b = begin
+    ⌞⌟-·′-β : ∀ {n} (a : Elim n) k b → ⌞ a ⌟ ·⌞ b ⌟ →β* ⌞ a ·′⟨ k ⟩ b ⌟
+    ⌞⌟-·′-β (a ∙ (c ∷ cs)) (k) b = begin
+      ⌞ a ∙ (c ∷ cs) ⌟ ·⌞ b ⌟   ≡⟨ sym (⌞⌟-·′ (a ∙ (c ∷ cs)) b) ⟩
+      ⌞ a ∙ (c ∷ cs) ·′ b ⌟     ∎
+    ⌞⌟-·′-β (a       ∙ []) ★       b = ε
+    ⌞⌟-·′-β (var x   ∙ []) (j ⇒ k) b = ε
+    ⌞⌟-·′-β (⊥       ∙ []) (j ⇒ k) b = ε
+    ⌞⌟-·′-β (⊤       ∙ []) (j ⇒ k) b = ε
+    ⌞⌟-·′-β (Π l a   ∙ []) (j ⇒ k) b = ε
+    ⌞⌟-·′-β ((a ⇒ b) ∙ []) (j ⇒ k) c = ε
+    ⌞⌟-·′-β (Λ l a   ∙ []) (j ⇒ k) (arg b) = begin
       Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
       ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-[]-β 0 b j a ⟩
       ⌞ a /H 0 ← b ∈ j ⌟         ∎
-    ⌞⌟-⌜·⌝-β (ƛ a b   ∙ []) (j ⇒ k) c = ε
-    ⌞⌟-⌜·⌝-β (a ⊡ b   ∙ []) (j ⇒ k) c = ε
+    ⌞⌟-·′-β (Λ l a     ∙ []) (j ⇒ k) π₁ = ε
+    ⌞⌟-·′-β (Λ l a     ∙ []) (j ⇒ k) π₂ = ε
+    ⌞⌟-·′-β (ƛ a b     ∙ []) (j ⇒ k) c  = ε
+    ⌞⌟-·′-β (a ⊡ b     ∙ []) (j ⇒ k) c  = ε
+    ⌞⌟-·′-β (⟨⟩        ∙ []) (j ⇒ k) b  = ε
+    ⌞⌟-·′-β (⟨ a , b ⟩ ∙ []) (j ⇒ k) c  = ε
+    ⌞⌟-·′-β (a         ∙ []) ⋄       b  = ε
+    ⌞⌟-·′-β (var x     ∙ []) (j ⊗ k) b  = ε
+    ⌞⌟-·′-β (⊥         ∙ []) (j ⊗ k) b  = ε
+    ⌞⌟-·′-β (⊤         ∙ []) (j ⊗ k) b  = ε
+    ⌞⌟-·′-β (Π l a     ∙ []) (j ⊗ k) b  = ε
+    ⌞⌟-·′-β ((a ⇒ b)   ∙ []) (j ⊗ k) c  = ε
+    ⌞⌟-·′-β (Λ l a     ∙ []) (j ⊗ k) b  = ε
+    ⌞⌟-·′-β (ƛ a b     ∙ []) (j ⊗ k) c  = ε
+    ⌞⌟-·′-β (a ⊡ b     ∙ []) (j ⊗ k) c  = ε
+    ⌞⌟-·′-β (⟨⟩        ∙ []) (j ⊗ k) b  = ε
+    ⌞⌟-·′-β (⟨ a , b ⟩ ∙ []) (j ⊗ k) (arg c) = ε
+    ⌞⌟-·′-β (⟨ a , b ⟩ ∙ []) (j ⊗ k) π₁ = begin
+      π₁ ⟨ ⌞ a ⌟ , ⌞ b ⌟ ⟩    ⟶⟨ ⌈ cont-π₁ ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
+      ⌞ a ⌟                   ∎
+    ⌞⌟-·′-β (⟨ a , b ⟩ ∙ []) (j ⊗ k) π₂ = begin
+      π₂ ⟨ ⌞ a ⌟ , ⌞ b ⌟ ⟩    ⟶⟨ ⌈ cont-π₂ ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
+      ⌞ b ⌟                   ∎
 
   -- Potentially reducing applications commute with ⌞_⌟ up to β-reduction.
   ⌞⌟-↓⌜·⌝-β : ∀ {n} (a : Elim n) b → ⌞ a ⌟ · ⌞ b ⌟ →β* ⌞ a ↓⌜·⌝ b ⌟
@@ -1112,6 +1364,8 @@ module _ where
   ⌞⌟-↓⌜·⌝-β (Λ l a ∙ []) b = begin
     Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
     ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-[]-β 0 b ⌊ l ⌋ a ⟩
-    ⌞ a /H 0 ← b ∈ ⌊ l ⌋ ⌟         ∎
-  ⌞⌟-↓⌜·⌝-β (ƛ a b   ∙ []) c = ε
-  ⌞⌟-↓⌜·⌝-β (a ⊡ b   ∙ []) c = ε
+    ⌞ a /H 0 ← b ∈ ⌊ l ⌋ ⌟     ∎
+  ⌞⌟-↓⌜·⌝-β (ƛ a b     ∙ []) c = ε
+  ⌞⌟-↓⌜·⌝-β (a ⊡ b     ∙ []) c = ε
+  ⌞⌟-↓⌜·⌝-β (⟨⟩        ∙ []) b = ε
+  ⌞⌟-↓⌜·⌝-β (⟨ a , b ⟩ ∙ []) c = ε

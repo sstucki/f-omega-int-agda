@@ -10,7 +10,7 @@ open import Data.Fin.Substitution.ExtraLemmas
 open import Data.List using ([]; _∷_)
 open import Data.Star using (ε; _◅_; gmap)
 open import Data.Sum using ([_,_])
-open import Data.Product using (_,_; ∃; _×_)
+--open import Data.Product using (_,_; ∃; _×_) -- FIXME!
 open import Function using (flip; _∘_)
 open import Relation.Binary using (Setoid; Preorder)
 import Relation.Binary.EquivalenceClosure as EqClos
@@ -30,7 +30,8 @@ open Substitution using (_[_]; weaken)
 infixl 9  _·₁_ _·₂_ _⊡₁_ _⊡₂_
 infixr 7  _⇒₁_ _⇒₂_
 infix  6  _⋯₁_ _⋯₂_
-infix  5  _→β_ _Kd→β_ _→βη_ _Kd→βη_
+infix  5  _→β_ _Kd→β_
+--infix  5  _→βη_ _Kd→βη_ -- FIXME: never used!
 
 mutual
 
@@ -50,26 +51,38 @@ mutual
     _·₂_ : ∀ {b₁ b₂} a → Compat _∼_ b₁ b₂       → Compat _∼_ (a · b₁) (a · b₂)
     _⊡₁_ : ∀ {a₁ a₂} → Compat _∼_ a₁ a₂   → ∀ b → Compat _∼_ (a₁ ⊡ b) (a₂ ⊡ b)
     _⊡₂_ : ∀ {b₁ b₂} a → Compat _∼_ b₁ b₂       → Compat _∼_ (a ⊡ b₁) (a ⊡ b₂)
+    _,₁_ : ∀ {a₁ a₂} → Compat _∼_ a₁ a₂   → ∀ b → Compat _∼_ (a₁ , b) (a₂ , b)
+    _,₂_ : ∀ {b₁ b₂} a → Compat _∼_ b₁ b₂       → Compat _∼_ (a , b₁) (a , b₂)
+    π₁   : ∀ {a₁ a₂} → Compat _∼_ a₁ a₂         → Compat _∼_ (π₁ a₁)  (π₁ a₂)
+    π₂   : ∀ {a₁ a₂} → Compat _∼_ a₁ a₂         → Compat _∼_ (π₂ a₁)  (π₂ a₂)
 
   data KdCompat (_∼_ : TRel Term) {n} : Kind Term n → Kind Term n → Set where
     _⋯₁_ : ∀ {a₁ a₂} → Compat _∼_ a₁ a₂ → ∀ b   → KdCompat _∼_ (a₁ ⋯ b) (a₂ ⋯ b)
     _⋯₂_ : ∀ {b₁ b₂} a → Compat _∼_ b₁ b₂       → KdCompat _∼_ (a ⋯ b₁) (a ⋯ b₂)
     Π₁   : ∀ {j₁ j₂} → KdCompat _∼_ j₁ j₂ → ∀ b → KdCompat _∼_ (Π j₁ b) (Π j₂ b)
     Π₂   : ∀ {k₁ k₂} k → KdCompat _∼_ k₁ k₂     → KdCompat _∼_ (Π k k₁) (Π k k₂)
+    Σ₁   : ∀ {j₁ j₂} → KdCompat _∼_ j₁ j₂ → ∀ b → KdCompat _∼_ (Σ j₁ b) (Σ j₂ b)
+    Σ₂   : ∀ {k₁ k₂} k → KdCompat _∼_ k₁ k₂     → KdCompat _∼_ (Σ k k₁) (Σ k k₂)
 
 -- β-contraction.
 data BetaCont {n} : Term n → Term n → Set where
   cont-Tp· : ∀ k a b → BetaCont ((Λ k a) · b) (a [ b ])
   cont-Tm· : ∀ a b c → BetaCont ((ƛ a b) · c) (b [ c ])
   cont-⊡   : ∀ k a b → BetaCont ((Λ k a) ⊡ b) (a [ b ])
+  cont-π₁  : ∀ a b   → BetaCont (π₁ (a , b))  a
+  cont-π₂  : ∀ a b   → BetaCont (π₂ (a , b))  b
 
+{-- FIXME: never used!
 -- β-contraction together with η-expansion of neutral types.
 data BetaContEtaExp {n} : Term n → Term n → Set where
   cont-Tp· : ∀ k a b → BetaContEtaExp ((Λ k a) · b) (a [ b ])
   cont-Tm· : ∀ a b c → BetaContEtaExp ((ƛ a b) · c) (b [ c ])
   cont-⊡   : ∀ k a b → BetaContEtaExp ((Λ k a) ⊡ b) (a [ b ])
+  cont-π₁  : ∀ a b   → BetaContEtaExp (π₁ (a , b))  a
+  cont-π₂  : ∀ a b   → BetaContEtaExp (π₂ (a , b))  b
   exp-var  : ∀ k x   → BetaContEtaExp (var x) (Λ k (var (suc x)    · var zero))
   exp-·    : ∀ k a b → BetaContEtaExp (a · b) (Λ k (weaken (a · b) · var zero))
+--}
 
 -- One-step β-reduction.
 
@@ -79,6 +92,7 @@ _→β_ = Compat BetaCont
 _Kd→β_ : TRel (Kind Term)
 _Kd→β_ = KdCompat BetaCont
 
+{-- FIXME: never used!
 -- One-step β-reduction and η-expansion.
 
 _→βη_ : TRel Term
@@ -86,6 +100,7 @@ _→βη_ = Compat BetaContEtaExp
 
 _Kd→βη_ : TRel (Kind Term)
 _Kd→βη_ = KdCompat BetaContEtaExp
+--}
 
 -- Full β-reduction and equality.
 
@@ -101,6 +116,7 @@ open Reduction β-reduction public hiding (_→1_)
 open Reduction β-reductionKind public hiding (_→1_)
   renaming (_→*_ to _Kd→β*_; _↔_ to _Kd≡β_)
 
+{-- FIXME: never used!
 -- Full β-reduction, η-expansion of neutrals, and βη-equality.
 
 βη-reductionExpansion : Reduction Term
@@ -114,10 +130,12 @@ open Reduction βη-reductionExpansion public hiding (_→1_)
 
 open Reduction βη-reductionExpansionKind public hiding (_→1_)
   renaming (_→*_ to _Kd→βη*_; _↔_ to _Kd≡βη_)
+--}
 
 ----------------------------------------------------------------------
 -- Simple properties of the β-reductions/equalities
 
+{-- FIXME: never used!
 -- Inclusions.
 
 BetaCont⇒BetaContEtaExp : ∀ {n} {a b : Term n} →
@@ -125,6 +143,7 @@ BetaCont⇒BetaContEtaExp : ∀ {n} {a b : Term n} →
 BetaCont⇒BetaContEtaExp (cont-Tp· k a b) = cont-Tp· k a b
 BetaCont⇒BetaContEtaExp (cont-Tm· a b c) = cont-Tm· a b c
 BetaCont⇒BetaContEtaExp (cont-⊡   k a b) = cont-⊡   k a b
+--}
 
 module CompatInclusion (_∼₁_ _∼₂_ : TRel Term) where
 
@@ -145,6 +164,10 @@ module CompatInclusion (_∼₁_ _∼₂_ : TRel Term) where
     →₁⇒→₂ ∼₁⇒∼₂ (a ·₂ b₁→₁b₂) = a ·₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
     →₁⇒→₂ ∼₁⇒∼₂ (a₁→₁a₂ ⊡₁ b) = (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) ⊡₁ b
     →₁⇒→₂ ∼₁⇒∼₂ (a ⊡₂ b₁→₁b₂) = a ⊡₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
+    →₁⇒→₂ ∼₁⇒∼₂ (a₁→₁a₂ ,₁ b) = (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) ,₁ b
+    →₁⇒→₂ ∼₁⇒∼₂ (a ,₂ b₁→₁b₂) = a ,₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
+    →₁⇒→₂ ∼₁⇒∼₂ (π₁ a₁→₁a₂)   = π₁ (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂)
+    →₁⇒→₂ ∼₁⇒∼₂ (π₂ a₁→₁a₂)   = π₂ (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂)
 
     Kd→₁⇒→₂ : (∀ {n} {a b : Term n} → a ∼₁ b → a ∼₂ b) →
                ∀ {n} {j k : Kind Term n} → KdCompat _∼₁_ j k → KdCompat _∼₂_ j k
@@ -152,7 +175,10 @@ module CompatInclusion (_∼₁_ _∼₂_ : TRel Term) where
     Kd→₁⇒→₂ ∼₁⇒∼₂ (a ⋯₂ b₁→₁b₂) = a ⋯₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
     Kd→₁⇒→₂ ∼₁⇒∼₂ (Π₁ j₁→₁j₂ k) = Π₁ (Kd→₁⇒→₂ ∼₁⇒∼₂ j₁→₁j₂) k
     Kd→₁⇒→₂ ∼₁⇒∼₂ (Π₂ j k₁→₁k₂) = Π₂ j (Kd→₁⇒→₂ ∼₁⇒∼₂ k₁→₁k₂)
+    Kd→₁⇒→₂ ∼₁⇒∼₂ (Σ₁ j₁→₁j₂ k) = Σ₁ (Kd→₁⇒→₂ ∼₁⇒∼₂ j₁→₁j₂) k
+    Kd→₁⇒→₂ ∼₁⇒∼₂ (Σ₂ j k₁→₁k₂) = Σ₂ j (Kd→₁⇒→₂ ∼₁⇒∼₂ k₁→₁k₂)
 
+{-- FIXME: never used!
 →β⇒→βη = CompatInclusion.→₁⇒→₂ BetaCont BetaContEtaExp BetaCont⇒BetaContEtaExp
 
 →β*⇒→βη* : ∀ {n} {a b : Term n} → a →β* b → a →βη* b
@@ -160,47 +186,59 @@ module CompatInclusion (_∼₁_ _∼₂_ : TRel Term) where
 
 ≡β⇒≡βη : ∀ {n} {a b : Term n} → a ≡β b → a ≡βη b
 ≡β⇒≡βη = EqClos.map →β⇒→βη
+--}
 
 →β⇒→β* = →1⇒→* β-reduction
 →β*⇒≡β = →*⇒↔  β-reduction
 →β⇒≡β  = →1⇒↔  β-reduction
 
+{-- FIXME: never used!
 →βη⇒→βη* = →1⇒→* βη-reductionExpansion
 →βη*⇒≡βη = →*⇒↔  βη-reductionExpansion
 →βη⇒≡βη  = →1⇒↔  βη-reductionExpansion
+--}
 
 -- The reductions are preorders.
 
 →β*-preorder   = →*-preorder β-reduction
 Kd→β*-preorder = →*-preorder β-reductionKind
 
+{-- FIXME: never used!
 →βη*-preorder   = →*-preorder βη-reductionExpansion
 Kd→βη*-preorder = →*-preorder βη-reductionExpansionKind
+--}
 
 -- Preorder reasoning for the reductions.
 
 module →β*-Reasoning    = →*-Reasoning β-reduction
 module Kd→β*-Reasoning  = →*-Reasoning β-reductionKind
 
+{-- FIXME: never used!
 module →βη*-Reasoning   = →*-Reasoning βη-reductionExpansion
 module Kd→βη*-Reasoning = →*-Reasoning βη-reductionExpansionKind
+--}
 
 -- Raw terms and kinds together with β/βη-equality form setoids.
 
 ≡β-setoid   = ↔-setoid β-reduction
 Kd≡β-setoid = ↔-setoid β-reductionKind
 
+{-- FIXME: never used!
 ≡βη-setoid   = ↔-setoid βη-reductionExpansion
 Kd≡βη-setoid = ↔-setoid βη-reductionExpansionKind
+--}
 
 -- Equational reasoning for the equalities.
 
 module ≡β-Reasoning   = ↔-Reasoning β-reduction
 module Kd≡β-Reasoning = ↔-Reasoning β-reductionKind
 
+{-- FIXME: never used!
 module ≡βη-Reasoning   = ↔-Reasoning βη-reductionExpansion
 module Kd≡βη-Reasoning = ↔-Reasoning βη-reductionExpansionKind
+--}
 
+{-- FIXME!
 -- An admissible expansion rule for neutral terms.
 exp-ne : ∀ {n} (k : Kind Term n) x as →
          BetaContEtaExp (var x ⌞∙⌟ as) (Λ k (weaken (var x ⌞∙⌟ as) · var zero))
@@ -217,6 +255,7 @@ exp-ne k x (a ∷ as) with helper (var x) a as
 ... | c , d , x·a∙as≡c·d =
   P.subst (λ a → BetaContEtaExp a (Λ k (weaken a · var zero)))
           (P.sym x·a∙as≡c·d) (exp-· k c d)
+--}
 
 -- Multistep and equality congruence lemmas.
 
@@ -237,11 +276,14 @@ module CongLemmas (_∼_ : TRel Term) where
   open Reduction reduction
   open Reduction reductionKd using () renaming (_→*_ to _Kd→*_; _↔_ to _Kd↔_)
 
-  -- A Congruence lemma for _⌞∙⌟_.
+  -- A Congruence lemma for _⌞∙_⌟.
 
-  →1-⌞∙⌟₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ →1 a₂ → ∀ bs → a₁ ⌞∙⌟ bs →1 a₂ ⌞∙⌟ bs
-  →1-⌞∙⌟₁ a₁∼a₂ []       = a₁∼a₂
-  →1-⌞∙⌟₁ a₁∼a₂ (b ∷ bs) = →1-⌞∙⌟₁ (a₁∼a₂ ·₁ b) bs
+  →1-⌞∙⌟₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ →1 a₂ → ∀ bs →
+            a₁ ⌞∙ bs ⌟ →1 a₂ ⌞∙ bs ⌟
+  →1-⌞∙⌟₁ a₁∼a₂ []           = a₁∼a₂
+  →1-⌞∙⌟₁ a₁∼a₂ (arg b ∷ bs) = →1-⌞∙⌟₁ (a₁∼a₂ ·₁ ⌞ b ⌟) bs
+  →1-⌞∙⌟₁ a₁∼a₂ (π₁    ∷ bs) = →1-⌞∙⌟₁ (π₁ a₁∼a₂) bs
+  →1-⌞∙⌟₁ a₁∼a₂ (π₂    ∷ bs) = →1-⌞∙⌟₁ (π₂ a₁∼a₂) bs
 
   -- Multistep congruence lemmas for transitive closures.
 
@@ -277,19 +319,37 @@ module CongLemmas (_∼_ : TRel Term) where
   →*-⊡ {b₁ = b₁} a₁→*a₂ b₁→*b₂ =
     O.trans (gmap (_⊡ b₁) (_⊡₁ b₁) a₁→*a₂) (gmap (_ ⊡_) (_ ⊡₂_) b₁→*b₂)
 
+  →*-, : ∀ {n} {a₁ a₂ : Term n} {b₁ b₂} →
+         a₁ →* a₂ → b₁ →* b₂ → a₁ , b₁ →* a₂ , b₂
+  →*-, {b₁ = b₁} a₁→*a₂ b₁→*b₂ =
+    O.trans (gmap (_, b₁) (_,₁ b₁) a₁→*a₂) (gmap (_ ,_) (_ ,₂_) b₁→*b₂)
+
+  →*-π₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ →* a₂ → π₁ a₁ →* π₁ a₂
+  →*-π₁ a₁→*a₂ = gmap π₁ π₁ a₁→*a₂
+
+  →*-π₂ : ∀ {n} {a₁ a₂ : Term n} → a₁ →* a₂ → π₂ a₁ →* π₂ a₂
+  →*-π₂ a₁→*a₂ = gmap π₂ π₂ a₁→*a₂
+
   Kd→*-⋯ : ∀ {n} {a₁ a₂ : Term n} {b₁ b₂} →
-         a₁ →* a₂ → b₁ →* b₂ → a₁ ⋯ b₁ Kd→* a₂ ⋯ b₂
+           a₁ →* a₂ → b₁ →* b₂ → a₁ ⋯ b₁ Kd→* a₂ ⋯ b₂
   Kd→*-⋯ {b₁ = b₁} a₁→*a₂ b₁→*b₂ =
     OK.trans (gmap (_⋯ b₁) (_⋯₁ b₁) a₁→*a₂) (gmap (_ ⋯_) (_ ⋯₂_) b₁→*b₂)
 
   Kd→*-Π : ∀ {n} {j₁ j₂ : Kind Term n} {k₁ k₂} →
-         j₁ Kd→* j₂ → k₁ Kd→* k₂ → Π j₁ k₁ Kd→* Π j₂ k₂
+           j₁ Kd→* j₂ → k₁ Kd→* k₂ → Π j₁ k₁ Kd→* Π j₂ k₂
   Kd→*-Π {k₁ = k₁} j₁→*j₂ k₁→*k₂ =
     OK.trans (gmap (flip Π k₁) (λ j→k → Π₁ j→k k₁) j₁→*j₂)
              (gmap (Π _) (Π₂ _) k₁→*k₂)
 
-  →*-⌞∙⌟₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ →* a₂ → ∀ bs → a₁ ⌞∙⌟ bs →* a₂ ⌞∙⌟ bs
-  →*-⌞∙⌟₁ a₁→*a₂ bs = gmap (_⌞∙⌟ bs) (flip →1-⌞∙⌟₁ bs) a₁→*a₂
+  Kd→*-Σ : ∀ {n} {j₁ j₂ : Kind Term n} {k₁ k₂} →
+           j₁ Kd→* j₂ → k₁ Kd→* k₂ → Σ j₁ k₁ Kd→* Σ j₂ k₂
+  Kd→*-Σ {k₁ = k₁} j₁→*j₂ k₁→*k₂ =
+    OK.trans (gmap (flip Σ k₁) (λ j→k → Σ₁ j→k k₁) j₁→*j₂)
+             (gmap (Σ _)       (Σ₂ _)              k₁→*k₂)
+
+  →*-⌞∙⌟₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ →* a₂ → ∀ bs →
+            a₁ ⌞∙ bs ⌟ →* a₂ ⌞∙ bs ⌟
+  →*-⌞∙⌟₁ a₁→*a₂ bs = gmap (_⌞∙ bs ⌟) (flip →1-⌞∙⌟₁ bs) a₁→*a₂
 
   -- Congruence lemmas for equivalences closures.
 
@@ -329,6 +389,18 @@ module CongLemmas (_∼_ : TRel Term) where
     S.trans (EqClos.gmap (_⊡ b₁) (_⊡₁ b₁) a₁↔a₂)
             (EqClos.gmap (_ ⊡_)  (_ ⊡₂_)  b₁↔b₂)
 
+  ↔-, : ∀ {n} {a₁ a₂ : Term n} {b₁ b₂} →
+        a₁ ↔ a₂ → b₁ ↔ b₂ → a₁ , b₁ ↔ a₂ , b₂
+  ↔-, {b₁ = b₁} a₁↔a₂ b₁↔b₂ =
+    S.trans (EqClos.gmap (_, b₁) (_,₁ b₁) a₁↔a₂)
+            (EqClos.gmap (_ ,_)  (_ ,₂_)  b₁↔b₂)
+
+  ↔-π₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ ↔ a₂ → π₁ a₁ ↔ π₁ a₂
+  ↔-π₁ a₁↔a₂ = EqClos.gmap π₁ π₁ a₁↔a₂
+
+  ↔-π₂ : ∀ {n} {a₁ a₂ : Term n} → a₁ ↔ a₂ → π₂ a₁ ↔ π₂ a₂
+  ↔-π₂ a₁↔a₂ = EqClos.gmap π₂ π₂ a₁↔a₂
+
   Kd↔-⋯ : ∀ {n} {a₁ a₂ : Term n} {b₁ b₂} →
           a₁ ↔ a₂ → b₁ ↔ b₂ → a₁ ⋯ b₁ Kd↔ a₂ ⋯ b₂
   Kd↔-⋯ {b₁ = b₁} a₁↔a₂ b₁↔b₂ =
@@ -341,8 +413,14 @@ module CongLemmas (_∼_ : TRel Term) where
     SK.trans (EqClos.gmap (flip Π k₁) (λ j→k → Π₁ j→k k₁) j₁↔j₂)
              (EqClos.gmap (Π _)       (Π₂ _)              k₁↔k₂)
 
-  ↔-⌞∙⌟₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ ↔ a₂ → ∀ bs → a₁ ⌞∙⌟ bs ↔ a₂ ⌞∙⌟ bs
-  ↔-⌞∙⌟₁ a₁↔a₂ bs = EqClos.gmap (_⌞∙⌟ bs) (flip →1-⌞∙⌟₁ bs) a₁↔a₂
+  Kd↔-Σ : ∀ {n} {j₁ j₂ : Kind Term n} {k₁ k₂} →
+          j₁ Kd↔ j₂ → k₁ Kd↔ k₂ → Σ j₁ k₁ Kd↔ Σ j₂ k₂
+  Kd↔-Σ {k₁ = k₁} j₁↔j₂ k₁↔k₂ =
+    SK.trans (EqClos.gmap (flip Σ k₁) (λ j→k → Σ₁ j→k k₁) j₁↔j₂)
+             (EqClos.gmap (Σ _)       (Σ₂ _)              k₁↔k₂)
+
+  ↔-⌞∙⌟₁ : ∀ {n} {a₁ a₂ : Term n} → a₁ ↔ a₂ → ∀ bs → a₁ ⌞∙ bs ⌟ ↔ a₂ ⌞∙ bs ⌟
+  ↔-⌞∙⌟₁ a₁↔a₂ bs = EqClos.gmap (_⌞∙ bs ⌟) (flip →1-⌞∙⌟₁ bs) a₁↔a₂
 
 open CongLemmas BetaCont public renaming
   ( →1-⌞∙⌟₁ to →β-⌞∙⌟₁
@@ -352,8 +430,12 @@ open CongLemmas BetaCont public renaming
   ; →*-ƛ    to →β*-ƛ
   ; →*-·    to →β*-·
   ; →*-⊡    to →β*-⊡
+  ; →*-,    to →β*-,
+  ; →*-π₁   to →β*-π₁
+  ; →*-π₂   to →β*-π₂
   ; Kd→*-⋯  to Kd→β*-⋯
   ; Kd→*-Π  to Kd→β*-Π
+  ; Kd→*-Σ  to Kd→β*-Σ
   ; →*-⌞∙⌟₁ to →β*-⌞∙⌟₁
   ; ↔-Π     to ≡β-Π
   ; ↔-⇒     to ≡β-⇒
@@ -361,14 +443,19 @@ open CongLemmas BetaCont public renaming
   ; ↔-ƛ     to ≡β-ƛ
   ; ↔-·     to ≡β-·
   ; ↔-⊡     to ≡β-⊡
+  ; ↔-,     to ≡β-,
+  ; ↔-π₁    to ≡β-π₁
+  ; ↔-π₂    to ≡β-π₂
   ; Kd↔-⋯   to Kd≡β-⋯
   ; Kd↔-Π   to Kd≡β-Π
+  ; Kd↔-Σ   to Kd≡β-Σ
   ; ↔-⌞∙⌟₁  to ≡β-⌞∙⌟₁
   )
 
+{-- FIXME: never used!
 open CongLemmas BetaContEtaExp public renaming
-  ( →1-⌞∙⌟₁ to →βη-⌞∙⌟₁
-  ; →*-Π    to →βη*-Π
+--  ( →1-⌞∙⌟₁ to →βη-⌞∙⌟₁ -- FIXME!
+  ( →*-Π    to →βη*-Π
   ; →*-⇒    to →βη*-⇒
   ; →*-Λ    to →βη*-Λ
   ; →*-ƛ    to →βη*-ƛ
@@ -376,7 +463,7 @@ open CongLemmas BetaContEtaExp public renaming
   ; →*-⊡    to →βη*-⊡
   ; Kd→*-⋯  to Kd→βη*-⋯
   ; Kd→*-Π  to Kd→βη*-Π
-  ; →*-⌞∙⌟₁ to →βη*-⌞∙⌟₁
+--  ; →*-⌞∙⌟₁ to →βη*-⌞∙⌟₁ -- FIXME!
   ; ↔-Π     to ≡βη-Π
   ; ↔-⇒     to ≡βη-⇒
   ; ↔-Λ     to ≡βη-Λ
@@ -385,7 +472,7 @@ open CongLemmas BetaContEtaExp public renaming
   ; ↔-⊡     to ≡βη-⊡
   ; Kd↔-⋯   to Kd≡βη-⋯
   ; Kd↔-Π   to Kd≡βη-Π
-  ; ↔-⌞∙⌟₁  to ≡βη-⌞∙⌟₁
+--  ; ↔-⌞∙⌟₁  to ≡βη-⌞∙⌟₁ -- FIXME!
   )
 
 -- Shapes of type constructors are preserved by β-reduction and
@@ -412,3 +499,5 @@ open CongLemmas BetaContEtaExp public renaming
 ⇒-→βη* (a ⇒₂ b₁→b₂ ◅ a⇒b₂→c) =
   let a′ , b′ , a→a′ , b₂→b′ , a⇒′b′≡c = ⇒-→βη* a⇒b₂→c
   in a′ , b′ , a→a′ , b₁→b₂ ◅ b₂→b′ , a⇒′b′≡c
+--}
+
