@@ -13,13 +13,15 @@ open import Data.Vec using (Vec; _∷_; lookup; map)
 open import Data.Vec.All hiding (lookup; map)
 open import Data.Vec.Properties using (map-cong; map-∘; lookup-map)
 open import Function using (_∘_; _$_; flip)
+open import Level using (_⊔_)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (subst)
 open PropEq.≡-Reasoning
+open import Relation.Unary using (Pred)
 
 -- Simple extension of substitutions.
 --
 -- FIXME: this should go into Data.Fin.Substitution.
-record Extension (T : ℕ → Set) : Set where
+record Extension {ℓ} (T : Pred ℕ ℓ) : Set ℓ where
   infixr 5 _/∷_
 
   field weaken : ∀ {n} → T n → T (suc n)  -- Weakens Ts.
@@ -34,7 +36,7 @@ record Extension (T : ℕ → Set) : Set where
   t /∷ ρ = t ∷ map weaken ρ
 
 -- Helper module
-module SimpleExt {T} (simple : Simple T) where
+module SimpleExt {ℓ} {T : Pred ℕ ℓ} (simple : Simple T) where
   open Simple simple public
 
   extension : Extension T
@@ -44,7 +46,7 @@ module SimpleExt {T} (simple : Simple T) where
 -- An generalized version of Data.Fin.Lemmas.Lemmas₀
 --
 -- FIXME: this should go into Data.Fin.Substitution.Lemmas.
-module ExtLemmas₀ {T} (lemmas₀ : Lemmas₀ T) where
+module ExtLemmas₀ {ℓ} {T : Pred ℕ ℓ} (lemmas₀ : Lemmas₀ T) where
   open Data.Fin using (lift; raise)
 
   open Lemmas₀   lemmas₀ public hiding (lookup-map-weaken-↑⋆)
@@ -69,7 +71,7 @@ module ExtLemmas₀ {T} (lemmas₀ : Lemmas₀ T) where
 -- A version of Data.Fin.Lemmas.Lemmas₁ with additional lemmas.
 --
 -- FIXME: this should go into Data.Fin.Substitution.Lemmas.
-module ExtLemmas₁ {T} (lemmas₁ : Lemmas₁ T) where
+module ExtLemmas₁ {ℓ} {T : Pred ℕ ℓ} (lemmas₁ : Lemmas₁ T) where
   open Data.Fin using (raise; fromℕ; lift)
 
   open Lemmas₁ lemmas₁
@@ -89,7 +91,7 @@ module ExtLemmas₁ {T} (lemmas₁ : Lemmas₁ T) where
 -- A generalized version of Data.Fin.Lemmas.Lemmas₄
 --
 -- FIXME: this should go into Data.Fin.Substitution.Lemmas.
-module ExtLemmas₄ {T} (lemmas₄ : Lemmas₄ T) where
+module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
   open Data.Fin using (lift; raise)
 
   open Lemmas₄    lemmas₄ public hiding (⊙-wk; wk-commutes)
@@ -156,7 +158,8 @@ module ExtLemmas₄ {T} (lemmas₄ : Lemmas₄ T) where
 -- A generalize version of Data.Fin.Lemmas.AppLemmas
 --
 -- FIXME: this should go into Data.Fin.Substitution.Lemmas.
-module ExtAppLemmas {T₁ T₂} (appLemmas : AppLemmas T₁ T₂) where
+module ExtAppLemmas {ℓ₁ ℓ₂} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ ℓ₂}
+                    (appLemmas : AppLemmas T₁ T₂) where
 
   open AppLemmas appLemmas public hiding (wk-commutes)
   open SimpleExt simple           using (_/∷_)
@@ -172,7 +175,9 @@ module ExtAppLemmas {T₁ T₂} (appLemmas : AppLemmas T₁ T₂) where
   wk-commutes = wk-↑⋆-commutes zero
 
 -- Lemmas relating T₃ substitutions in T₁ and T₂.
-record LiftAppLemmas (T₁ T₂ T₃ : ℕ → Set) : Set where
+record LiftAppLemmas {ℓ₁ ℓ₂ ℓ₃}
+                     (T₁ : Pred ℕ ℓ₁) (T₂ : Pred ℕ ℓ₂) (T₃ : Pred ℕ ℓ₃)
+                     : Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃) where
   field
     lift          : ∀ {n} → T₃ n → T₂ n
     application₁₃ : Application T₁ T₃
@@ -254,7 +259,9 @@ record LiftAppLemmas (T₁ T₂ T₃ : ℕ → Set) : Set where
     hiding (application; lemmas₂; lemmas₃; var; weaken; subst; simple)
 
 -- Lemmas relating T₂ and T₃ substitutions in T₁.
-record LiftSubLemmas (T₁ T₂ T₃ : ℕ → Set) : Set where
+record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
+                     (T₁ : Pred ℕ ℓ₁) (T₂ : Pred ℕ ℓ₂) (T₃ : Pred ℕ ℓ₃)
+                     : Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃) where
   field
     application₁₂ : Application   T₁ T₂
     liftAppLemmas : LiftAppLemmas T₁ T₂ T₃

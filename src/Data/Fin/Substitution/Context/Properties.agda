@@ -187,7 +187,7 @@ map′-∘ f g (t ∷ Γ) = cong (_ ∷_) (map′-∘ f g Γ)
 
 -- Lemmas about operations on contexts that require weakening of
 -- types.
-module WeakenOpsLemmas {T} (extension : Extension T) where
+module WeakenOpsLemmas {T : ℕ → Set} (extension : Extension T) where
 
   -- The underlyig operations.
   open WeakenOps extension
@@ -271,7 +271,7 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
 
 -- Lemmas relating conversions of context extensions to vector
 -- representation with conversions of the underling entries.
-module ConversionLemmas {T₁ T₂}
+module ConversionLemmas {T₁ T₂ : ℕ → Set}
                         (extension₁ : Extension T₁)
                         (extension₂ : Extension T₂) where
   open VecProp using (map-cong; map-∘)

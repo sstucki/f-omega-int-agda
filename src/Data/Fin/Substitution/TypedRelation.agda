@@ -108,7 +108,7 @@ record TypedSubRel (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
 -- Helpers functions for relating extensions of (untyped) zipped
 -- substitutions to their projections.
 
-module ZipUnzipExtension {Tm₁ Tm₂}
+module ZipUnzipExtension {Tm₁ Tm₂ : ℕ → Set}
                          (ext₁ : Extension Tm₁)
                          (ext₂ : Extension Tm₂)
                          where
@@ -151,7 +151,7 @@ module ZipUnzipExtension {Tm₁ Tm₂}
 
 -- Extensions of abstract typed relations lifted to substitutions.
 
-record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂}
+record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set}
                          (ext₁ : Extension Tm₁)
                          (ext₂ : Extension Tm₂)
                          (typedSubRel : TypedSubRel Tp₁ Tm₁ Tm₂ Tp₂)
@@ -190,7 +190,7 @@ record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂}
 -- Helpers functions for relating simple (untyped) zipped
 -- substitutions to their projections.
 
-module ZipUnzipSimple {Tm₁ Tm₂}
+module ZipUnzipSimple {Tm₁ Tm₂ : ℕ → Set}
                       (simple₁ : Simple Tm₁)
                       (simple₂ : Simple Tm₂)
                       where
@@ -266,7 +266,7 @@ module ZipUnzipSimple {Tm₁ Tm₂}
 
 -- Abstract typed relations lifted to some simple substitutions.
 
-record TypedRelSimple {Tp Tm₁ Tm₂}
+record TypedRelSimple {Tp Tm₁ Tm₂ : ℕ → Set}
                       (simple₁ : Simple Tm₁)
                       (simple₂ : Simple Tm₂)
                       (typedSubRel : TypedSubRel Tp Tm₁ Tm₂ Tp)

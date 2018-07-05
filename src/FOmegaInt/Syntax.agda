@@ -398,7 +398,7 @@ mutual
 
 -- Application of generic substitutions lifted to type and kind
 -- ascriptions.
-module KdOrTpSubstApp {T T′} (simple : Simple T)
+module KdOrTpSubstApp {T T′ : ℕ → Set} (simple : Simple T)
                       (kdApp : Application (Kind T′) T)
                       (tpApp : Application T′ T) where
   open Simple simple
@@ -430,7 +430,7 @@ module KdOrTpSubstApp {T T′} (simple : Simple T)
   tp-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (tp-/✶-↑✶ k σs) refl
 
 -- Application of generic substitutions to terms
-module SubstApp {T} (l : Lift T Term) where
+module SubstApp {T : ℕ → Set} (l : Lift T Term) where
   open Lift l hiding (var)
 
   infixl 8 _/_ _Kind/_ _Elim/_ _Head/_ _//_ _Kind′/_
@@ -719,7 +719,8 @@ module Substitution where
   -- Using these generic lemmas, we can instantiate the record
   -- Data.Fin.Substitution.Lemmas.TermLemmas below, which gives access
   -- to a number of useful (derived) lemmas about path substitutions.
-  module Lemmas {T₁ T₂} {lift₁ : Lift T₁ Term} {lift₂ : Lift T₂ Term} where
+  module Lemmas {T₁ T₂ : ℕ → Set}
+                {lift₁ : Lift T₁ Term} {lift₂ : Lift T₂ Term} where
     open SubstApp
     open Lift lift₁ using () renaming (_↑✶_ to _↑✶₁_)
     open Lift lift₂ using () renaming (_↑✶_ to _↑✶₂_)
@@ -875,7 +876,7 @@ module Substitution where
   -- Lemmas relating application of sequences of generic substitutions
   -- in generic kind or type ascriptions, provided substitutions on
   -- the underlying kinds or types are similarly related.
-  record KdOrTpLemmas {T₁ T₂ T′}
+  record KdOrTpLemmas {T₁ T₂ T′ : ℕ → Set}
                       (lift₁ : Lift T₁ Term)
                       (lift₂ : Lift T₂ Term)
                       : Set where

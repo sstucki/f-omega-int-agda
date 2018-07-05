@@ -21,6 +21,10 @@ open ≡-Reasoning
 
 ------------------------------------------------------------------------
 -- Abstract typing contexts and context extensions.
+--
+-- FIXME: Make the definitions in this module more
+-- universe-polymorphic (following the style used in
+-- Data.Fin.Substitution.Lemmas).
 
 infixr 5 _∷_
 
@@ -148,7 +152,7 @@ _′++_ : ∀ {T k m n} → CtxExt′ T m n → CtxExt T k m → CtxExt T k (n +
 Δ′ ′++ Γ = CtxExt′⇒CtxExt Δ′ ++ Γ
 
 -- Operations on contexts that require weakening of types.
-module WeakenOps {T} (extension : Extension T) where
+module WeakenOps {T : ℕ → Set} (extension : Extension T) where
 
   -- Weakening of types.
   open Extension extension public
@@ -182,7 +186,7 @@ module WeakenOps {T} (extension : Extension T) where
   lookup x = extLookup x []
 
 -- Operations on contexts that require substitutions in types.
-module SubstOps {T T′}
+module SubstOps {T T′ : ℕ → Set}
                 (application : Application T T′)
                 (simple      : Simple T′)
                 where
@@ -289,7 +293,7 @@ module WellFormedContext {T} (_⊢_wf : Wf T) where
 -- corresponding trivially well-formed contexts.  This is useful when
 -- implmenting typed substitutions on types that either lack or do not
 -- necessitate a notion of well-formedness.
-module ⊤-WellFormed {T} (extension : Extension T) where
+module ⊤-WellFormed {T : ℕ → Set} (extension : Extension T) where
 
   infix  4 _⊢_wf
 
@@ -305,14 +309,6 @@ module ⊤-WellFormed {T} (extension : Extension T) where
   ctx-wf (a ∷ Γ) = tt ∷ ctx-wf Γ
 
   -- Trivial well-formedness of context extensions.
-{--
-  ctx-wfExt : ∀ {m n} (Δ : CtxExt T m n) {Γ : Ctx T m} → Γ ⊢ Δ wfExt
-  ctx-wfExt []      = []
-  ctx-wfExt (a ∷ Δ) = tt ∷ ctx-wfExt Δ
-
-  ctx-wfExt′ : ∀ {m n} (Δ′ : CtxExt′ T m n) {Γ : Ctx T m} → Γ ⊢ Δ′ wfExt′
-  ctx-wfExt′ Δ′ = ctx-wfExt (CtxExt′⇒CtxExt Δ′)
---}
   ctx-wfExt′ : ∀ {m n} (Δ′ : CtxExt′ T m n) {Γ : Ctx T m} → Γ ⊢ Δ′ wfExt′
   ctx-wfExt′ []      = []
   ctx-wfExt′ (a ∷ Δ) = tt ∷ ctx-wfExt′ Δ
