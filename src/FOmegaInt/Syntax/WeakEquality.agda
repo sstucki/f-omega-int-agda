@@ -407,7 +407,7 @@ module Renaming where
 
     ≈Hd-/Var : ∀ {m n a₁ a₂} →
                a₁ ≈Hd a₂ → (σ : Sub Fin m n) → a₁ Head/Var′ σ ≈ a₂ Head/Var′ σ
-    ≈Hd-/Var (≈-var x)             σ = ≈-var∙ (Vec.lookup x σ)
+    ≈Hd-/Var (≈-var x)             σ = ≈-var∙ (Vec.lookup σ x)
     ≈Hd-/Var ≈-⊥                   σ = ≈-⊥∙
     ≈Hd-/Var ≈-⊤                   σ = ≈-⊤∙
     ≈Hd-/Var (≈-∀ k₁≋k₂ a₁≈a₂)     σ =

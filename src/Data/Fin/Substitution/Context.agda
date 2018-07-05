@@ -8,8 +8,7 @@ open import Data.Fin using (Fin)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; zero; suc; _+_)
-import Data.Nat.Properties        as NatProp
-import Data.Nat.Properties.Simple as SimpleNatProp
+import Data.Nat.Properties as NatProp
 open import Data.Unit using (⊤; tt)
 open import Data.Vec     as Vec using (Vec; []; _∷_)
 open import Data.Vec.All as All using (All; []; _∷_)
@@ -21,6 +20,10 @@ open ≡-Reasoning
 
 ------------------------------------------------------------------------
 -- Abstract typing contexts and context extensions.
+--
+-- FIXME: Make the definitions in this module more
+-- universe-polymorphic (following the style used in
+-- Data.Fin.Substitution.Lemmas).
 
 infixr 5 _∷_
 
@@ -77,14 +80,13 @@ length-idx []      = refl
 length-idx (t ∷ Γ) = cong suc (length-idx Γ)
 
 length-idx′ : ∀ {T m n} (Γ : CtxExt T m (n + m)) → length Γ ≡ n
-length-idx′ {T} {m} {n} Γ = cancel-+-left m (begin
+length-idx′ {T} {m} {n} Γ = +-cancelˡ-≡ m (begin
   m + length Γ    ≡⟨ +-comm m _ ⟩
   length Γ + m    ≡⟨ length-idx Γ ⟩
   n + m           ≡⟨ +-comm n m ⟩
   m + n           ∎)
   where
-    open SimpleNatProp using (+-comm)
-    open NatProp       using (cancel-+-left)
+    open NatProp using (+-comm; +-cancelˡ-≡)
 
 -- An alternative representation of context extension using
 -- relative-indexing.
@@ -148,7 +150,7 @@ _′++_ : ∀ {T k m n} → CtxExt′ T m n → CtxExt T k m → CtxExt T k (n +
 Δ′ ′++ Γ = CtxExt′⇒CtxExt Δ′ ++ Γ
 
 -- Operations on contexts that require weakening of types.
-module WeakenOps {T} (extension : Extension T) where
+module WeakenOps {T : ℕ → Set} (extension : Extension T) where
 
   -- Weakening of types.
   open Extension extension public
@@ -171,18 +173,18 @@ module WeakenOps {T} (extension : Extension T) where
   -- Lookup the type of a variable in a context extension.
 
   extLookup : ∀ {m n} → Fin n → Vec (T m) m → CtxExt T m n → T n
-  extLookup x ts Γ = Vec.lookup x (extToVec ts Γ)
+  extLookup x ts Γ = Vec.lookup (extToVec ts Γ) x
 
   extLookup′ : ∀ {k m n} → Fin (n + k) → Vec (T m) k →
                CtxExt′ T m n → T (n + m)
-  extLookup′ x ts Γ = Vec.lookup x (extToVec′ ts Γ)
+  extLookup′ x ts Γ = Vec.lookup (extToVec′ ts Γ) x
 
   -- Lookup the type of a variable in a context.
   lookup : ∀ {n} → Fin n → Ctx T n → T n
   lookup x = extLookup x []
 
 -- Operations on contexts that require substitutions in types.
-module SubstOps {T T′}
+module SubstOps {T T′ : ℕ → Set}
                 (application : Application T T′)
                 (simple      : Simple T′)
                 where
@@ -289,7 +291,7 @@ module WellFormedContext {T} (_⊢_wf : Wf T) where
 -- corresponding trivially well-formed contexts.  This is useful when
 -- implmenting typed substitutions on types that either lack or do not
 -- necessitate a notion of well-formedness.
-module ⊤-WellFormed {T} (extension : Extension T) where
+module ⊤-WellFormed {T : ℕ → Set} (extension : Extension T) where
 
   infix  4 _⊢_wf
 
@@ -305,14 +307,6 @@ module ⊤-WellFormed {T} (extension : Extension T) where
   ctx-wf (a ∷ Γ) = tt ∷ ctx-wf Γ
 
   -- Trivial well-formedness of context extensions.
-{--
-  ctx-wfExt : ∀ {m n} (Δ : CtxExt T m n) {Γ : Ctx T m} → Γ ⊢ Δ wfExt
-  ctx-wfExt []      = []
-  ctx-wfExt (a ∷ Δ) = tt ∷ ctx-wfExt Δ
-
-  ctx-wfExt′ : ∀ {m n} (Δ′ : CtxExt′ T m n) {Γ : Ctx T m} → Γ ⊢ Δ′ wfExt′
-  ctx-wfExt′ Δ′ = ctx-wfExt (CtxExt′⇒CtxExt Δ′)
---}
   ctx-wfExt′ : ∀ {m n} (Δ′ : CtxExt′ T m n) {Γ : Ctx T m} → Γ ⊢ Δ′ wfExt′
   ctx-wfExt′ []      = []
   ctx-wfExt′ (a ∷ Δ) = tt ∷ ctx-wfExt′ Δ

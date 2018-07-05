@@ -214,7 +214,7 @@ Var∈-Hit-/H≃ {_} {n} {E} {Γ₂} {Γ₁} {a} {b} {j} {k} {l} Δ-ctx Γ[x]≡
       ≡⟨ sym (⌜⌝-/ ⌞ a ⌟) ⟩
         ⌜ ⌞ a ⌟ / wk⋆ n ⌝
       ≡⟨ cong ⌜_⌝ (sym (ExtLemmas₄.raise-/-↑⋆ lemmas₄ n zero)) ⟩
-        ⌜ Vec.lookup (raise n zero) (sub ⌞ a ⌟ ↑⋆ n) ⌝
+        ⌜ Vec.lookup (sub ⌞ a ⌟ ↑⋆ n) (raise n zero) ⌝
       ≡⟨ sym (var∙-/H-/ (n ← a ∈ l) (raise n zero)) ⟩
         var∙ (raise n zero) /H n ← a ∈ l
       ∎

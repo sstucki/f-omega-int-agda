@@ -19,7 +19,7 @@ open import Data.Star using (ε)
 open import Data.Unit using (tt)
 open import Data.Vec as Vec using ([]; _∷_)
 import Data.Vec.Properties as VecProps
-open import Function using (_∘_)
+open import Function using (_∘_; flip)
 open import Relation.Binary.PropositionalEquality as P hiding ([_])
 
 open import FOmegaInt.Reduction.Full
@@ -160,12 +160,15 @@ module TrackSimpleKindsEtaExp where
   η-exp (Π j₁ j₂) (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) (a ∙ bs) = a ∙ bs
 
   -- η-expansion is sound (w.r.t. βη-reduction)
+  --
+  -- FIXME: remove superfluous parentheses once agda-stdlib issue #814
+  -- has been fixed.
   η-exp-βη : ∀ {n j k} (hyp : ⌊ j ⌋≡ k) (a : Elim n) →
              ⌞ a ⌟ →βη* ⌞ η-exp j hyp a ⌟
   η-exp-βη is-★                             _            = ε
   η-exp-βη (is-⇒ {j₁} {j₂} ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) (var x ∙ as) = begin
       ⌞ var x ∙ as ⌟
-    ⟶⟨ ⌈ exp-ne ⌞ j₁ ⌟Kd x ⌞ as ⌟Sp ⌉ ⟩
+    ⟶⟨ ⌈ exp-ne ⌞ j₁ ⌟Kd x ⌞ as ⌟Sp ⌉ ⟩ (
       Λ _ ((weaken ⌞ var x ∙ as ⌟) · var zero)
     ≡⟨ cong (λ a → Λ _ (a · var zero)) (sym (⌞⌟-/Var (var x ∙ as)) )  ⟩
       Λ _ (⌞ weakenElim (var x ∙ as) ⌟ · var zero)
@@ -177,7 +180,7 @@ module TrackSimpleKindsEtaExp where
              η-exp (weakenKind′ _) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero) ⌟
     ⟶⋆⟨ →βη*-Λ ε (η-exp-βη ⌊j₂⌋≡k₂ _) ⟩
       Λ _ ⌞ η-exp _ ⌊j₂⌋≡k₂ _ ⌟
-    ∎
+    ∎)
     where open →βη*-Reasoning
   -- Degenerate cases.
   η-exp-βη (is-⇒ _ _) (⊥       ∙ _) = ε
@@ -450,9 +453,9 @@ module RenamingCommutesNorm where
   -- Extract a "consistency" proof from a well-formed renaming, i.e. a
   -- proof that `Δ(ρ(x)) = Γ(x)ρ'.
   lookup-≡ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} x → Δ ⊢/Var ρ ∈ Γ →
-             lookup (Vec.lookup x ρ) Δ ≡ lookup x Γ ElimAsc/Var ρ
+             lookup (Vec.lookup ρ x) Δ ≡ lookup x Γ ElimAsc/Var ρ
   lookup-≡ {_} {_} {Δ} {Γ} {ρ} x ρ∈Γ
-    with Vec.lookup x ρ | lookup x Γ ElimAsc/Var ρ | TS.lookup x ρ∈Γ
+    with Vec.lookup ρ x | lookup x Γ ElimAsc/Var ρ | TS.lookup x ρ∈Γ
   lookup-≡ x ρ∈Γ | y | _ | VarTyping.var .y _ = refl
 
   mutual
@@ -468,7 +471,7 @@ module RenamingCommutesNorm where
     nf-/Var : ∀ {m n Δ Γ} {ρ : Sub Fin m n} a → Δ ⊢/Var ρ ∈ Γ →
               nf Γ a Elim/Var ρ ≡ nf Δ (a /Var ρ)
     nf-/Var {_} {_} {Δ} {Γ} {ρ} (var x) ρ∈Γ
-      with lookup x Γ | lookup (Vec.lookup x ρ) Δ | lookup-≡ x ρ∈Γ
+      with lookup x Γ | lookup (Vec.lookup ρ x) Δ | lookup-≡ x ρ∈Γ
     nf-/Var (var x) ρ∈Γ | kd k | _ | refl = η-exp-/Var k (var∙ x)
     nf-/Var (var x) ρ∈Γ | tp a | _ | refl = refl
     nf-/Var ⊥       ρ∈Γ = refl
@@ -554,9 +557,9 @@ module _ where
                  lookup x (nfCtx Γ) ≡ nfAsc (nfCtx Γ) (TermCtx.lookup x Γ)
   nfCtx-lookup x Γ = begin
       lookup x (nfCtx Γ)
-    ≡⟨ cong (Vec.lookup x) (nfCtx-toVec Γ) ⟩
-      Vec.lookup x (Vec.map (nfAsc (nfCtx Γ)) (TermCtx.toVec Γ))
-    ≡⟨ VecProps.lookup-map x _ _ ⟩
+    ≡⟨ cong (flip Vec.lookup x) (nfCtx-toVec Γ) ⟩
+      Vec.lookup (Vec.map (nfAsc (nfCtx Γ)) (TermCtx.toVec Γ)) x
+    ≡⟨ VecProps.lookup-map x _ (TermCtx.toVec Γ) ⟩
       nfAsc (nfCtx Γ) (TermCtx.lookup x Γ)
     ∎
 

@@ -97,18 +97,18 @@ record TypedSubRel (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
 
   -- Look up a pair of related entries in a pair of related
   -- substitutions.
-  lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ ρ}
-           (x : Fin m) → Δ ⊢/ σ ∼ ρ ∈ Γ →
-           Δ ⊢ Vec.lookup x σ ∼ Vec.lookup x ρ ∈ C.lookup x Γ / zip σ ρ
-  lookup x σ∼ρ∈Γ =
-    subst₂ (toTyping _⊢_∼_∈_ _) (lookup-zip x _ _) refl
+  lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} (x : Fin m) {σ ρ} →
+           Δ ⊢/ σ ∼ ρ ∈ Γ →
+           Δ ⊢ Vec.lookup σ x ∼ Vec.lookup ρ x ∈ C.lookup x Γ / zip σ ρ
+  lookup x {σ} {ρ} σ∼ρ∈Γ =
+    subst₂ (toTyping _⊢_∼_∈_ _) (lookup-zip x σ ρ) refl
            (TypedSub.lookup typedSub x σ∼ρ∈Γ)
 
 
 -- Helpers functions for relating extensions of (untyped) zipped
 -- substitutions to their projections.
 
-module ZipUnzipExtension {Tm₁ Tm₂}
+module ZipUnzipExtension {Tm₁ Tm₂ : ℕ → Set}
                          (ext₁ : Extension Tm₁)
                          (ext₂ : Extension Tm₂)
                          where
@@ -151,7 +151,7 @@ module ZipUnzipExtension {Tm₁ Tm₂}
 
 -- Extensions of abstract typed relations lifted to substitutions.
 
-record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂}
+record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set}
                          (ext₁ : Extension Tm₁)
                          (ext₂ : Extension Tm₂)
                          (typedSubRel : TypedSubRel Tp₁ Tm₁ Tm₂ Tp₂)
@@ -190,7 +190,7 @@ record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂}
 -- Helpers functions for relating simple (untyped) zipped
 -- substitutions to their projections.
 
-module ZipUnzipSimple {Tm₁ Tm₂}
+module ZipUnzipSimple {Tm₁ Tm₂ : ℕ → Set}
                       (simple₁ : Simple Tm₁)
                       (simple₂ : Simple Tm₂)
                       where
@@ -266,7 +266,7 @@ module ZipUnzipSimple {Tm₁ Tm₂}
 
 -- Abstract typed relations lifted to some simple substitutions.
 
-record TypedRelSimple {Tp Tm₁ Tm₂}
+record TypedRelSimple {Tp Tm₁ Tm₂ : ℕ → Set}
                       (simple₁ : Simple Tm₁)
                       (simple₂ : Simple Tm₂)
                       (typedSubRel : TypedSubRel Tp Tm₁ Tm₂ Tp)
@@ -499,8 +499,8 @@ record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
     where
       ≡∈-weaken : ∀ {n} {Γ : Ctx Tp n} {x y a b} → Γ ⊢ a wf →
                   Γ ⊢Var x ≡ y ∈ b → a ∷ Γ ⊢Var suc x ≡ suc y ∈ C.weaken b
-      ≡∈-weaken a-wf (refl x Γ-wf) =
-        subst (_⊢Var_≡_∈_ _ _ _) (lookup-map x _ _)
+      ≡∈-weaken {_} {Γ} a-wf (refl x Γ-wf) =
+        subst (_⊢Var_≡_∈_ _ _ _) (lookup-map x C.weaken (C.toVec Γ))
               (refl (suc x) (a-wf ∷ Γ-wf))
 
       ≡∈-wf : ∀ {n} {Γ : Ctx Tp n} {x y a} → Γ ⊢Var x ≡ y ∈ a → Γ wf

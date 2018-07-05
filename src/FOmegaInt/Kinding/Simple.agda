@@ -324,7 +324,7 @@ module KindedHereditarySubstitution where
                     ρ = n ← a ∈ k
                     x = raise n zero
                 in lookup x Γ ≡ kd j → Γ₁ ⊢Nf a ∈ k →
-                   Δ ⊢Nf ⌜ Vec.lookup x (sub ⌞ a ⌟ ↑⋆ n) ⌝ ∈ k × j ≡ k
+                   Δ ⊢Nf ⌜ Vec.lookup (sub ⌞ a ⌟ ↑⋆ n) x ⌝ ∈ k × j ≡ k
   Var∈-Hit-/H {_} {n} Γ₂ {Γ₁} {a} {j} {k} Γ[x]≡kd-j a∈k =
     subst (re-idx Γ₂ ′++ Γ₁ ⊢Nf_∈ _) (begin
           weakenElim⋆ n a
@@ -335,7 +335,7 @@ module KindedHereditarySubstitution where
         ≡⟨ sym (⌜⌝-/ ⌞ a ⌟) ⟩
           ⌜ ⌞ a ⌟ / wk⋆ n ⌝
         ≡⟨ cong ⌜_⌝ (sym (ExtLemmas₄.raise-/-↑⋆ lemmas₄ n zero)) ⟩
-          ⌜ Vec.lookup (raise n zero) (sub ⌞ a ⌟ ↑⋆ n) ⌝
+          ⌜ Vec.lookup (sub ⌞ a ⌟ ↑⋆ n) (raise n zero) ⌝
         ∎)
       (Nf∈-weaken⋆ (re-idx Γ₂) a∈k) ,
       (Var∈-Hit (∈-var (raise n zero) Γ[x]≡kd-j) (∈-hsub Γ₂ a∈k) refl)

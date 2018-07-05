@@ -369,7 +369,7 @@ module _ where
   suc-/H-↑ (n ← a ∈ k) x with compare n x
   suc-/H-↑ (n ← a ∈ k) ._ | yes refl  = begin
       ⌜ var (suc (raise n zero)) / sub ⌞ a ⌟ ↑⋆ (suc n) ⌝
-    ≡⟨ cong ⌜_⌝ (suc-/-↑ (raise n zero)) ⟩
+    ≡⟨ cong ⌜_⌝ (suc-/-↑ {_} {_} {sub ⌞ a ⌟ ↑⋆ n} (raise n zero)) ⟩
       ⌜ var (raise n zero) / sub ⌞ a ⌟ ↑⋆ n / wk ⌝
     ≡⟨ ⌜⌝-/ (var (raise n zero) / sub ⌞ a ⌟ ↑⋆ n) ⟩
       ⌜ var (raise n zero) / sub ⌞ a ⌟ ↑⋆ n ⌝ Elim/ wk
@@ -405,11 +405,16 @@ module _ where
   var∙-/H-/-↑⋆ ρ zero    x       = var∙-/H-/ ρ x
   var∙-/H-/-↑⋆ ρ (suc i) zero    = zero-/H-↑ [] (ρ H↑⋆ i)
   var∙-/H-/-↑⋆ ρ (suc i) (suc x) = begin
-    var∙ (suc x) /H (ρ H↑⋆ i) H↑    ≡⟨ suc-/H-↑ (ρ H↑⋆ i) x ⟩
-    var∙ x /H (ρ H↑⋆ i) Elim/ wk    ≡⟨ cong (_Elim/ wk) (var∙-/H-/-↑⋆ ρ i x) ⟩
-    ⌜ var x / toSub ρ ↑⋆ i ⌝ Elim/ wk   ≡⟨ sym (⌜⌝-/ (var x / toSub ρ ↑⋆ i)) ⟩
-    ⌜ var x / toSub ρ ↑⋆ i / wk ⌝       ≡⟨ cong ⌜_⌝ (sym (suc-/-↑ x)) ⟩
-    ⌜ var (suc x) / toSub ρ ↑⋆ suc i ⌝  ∎
+      var∙ (suc x) /H (ρ H↑⋆ i) H↑
+    ≡⟨ suc-/H-↑ (ρ H↑⋆ i) x ⟩
+      var∙ x /H (ρ H↑⋆ i) Elim/ wk
+    ≡⟨ cong (_Elim/ wk) (var∙-/H-/-↑⋆ ρ i x) ⟩
+      ⌜ var x / toSub ρ ↑⋆ i ⌝ Elim/ wk
+    ≡⟨ sym (⌜⌝-/ (var x / toSub ρ ↑⋆ i)) ⟩
+      ⌜ var x / toSub ρ ↑⋆ i / wk ⌝
+    ≡⟨ cong ⌜_⌝ (sym (suc-/-↑ {_} {_} {toSub ρ ↑⋆ i} x)) ⟩
+      ⌜ var (suc x) / toSub ρ ↑⋆ suc i ⌝
+    ∎
 
   -- Hereditary substitutions applied to "yes" and "no" instances
   -- behave as intended.
@@ -514,7 +519,7 @@ module _ where
       ⌜ var x / (sub ⌞ a ⌟ ↑⋆ n ⊙ wk) ↑⋆ i ⌝
     ≡⟨ cong (⌜_⌝ ∘ (var x /_)) (↑⋆-distrib i) ⟩
       ⌜ var x / sub ⌞ a ⌟ ↑⋆ n ↑⋆ i ⊙ wk ↑⋆ i ⌝
-    ≡⟨ cong ⌜_⌝ (/-⊙ (var x)) ⟩
+    ≡⟨ cong ⌜_⌝ (/-⊙ {_} {_} {_} {sub ⌞ a ⌟ ↑⋆ n ↑⋆ i} (var x)) ⟩
       ⌜ var x / sub ⌞ a ⌟ ↑⋆ n ↑⋆ i / wk ↑⋆ i ⌝
     ≡⟨ ⌜⌝-/ (var x / sub ⌞ a ⌟ ↑⋆ n ↑⋆ i) ⟩
       ⌜ var x / sub ⌞ a ⌟ ↑⋆ n ↑⋆ i ⌝ Elim/ wk ↑⋆ i
@@ -537,18 +542,19 @@ module RenamingCommutes where
 
   -- A helper lemma.
   lookup-lift-↑⋆′ : ∀ {k m} n x {σ : Sub Fin m k} →
-                    Vec.lookup (lift n suc x) ((σ ↑) ↑⋆ n) ≡
-                      lift n suc (Vec.lookup x (σ ↑⋆ n))
-  lookup-lift-↑⋆′ zero    x           = lookup-map-weaken x refl
+                    Vec.lookup ((σ ↑) ↑⋆ n) (lift n suc x) ≡
+                      lift n suc (Vec.lookup (σ ↑⋆ n) x)
+  lookup-lift-↑⋆′ zero    x       {σ} = lookup-map-weaken x {_} {σ} refl
   lookup-lift-↑⋆′ (suc n) zero        = refl
   lookup-lift-↑⋆′ (suc n) (suc x) {σ} = begin
-        Vec.lookup (lift n suc x) (Vec.map suc ((σ ↑) ↑⋆ n))
-      ≡⟨ lookup-map-weaken (lift n suc x) refl ⟩
-        suc (Vec.lookup (lift n suc x) ((σ ↑) ↑⋆ n))
+        Vec.lookup (Vec.map suc ((σ ↑) ↑⋆ n)) (lift n suc x)
+      ≡⟨ lookup-map-weaken (lift n suc x) {_} {(σ ↑) ↑⋆ n} refl ⟩
+        suc (Vec.lookup ((σ ↑) ↑⋆ n) (lift n suc x))
       ≡⟨ cong suc (lookup-lift-↑⋆′ n x) ⟩
-        suc (lift n suc (Vec.lookup x (σ ↑⋆ n)))
-      ≡⟨ cong (lift (suc n) suc) (sym (lookup-map-weaken x refl)) ⟩
-        lift (suc n) suc (Vec.lookup x (Vec.map suc (σ ↑⋆ n)))
+        suc (lift n suc (Vec.lookup (σ ↑⋆ n) x))
+      ≡⟨ cong (lift (suc n) suc)
+              (sym (lookup-map-weaken x {_} {σ ↑⋆ n} refl)) ⟩
+        lift (suc n) suc (Vec.lookup (Vec.map suc (σ ↑⋆ n)) x)
       ∎
 
   -- TODO: could the following lemma be generalized so it also covers
@@ -563,7 +569,7 @@ module RenamingCommutes where
     []-/-↑⋆ i a k (var x ∙ bs)  {σ} with compare i x
     []-/-↑⋆ i a k (var ._ ∙ bs) {σ} | yes refl = begin
         (⌜ var x S./ S.sub ⌞ a ⌟ S.↑⋆ i ⌝ ∙∙⟨ k ⟩ (bs //H i ← a ∈ k)) / σ ↑⋆ i
-      ≡⟨ ∙∙⟨⟩-/ ⌜ Vec.lookup x _ ⌝ k (bs //H i ← a ∈ k) ⟩
+      ≡⟨ ∙∙⟨⟩-/ ⌜ Vec.lookup (S.sub ⌞ a ⌟ S.↑⋆ i) x ⌝ k (bs //H i ← a ∈ k) ⟩
         (⌜ var x S./ S.sub ⌞ a ⌟ S.↑⋆ i ⌝ / σ ↑⋆ i) ∙∙⟨ k ⟩
           (bs //H i ← a ∈ k //Var σ ↑⋆ i)
       ≡⟨ cong₂ (_∙∙⟨ k ⟩_) (begin
@@ -572,7 +578,7 @@ module RenamingCommutes where
             ⌜ var x S./ S.sub ⌞ a ⌟ S.↑⋆ i ⌝ S.Elim/ σ′ S.↑⋆ i
           ≡⟨ sym (S.⌜⌝-/ (var x S./ S.sub ⌞ a ⌟ S.↑⋆ i)) ⟩
             ⌜ var x S./ S.sub ⌞ a ⌟ S.↑⋆ i S./ σ′ S.↑⋆ i ⌝
-          ≡⟨ cong ⌜_⌝ (sym (S./-⊙ (var x))) ⟩
+          ≡⟨ cong ⌜_⌝ (sym (S./-⊙ {_} {_} {_} {S.sub ⌞ a ⌟ S.↑⋆ i} (var x))) ⟩
             ⌜ var x S./ (S.sub ⌞ a ⌟ S.↑⋆ i S.⊙ σ′ S.↑⋆ i) ⌝
           ≡⟨ cong (⌜_⌝ ∘ (var x S./_)) (sym (S.↑⋆-distrib i)) ⟩
             ⌜ var x S./ (S.sub ⌞ a ⌟ S.⊙ σ′) S.↑⋆ i ⌝
@@ -586,7 +592,7 @@ module RenamingCommutes where
             ⌜ var x S./ (σ′ S.↑ S.⊙ S.sub ⌞ a / σ ⌟) S.↑⋆ i ⌝
           ≡⟨ cong (⌜_⌝ ∘ (var x S./_)) (S.↑⋆-distrib i) ⟩
             ⌜ var x S./ (σ′ S.↑ S.↑⋆ i S.⊙ S.sub ⌞ a / σ ⌟ S.↑⋆ i) ⌝
-          ≡⟨ cong ⌜_⌝ (S./-⊙ (var x)) ⟩
+          ≡⟨ cong ⌜_⌝ (S./-⊙ {_} {_} {_} {σ′ S.↑ S.↑⋆ i} (var x)) ⟩
             ⌜ var x S./ (σ′ S.↑) S.↑⋆ i S./ S.sub ⌞ a / σ ⌟ S.↑⋆ i ⌝
           ≡⟨ cong (⌜_⌝ ∘ (S._/ S.sub ⌞ a / σ ⌟ S.↑⋆ i))
                   (ExtLemmas₁.lookup-raise-↑⋆ S.lemmas₁ i zero refl) ⟩
@@ -613,7 +619,7 @@ module RenamingCommutes where
               (sym (lookup-lift-↑⋆′ i y₁)) ⟩
         var (lift i suc y₁) ∙ bs / (σ ↑) ↑⋆ i /H (i ← a / σ ∈ k)
       ∎
-      where y₂ = Vec.lookup y₁ (σ ↑⋆ i)
+      where y₂ = Vec.lookup (σ ↑⋆ i) y₁
     []-/-↑⋆ i a k (⊥     ∙ bs)   = cong (⊥ ∙_) ([]Sp-/-↑⋆ i a k bs)
     []-/-↑⋆ i a k (⊤     ∙ bs)   = cong (⊤ ∙_) ([]Sp-/-↑⋆ i a k bs)
     []-/-↑⋆ i a k (Π j b ∙ bs)   =
@@ -992,6 +998,9 @@ module _ where
   mutual
 
     -- Hereditary substitution commutes with ⌞_⌟ up to β-reduction.
+    --
+    -- FIXME: remove superfluous parentheses once agda-stdlib issue
+    -- #814 has been fixed.
 
     ⌞⌟-[]-β : ∀ {m} n a k (b : Elim (n + suc m)) →
               ⌞ b ⌟ / sub ⌞ a ⌟ ↑⋆ n  →β*  ⌞ b /H n ← a ∈ k ⌟
@@ -1094,12 +1103,15 @@ module _ where
     ⌞⌟-⌜·⌝-β ((a ⇒ b) ∙ []) (j ⇒ k) c = ε
     ⌞⌟-⌜·⌝-β (Λ l a ∙ []) (j ⇒ k) b = begin
       Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
-      ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-[]-β 0 b j a ⟩
-      ⌞ a /H 0 ← b ∈ j ⌟         ∎
+      (⌞ a ⌟ [ ⌞ b ⌟ ]           ⟶⋆⟨ ⌞⌟-[]-β 0 b j a ⟩
+      ⌞ a /H 0 ← b ∈ j ⌟         ∎)
     ⌞⌟-⌜·⌝-β (ƛ a b   ∙ []) (j ⇒ k) c = ε
     ⌞⌟-⌜·⌝-β (a ⊡ b   ∙ []) (j ⇒ k) c = ε
 
   -- Potentially reducing applications commute with ⌞_⌟ up to β-reduction.
+  --
+  -- FIXME: remove superfluous parentheses once agda-stdlib issue #814
+  -- has been fixed.
   ⌞⌟-↓⌜·⌝-β : ∀ {n} (a : Elim n) b → ⌞ a ⌟ · ⌞ b ⌟ →β* ⌞ a ↓⌜·⌝ b ⌟
   ⌞⌟-↓⌜·⌝-β (a ∙ (c ∷ cs)) b = begin
     ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡⟨ sym (⌞⌟-· (a ∙ (c ∷ cs)) b) ⟩
@@ -1111,7 +1123,7 @@ module _ where
   ⌞⌟-↓⌜·⌝-β ((a ⇒ b) ∙ []) c = ε
   ⌞⌟-↓⌜·⌝-β (Λ l a ∙ []) b = begin
     Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
-    ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-[]-β 0 b ⌊ l ⌋ a ⟩
-    ⌞ a /H 0 ← b ∈ ⌊ l ⌋ ⌟         ∎
+    (⌞ a ⌟ [ ⌞ b ⌟ ]           ⟶⋆⟨ ⌞⌟-[]-β 0 b ⌊ l ⌋ a ⟩
+    ⌞ a /H 0 ← b ∈ ⌊ l ⌋ ⌟     ∎)
   ⌞⌟-↓⌜·⌝-β (ƛ a b   ∙ []) c = ε
   ⌞⌟-↓⌜·⌝-β (a ⊡ b   ∙ []) c = ε

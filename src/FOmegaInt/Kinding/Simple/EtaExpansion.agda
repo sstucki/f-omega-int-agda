@@ -212,7 +212,7 @@ module TrackSimpleKindsKindedEtaExp where
                  (∈-ne (∈-∙ {as = as} (∈-var ._ Γ[x]≡kd-k′) k′∋as∈★))
       | yes refl =
       begin
-        var (Vec.lookup (raise n zero) ((V.wk V.↑) V.↑⋆ n)) ∙
+        var (Vec.lookup ((V.wk V.↑) V.↑⋆ n) (raise n zero)) ∙
           (as //Var (V.wk V.↑) V.↑⋆ n) /H n ← η-z ∈ k
       ≡⟨ cong (λ y → var y ∙ (as //Var _ V.↑⋆ n) /H n ← η-z ∈ k)
               (lookup-raise-↑⋆ n zero refl) ⟩

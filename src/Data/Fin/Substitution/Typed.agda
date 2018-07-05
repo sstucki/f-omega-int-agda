@@ -11,8 +11,6 @@ open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Context
 open import Data.Fin.Substitution.Context.Properties
 open import Data.Nat using (ℕ; zero; suc; _+_)
-import Data.Nat.Properties as NatProp
-import Data.Nat.Properties.Simple as SimpleNatProp
 open import Data.Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
@@ -94,9 +92,9 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
 
   -- Look up an entry in a typed substitution.
   lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ}
-           (x : Fin m) → Δ ⊢/ σ ∈ Γ → Δ ⊢ Vec.lookup x σ ∈ C.lookup x Γ / σ
-  lookup x (σ⟨∈⟩Γ⊙σ , _) =
-    subst (_⊢_∈_ _ _) (lookup-map x _ _) (PW.lookup σ⟨∈⟩Γ⊙σ x)
+           (x : Fin m) → Δ ⊢/ σ ∈ Γ → Δ ⊢ Vec.lookup σ x ∈ C.lookup x Γ / σ
+  lookup {_} {_} {Δ} {Γ} x (σ⟨∈⟩Γ⊙σ , _) =
+    subst (Δ ⊢ _ ∈_) (lookup-map x _ (C.toVec Γ)) (PW.lookup σ⟨∈⟩Γ⊙σ x)
 
 
 ------------------------------------------------------------------------
@@ -477,8 +475,8 @@ record TypedVarSubst {Tp} (_⊢_wf : Wf Tp) : Set where
     where
       ∈-weaken : ∀ {n} {Γ : Ctx Tp n} {x a b} → Γ ⊢ a wf → Γ ⊢Var x ∈ b →
                  a ∷ Γ ⊢Var suc x ∈ C.weaken b
-      ∈-weaken a-wf (var x Γ-wf) =
-        subst (_⊢Var_∈_ _ _) (lookup-map x _ _)
+      ∈-weaken {_} {Γ} a-wf (var x Γ-wf) =
+        subst (_ ∷ Γ ⊢Var _ ∈_) (lookup-map x C.weaken (C.toVec Γ))
               (var (suc x) (a-wf ∷ Γ-wf))
 
       weaken-/ : ∀ {m n} {σ : Sub Fin m n} {t} a →

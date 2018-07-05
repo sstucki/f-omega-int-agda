@@ -10,8 +10,8 @@ open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (_×_; _,_)
 open import Data.Vec as Vec using (Vec; []; _∷_)
 import Data.Vec.Properties as VecProp
-open import Function as Fun using (_∘_)
-open import Relation.Binary.PropositionalEquality
+open import Function as Fun using (_∘_; flip)
+open import Relation.Binary.PropositionalEquality hiding (subst-∘)
 open ≡-Reasoning
 
 open import Data.Fin.Substitution.Context
@@ -187,7 +187,7 @@ map′-∘ f g (t ∷ Γ) = cong (_ ∷_) (map′-∘ f g Γ)
 
 -- Lemmas about operations on contexts that require weakening of
 -- types.
-module WeakenOpsLemmas {T} (extension : Extension T) where
+module WeakenOpsLemmas {T : ℕ → Set} (extension : Extension T) where
 
   -- The underlyig operations.
   open WeakenOps extension
@@ -211,21 +211,21 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
 
   lookup-++ : ∀ {k m n} x ts (Δ : CtxExt T m n) (Γ : CtxExt T k m) →
               extLookup x ts (Δ ++ Γ) ≡ extLookup x (extToVec ts Γ) Δ
-  lookup-++ x ts Δ Γ = cong (Vec.lookup x) (extToVec-++ ts Δ Γ)
+  lookup-++ x ts Δ Γ = cong (flip Vec.lookup x) (extToVec-++ ts Δ Γ)
 
   lookup-′++ : ∀ {k m n} x ts (Δ′ : CtxExt′ T m n) (Γ : CtxExt T k m) →
                extLookup x ts (Δ′ ′++ Γ) ≡ extLookup′ x (extToVec ts Γ) Δ′
-  lookup-′++ x ts Δ′ Γ = cong (Vec.lookup x) (extToVec-′++ ts Δ′ Γ)
+  lookup-′++ x ts Δ′ Γ = cong (flip Vec.lookup x) (extToVec-′++ ts Δ′ Γ)
 
   -- We can skip the first element when looking up others.
 
   lookup-suc : ∀ {m n} x t (ts : Vec (T m) m) (Γ : CtxExt T m n) →
                extLookup (suc x) ts (t ∷ Γ) ≡ weaken (extLookup x ts Γ)
-  lookup-suc x t ts Γ = VecProp.lookup-map x _ _
+  lookup-suc x t ts Γ = VecProp.lookup-map x weaken (extToVec ts Γ)
 
   lookup′-suc : ∀ {k m n} x t (ts : Vec (T m) k) (Γ′ : CtxExt′ T m n) →
                 extLookup′ (suc x) ts (t ∷ Γ′) ≡ weaken (extLookup′ x ts Γ′)
-  lookup′-suc x t ts Γ′ = VecProp.lookup-map x _ _
+  lookup′-suc x t ts Γ′ = VecProp.lookup-map x weaken (extToVec′ ts Γ′)
 
   -- We can skip a spliced-in element when looking up others.
 
@@ -251,7 +251,7 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
   lookup-weaken⋆′ zero    x ts []       Γ = refl
   lookup-weaken⋆′ (suc l) x ts (t ∷ Δ′) Γ = begin
       extLookup (suc (raise l x)) ts (t ∷ Δ′ ′++ Γ)
-    ≡⟨ VecProp.lookup-map (raise l x) _ _ ⟩
+    ≡⟨ VecProp.lookup-map (raise l x) weaken (extToVec ts (Δ′ ′++ Γ)) ⟩
       weaken (extLookup (raise l x) ts (Δ′ ′++ Γ))
     ≡⟨ cong weaken (lookup-weaken⋆′ l x ts Δ′ Γ) ⟩
       weaken (weaken⋆ l (extLookup x ts Γ))
@@ -271,7 +271,7 @@ module WeakenOpsLemmas {T} (extension : Extension T) where
 
 -- Lemmas relating conversions of context extensions to vector
 -- representation with conversions of the underling entries.
-module ConversionLemmas {T₁ T₂}
+module ConversionLemmas {T₁ T₂ : ℕ → Set}
                         (extension₁ : Extension T₁)
                         (extension₂ : Extension T₂) where
   open VecProp using (map-cong; map-∘)
@@ -327,9 +327,9 @@ module ConversionLemmas {T₁ T₂}
                  f (W₁.extLookup x ts Γ)
   lookup-map x f ts Γ hyp = begin
       W₂.extLookup x (Vec.map f ts) (map f Γ)
-    ≡⟨ cong (Vec.lookup x) (extToVec-map f ts Γ hyp) ⟩
-      Vec.lookup x (Vec.map f (W₁.extToVec ts Γ))
-    ≡⟨ VecProp.lookup-map x _ _ ⟩
+    ≡⟨ cong (flip Vec.lookup x) (extToVec-map f ts Γ hyp) ⟩
+      Vec.lookup (Vec.map f (W₁.extToVec ts Γ)) x
+    ≡⟨ VecProp.lookup-map x f (W₁.extToVec ts Γ) ⟩
       f (W₁.extLookup x ts Γ)
     ∎
 
@@ -343,9 +343,9 @@ module ConversionLemmas {T₁ T₂}
                    f l (W₁.extLookup′ x ts Γ′)
   lookup′-map′ {l = l} x f ts Γ′ hyp = begin
       W₂.extLookup′ x (Vec.map (f 0) ts) (map′ f Γ′)
-    ≡⟨ cong (Vec.lookup x) (extToVec′-map′ f ts Γ′ hyp) ⟩
-      Vec.lookup x (Vec.map (f l) (W₁.extToVec′ ts Γ′))
-    ≡⟨ VecProp.lookup-map x _ _ ⟩
+    ≡⟨ cong (flip Vec.lookup x) (extToVec′-map′ f ts Γ′ hyp) ⟩
+      Vec.lookup (Vec.map (f l) (W₁.extToVec′ ts Γ′)) x
+    ≡⟨ VecProp.lookup-map x (f l) (W₁.extToVec′ ts Γ′) ⟩
       f l (W₁.extLookup′ x ts Γ′)
     ∎
 

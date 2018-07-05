@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------
 
 -- Author: Sandro Stucki
--- Copyright (c) 2017 EPFL
+-- Copyright (c) 2017, 2018, 2019 EPFL
 
 -- The code in this repository contains an Agda mechanization of the
 -- type system Fω extended with interval kinds ("F omega int").  An
@@ -31,8 +31,8 @@
 --
 --   https://github.com/agda/agda-stdlib/
 --
--- The code has been tested using Agda 2.5.3 and version 0.15 of the
--- Agda standard library.
+-- The code has been tested using Agda 2.6.0.1 and version 1.0.1 of
+-- the Agda standard library.
 
 module README where
 
