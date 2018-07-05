@@ -48,6 +48,8 @@ module Kinding where
     data _⊢_kds {n} (Γ : Ctx n) : Kind Elim n → Set where
       kds-⋯ : ∀ {a b} → Γ ⊢Nf a ∈ ★ → Γ ⊢Nf b ∈ ★           → Γ ⊢ a ⋯ b kds
       kds-Π : ∀ {j k} → Γ ⊢ j kds   → kd ⌊ j ⌋ ∷ Γ ⊢ k kds  → Γ ⊢ Π j k kds
+      kds-◆ :                                                 Γ ⊢ ◆     kds
+      kds-Σ : ∀ {j k} → Γ ⊢ j kds   → kd ⌊ j ⌋ ∷ Γ ⊢ k kds  → Γ ⊢ Σ j k kds
 
     -- Simple kinding of η-long β-normal types.
     data _⊢Nf_∈_ {n} (Γ : Ctx n) : Elim n → SKind → Set where
@@ -56,8 +58,10 @@ module Kinding where
       ∈-∀-f : ∀ {k a} → Γ ⊢ k kds → kd ⌊ k ⌋ ∷ Γ ⊢Nf a ∈ ★ →
               Γ ⊢Nf ∀∙ k a ∈ ★
       ∈-→-f : ∀ {a b} → Γ ⊢Nf a ∈ ★ → Γ ⊢Nf b ∈ ★ → Γ ⊢Nf a ⇒∙ b ∈ ★
+      ∈-◆-i : Γ ⊢Nf ⟨⟩∙ ∈ ⋄
       ∈-Π-i : ∀ {j a k} → Γ ⊢ j kds → kd ⌊ j ⌋ ∷ Γ ⊢Nf a ∈ k →
               Γ ⊢Nf Λ∙ j a ∈ ⌊ j ⌋ ⇒ k
+      ∈-Σ-i : ∀ {a b j k} → Γ ⊢Nf a ∈ j → Γ ⊢Nf b ∈ k → Γ ⊢Nf a ,∙ b ∈ j ⊗ k
       ∈-ne  : ∀ {a} → Γ ⊢Ne a ∈ ★ → Γ ⊢Nf a ∈ ★
 
     -- Simple kinding of neutral types.
@@ -67,9 +71,11 @@ module Kinding where
 
     -- Simple spine kinding.
     data _⊢_∋∙_∈_ {n} (Γ : Ctx n) : SKind → Spine n → SKind → Set where
-      ∈-[] : ∀ {k} → Γ ⊢ k ∋∙ [] ∈ k
-      ∈-∷  : ∀ {a as j k l} → Γ ⊢Nf a ∈ j → Γ ⊢ k ∋∙ as ∈ l →
-             Γ ⊢ j ⇒ k ∋∙ a ∷ as ∈ l
+      ∈-[]  : ∀ {k} → Γ ⊢ k ∋∙ [] ∈ k
+      ∈-arg : ∀ {a as j k l} → Γ ⊢Nf a ∈ j → Γ ⊢ k ∋∙ as ∈ l →
+              Γ ⊢ j ⇒ k ∋∙ arg a ∷ as ∈ l
+      ∈-π₁  : ∀ {as j k l} → Γ ⊢ j ∋∙ as ∈ l → Γ ⊢ j ⊗ k ∋∙ π₁ ∷ as ∈ l
+      ∈-π₂  : ∀ {as j k l} → Γ ⊢ k ∋∙ as ∈ l → Γ ⊢ j ⊗ k ∋∙ π₂ ∷ as ∈ l
 
   open ContextConversions using (⌊_⌋Ctx)
 
@@ -83,7 +89,7 @@ module Kinding where
   open SimplyWfCtx public using ()
     renaming (_wf to _ctxs; _⊢_wfExt to _⊢_exts; _⊢_wfExt′ to _⊢_exts′)
 
-open Syntax
+open Syntax renaming (_,_ to ⟨_,_⟩)
 open SimpleCtx hiding (_++_)
 open Kinding
 open PropEq
@@ -92,19 +98,29 @@ open PropEq
 ∈-++ : ∀ {n} {Γ : Ctx n} {as bs j k l} →
        Γ ⊢ j ∋∙ as ∈ k → Γ ⊢ k ∋∙ bs ∈ l →
        Γ ⊢ j ∋∙ as ++ bs ∈ l
-∈-++ ∈-[]               k∋as∈l = k∋as∈l
-∈-++ (∈-∷ b∈j₁ j₂∋as∈k) k∋as∈l = ∈-∷ b∈j₁ (∈-++ j₂∋as∈k k∋as∈l)
+∈-++ ∈-[]                 k∋as∈l = k∋as∈l
+∈-++ (∈-arg b∈j₁ j₂∋as∈k) k∋as∈l = ∈-arg b∈j₁ (∈-++ j₂∋as∈k k∋as∈l)
+∈-++ (∈-π₁ j₁∋as∈k)       k∋as∈l = ∈-π₁ (∈-++ j₁∋as∈k k∋as∈l)
+∈-++ (∈-π₂ j₂∋as∈k)       k∋as∈l = ∈-π₂ (∈-++ j₂∋as∈k k∋as∈l)
 
 -- An admissible kinding rule for appending a normal form to a spine.
 ∈-∷ʳ : ∀ {n} {Γ : Ctx n} {as a j k l} →
        Γ ⊢ j ∋∙ as ∈ k ⇒ l → Γ ⊢Nf a ∈ k →
-       Γ ⊢ j ∋∙ as ∷ʳ a ∈ l
-∈-∷ʳ j∋as∈k⇒k a∈k = ∈-++ j∋as∈k⇒k (∈-∷ a∈k ∈-[])
+       Γ ⊢ j ∋∙ as ∷ʳ arg a ∈ l
+∈-∷ʳ j∋as∈k⇒l a∈k = ∈-++ j∋as∈k⇒l (∈-arg a∈k ∈-[])
 
 -- An admissible kinding rule for post-application to neutral types.
 Ne∈-Π-e : ∀ {n} {Γ : Ctx n} {a b j k} →
           Γ ⊢Ne a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Γ ⊢Ne a ⌜·⌝ b ∈ k
-Ne∈-Π-e (∈-∙ x∈j j∋as∈k) b∈k = ∈-∙ x∈j (∈-∷ʳ j∋as∈k b∈k)
+Ne∈-Π-e (∈-∙ x∈j j∋as∈k⇒l) b∈k = ∈-∙ x∈j (∈-∷ʳ j∋as∈k⇒l b∈k)
+
+-- Admissible kinding rules for post-projection out of neutral types.
+
+Ne∈-Σ-e₁ : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢Ne a ∈ j ⊗ k → Γ ⊢Ne ⌜π₁⌝ a ∈ j
+Ne∈-Σ-e₁ (∈-∙ x∈j j∋as∈k⊗l) = ∈-∙ x∈j (∈-++ j∋as∈k⊗l (∈-π₁ ∈-[]))
+
+Ne∈-Σ-e₂ : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢Ne a ∈ j ⊗ k → Γ ⊢Ne ⌜π₂⌝ a ∈ k
+Ne∈-Σ-e₂ (∈-∙ x∈j j∋as∈k⊗l) = ∈-∙ x∈j (∈-++ j∋as∈k⊗l (∈-π₂ ∈-[]))
 
 -- An inversion lemma for _⊢_wf.
 wfs-kd-inv : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ kd k wfs → Γ ⊢ k kds
@@ -115,6 +131,16 @@ Nf∈-⇒-inv : ∀ {n} {Γ : Ctx n} {a k₁ k₂} → Γ ⊢Nf a ∈ k₁ ⇒ k
             ∃ λ j → ∃ λ b →
               Γ ⊢ j kds × kd k₁ ∷ Γ ⊢Nf b ∈ k₂ × ⌊ j ⌋ ≡ k₁ × a ≡ Λ∙ j b
 Nf∈-⇒-inv (∈-Π-i j-kds b∈k₂) = _ , _ , j-kds , b∈k₂ , refl , refl
+
+-- An inversion lemma for the unit element.
+Nf∈-⋄-inv : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Nf a ∈ ⋄ → a ≡ ⟨⟩∙
+Nf∈-⋄-inv ∈-◆-i = refl
+
+-- An inversion lemma for type products.
+Nf∈-⊗-inv : ∀ {n} {Γ : Ctx n} {a k₁ k₂} → Γ ⊢Nf a ∈ k₁ ⊗ k₂ →
+            ∃ λ b₁ → ∃ λ b₂ →
+              Γ ⊢Nf b₁ ∈ k₁ × Γ ⊢Nf b₂ ∈ k₂ × a ≡ b₁ ,∙ b₂
+Nf∈-⊗-inv (∈-Σ-i b₁∈k₁ b₂∈k₂) = _ , _ , b₁∈k₁ , b₂∈k₂ , refl
 
 
 ----------------------------------------------------------------------
@@ -170,6 +196,9 @@ module KindedRenaming where
     kds-/Var (kds-⋯ a∈★ b∈★) σ∈Γ = kds-⋯ (Nf∈-/Var a∈★ σ∈Γ) (Nf∈-/Var b∈★ σ∈Γ)
     kds-/Var (kds-Π j-kds  k-kds) σ∈Γ =
       kds-Π (kds-/Var j-kds σ∈Γ) (kds-/Var k-kds (∈-↑′ σ∈Γ))
+    kds-/Var kds-◆                σ∈Γ = kds-◆
+    kds-/Var (kds-Σ j-kds  k-kds) σ∈Γ =
+      kds-Σ (kds-/Var j-kds σ∈Γ) (kds-/Var k-kds (∈-↑′ σ∈Γ))
 
     -- Renamings preserve synthesized kinds of normal types.
     Nf∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k σ} →
@@ -180,9 +209,12 @@ module KindedRenaming where
       ∈-∀-f (kds-/Var k-kds σ∈Γ) (Nf∈-/Var a∈★ (∈-↑′ σ∈Γ))
     Nf∈-/Var (∈-→-f a∈★ b∈★)    σ∈Γ =
       ∈-→-f (Nf∈-/Var a∈★ σ∈Γ) (Nf∈-/Var b∈★ σ∈Γ)
+    Nf∈-/Var ∈-◆-i                         σ∈Γ = ∈-◆-i
     Nf∈-/Var (∈-Π-i {j} {a} {k} j-kds a∈k) σ∈Γ =
       subst (λ l → _ ⊢Nf Λ∙ j a /Var _ ∈ l ⇒ k) (⌊⌋-Kind′/Var j)
             (∈-Π-i (kds-/Var j-kds σ∈Γ) (Nf∈-/Var a∈k (∈-↑′ σ∈Γ)))
+    Nf∈-/Var (∈-Σ-i a∈j b∈k)    σ∈Γ =
+      ∈-Σ-i (Nf∈-/Var a∈j σ∈Γ) (Nf∈-/Var b∈k σ∈Γ)
     Nf∈-/Var (∈-ne a∈★)         σ∈Γ = ∈-ne (Ne∈-/Var a∈★ σ∈Γ)
 
     -- Renamings preserve synthesized kinds of neutral types.
@@ -193,9 +225,11 @@ module KindedRenaming where
 
     Sp∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {as j k σ} →
                Γ ⊢ j ∋∙ as ∈ k → Δ ⊢/Var σ ∈ Γ → Δ ⊢ j ∋∙ as //Var σ  ∈ k
-    Sp∈-/Var ∈-[]                σ∈Γ = ∈-[]
-    Sp∈-/Var (∈-∷ a∈j k[a]∈as∈l) σ∈Γ =
-      ∈-∷ (Nf∈-/Var a∈j σ∈Γ) (Sp∈-/Var k[a]∈as∈l σ∈Γ)
+    Sp∈-/Var ∈-[]               σ∈Γ = ∈-[]
+    Sp∈-/Var (∈-arg a∈j k∈as∈l) σ∈Γ =
+      ∈-arg (Nf∈-/Var a∈j σ∈Γ) (Sp∈-/Var k∈as∈l σ∈Γ)
+    Sp∈-/Var (∈-π₁ k∈as∈l)      σ∈Γ = ∈-π₁ (Sp∈-/Var k∈as∈l σ∈Γ)
+    Sp∈-/Var (∈-π₂ k∈as∈l)      σ∈Γ = ∈-π₂ (Sp∈-/Var k∈as∈l σ∈Γ)
 
   -- Renamings preserve well-formedness of ascriptions.
   wfs-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a σ} →
@@ -391,6 +425,9 @@ module KindedHereditarySubstitution where
     kds-/H (kds-⋯ a∈★ b∈★)     ρ∈Γ = kds-⋯ (Nf∈-/H a∈★ ρ∈Γ) (Nf∈-/H b∈★ ρ∈Γ)
     kds-/H (kds-Π j-kds k-kds) ρ∈Γ =
       kds-Π (kds-/H j-kds ρ∈Γ) (kds-/H k-kds (∈-H↑′ ρ∈Γ))
+    kds-/H kds-◆               ρ∈Γ = kds-◆
+    kds-/H (kds-Σ j-kds k-kds) ρ∈Γ =
+      kds-Σ (kds-/H j-kds ρ∈Γ) (kds-/H k-kds (∈-H↑′ ρ∈Γ))
 
     -- Hereditary substitutions preserve simple kinding of normal types.
     Nf∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a j} →
@@ -401,55 +438,93 @@ module KindedHereditarySubstitution where
       ∈-∀-f (kds-/H k-kds ρ∈Γ) (Nf∈-/H a∈★ (∈-H↑′ ρ∈Γ))
     Nf∈-/H (∈-→-f a∈★ b∈★)   ρ∈Γ =
       ∈-→-f (Nf∈-/H a∈★ ρ∈Γ) (Nf∈-/H b∈★ ρ∈Γ)
+    Nf∈-/H ∈-◆-i             ρ∈Γ = ∈-◆-i
     Nf∈-/H (∈-Π-i {j} {a} {k} j-kds a∈k) ρ∈Γ =
       subst (λ l → _ ⊢Nf Λ∙ j a /H _ ∈ l ⇒ k) (⌊⌋-Kind/H j)
             (∈-Π-i (kds-/H j-kds ρ∈Γ) (Nf∈-/H a∈k (∈-H↑′ ρ∈Γ)))
+    Nf∈-/H (∈-Σ-i a∈j b∈k)   ρ∈Γ = ∈-Σ-i (Nf∈-/H a∈j ρ∈Γ) (Nf∈-/H b∈k ρ∈Γ)
     Nf∈-/H (∈-ne a∈★)        ρ∈Γ = Ne∈-/H a∈★ ρ∈Γ
 
     -- Hereditary substitutions preserve simple kinds of neutral
     -- types (but not neutrality itself).
     Ne∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a} →
              Γ ⊢Ne a ∈ ★ → Δ ⊢/H ρ ∈ Γ → Δ ⊢Nf a /H ρ ∈ ★
-    Ne∈-/H (∈-∙ (∈-var x Γ[x]≡kd-j) j∈as∈l)
+    Ne∈-/H (∈-∙ (∈-var x Γ[x]≡kd-j) j∈as∈⋆)
            (∈-hsub {_} {_} {n} Γ₂ a∈k) with compare n x
-    Ne∈-/H (∈-∙ {_} {_} {_} {as} (∈-var _ Γ[x]≡kd-j) j∋as∈l) (∈-hsub Γ₂ a∈k)
+    Ne∈-/H (∈-∙ {_} {_} {_} {as} (∈-var _ Γ[x]≡kd-j) j∋as∈⋆) (∈-hsub Γ₂ a∈k)
       | yes refl =
       let a/ρ∈k , j≡k = Var∈-Hit-/H Γ₂ Γ[x]≡kd-j a∈k
-          k∋as∈l      = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈l
-      in Nf∈-∙∙ a/ρ∈k (Sp∈-/H k∋as∈l (∈-hsub Γ₂ a∈k))
-    Ne∈-/H (∈-∙ (∈-var _ Γ[x]≡kd-j) j∋as∈l) (∈-hsub Γ₂ a∈k) | no y refl =
-      ∈-ne (∈-∙ (Var∈-Miss-/H Γ₂ Γ[x]≡kd-j) (Sp∈-/H j∋as∈l (∈-hsub Γ₂ a∈k)))
+          k∋as∈⋆      = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈⋆
+      in Nf∈-∙∙ a/ρ∈k (Sp∈-/H k∋as∈⋆ (∈-hsub Γ₂ a∈k))
+    Ne∈-/H (∈-∙ (∈-var _ Γ[x]≡kd-j) j∋as∈⋆) (∈-hsub Γ₂ a∈k) | no y refl =
+      ∈-ne (∈-∙ (Var∈-Miss-/H Γ₂ Γ[x]≡kd-j) (Sp∈-/H j∋as∈⋆ (∈-hsub Γ₂ a∈k)))
 
     -- Hereditary substitutions preserve simple kinding of spines.
     Sp∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {as j₁ j₂} →
              Γ ⊢ j₁ ∋∙ as ∈ j₂ → Δ ⊢/H ρ ∈ Γ → Δ ⊢ j₁ ∋∙ as //H ρ ∈ j₂
-    Sp∈-/H ∈-[]                   ρ∈Γ = ∈-[]
-    Sp∈-/H (∈-∷ a∈j₁ j₂[a]∈as∈j₃) ρ∈Γ =
-      ∈-∷ (Nf∈-/H a∈j₁ ρ∈Γ) (Sp∈-/H j₂[a]∈as∈j₃ ρ∈Γ)
+    Sp∈-/H ∈-[]                  ρ∈Γ = ∈-[]
+    Sp∈-/H (∈-arg a∈j₁ j₂∈as∈j₃) ρ∈Γ =
+      ∈-arg (Nf∈-/H a∈j₁ ρ∈Γ) (Sp∈-/H j₂∈as∈j₃ ρ∈Γ)
+    Sp∈-/H (∈-π₁ j₁∈as∈j₃)       ρ∈Γ = ∈-π₁ (Sp∈-/H j₁∈as∈j₃ ρ∈Γ)
+    Sp∈-/H (∈-π₂ j₂∈as∈j₃)       ρ∈Γ = ∈-π₂ (Sp∈-/H j₂∈as∈j₃ ρ∈Γ)
 
-    -- Applications in simple kinding are admissible.
+    -- Applications and projections in simple kinding are admissible.
 
     Nf∈-∙∙ : ∀ {n} {Γ : Ctx n} {a as j k} →
              Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ as ∈ k → Γ ⊢Nf a ∙∙⟨ j ⟩ as ∈ k
-    Nf∈-∙∙ a∈j   ∈-[]             = a∈j
-    Nf∈-∙∙ a∈j⇒k (∈-∷ b∈j k∋as∈l) = Nf∈-∙∙ (Nf∈-Π-e a∈j⇒k b∈j) k∋as∈l
+    Nf∈-∙∙ a∈j   ∈-[]               = a∈j
+    Nf∈-∙∙ a∈j⇒k (∈-arg b∈j k∋as∈l) = Nf∈-∙∙ (Nf∈-Π-e a∈j⇒k b∈j) k∋as∈l
+    Nf∈-∙∙ a∈j⊗k (∈-π₁ j∋as∈l)      = Nf∈-∙∙ (Nf∈-Σ-e₁ a∈j⊗k) j∋as∈l
+    Nf∈-∙∙ a∈j⊗k (∈-π₂ k∋as∈l)      = Nf∈-∙∙ (Nf∈-Σ-e₂ a∈j⊗k) k∋as∈l
 
     Nf∈-Π-e : ∀ {n} {Γ : Ctx n} {a b j k} →
-              Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Γ ⊢Nf a ⌜·⌝⟨ j ⇒ k ⟩ b ∈ k
+              Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Γ ⊢Nf a ·′⟨ j ⇒ k ⟩ arg b ∈ k
     Nf∈-Π-e (∈-Π-i j-kds a∈k) b∈⌊j⌋ = Nf∈-/H a∈k (∈-hsub [] b∈⌊j⌋)
+
+    Nf∈-Σ-e₁ : ∀ {n} {Γ : Ctx n} {a j k} →
+               Γ ⊢Nf a ∈ j ⊗ k → Γ ⊢Nf a ·′⟨ j ⊗ k ⟩ π₁ ∈ j
+    Nf∈-Σ-e₁ (∈-Σ-i a∈j b∈k) = a∈j
+
+    Nf∈-Σ-e₂ : ∀ {n} {Γ : Ctx n} {a j k} →
+               Γ ⊢Nf a ∈ j ⊗ k → Γ ⊢Nf a ·′⟨ j ⊗ k ⟩ π₂ ∈ k
+    Nf∈-Σ-e₂ (∈-Σ-i a∈j b∈k) = b∈k
 
   -- Concatenation of simply well-formed spines results in application.
   Nf∈-++-∙∙⟨⟩ : ∀ {n} {Γ : Ctx n} {a bs cs j k l} →
                 Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ bs ∈ k → Γ ⊢ k ∋∙ cs ∈ l →
                 a ∙∙⟨ j ⟩ (bs ++ cs) ≡ a ∙∙⟨ j ⟩ bs ∙∙⟨ k ⟩ cs
-  Nf∈-++-∙∙⟨⟩ a∈j     ∈-[]                  k∋cs∈l = refl
-  Nf∈-++-∙∙⟨⟩ a∈j₁⇒j₂ (∈-∷ b∈j₁ j₂[b]∋bs∈k) k∋cs∈l =
-    Nf∈-++-∙∙⟨⟩ (Nf∈-Π-e a∈j₁⇒j₂ b∈j₁) j₂[b]∋bs∈k k∋cs∈l
+  Nf∈-++-∙∙⟨⟩ a∈j     ∈-[]                 k∋cs∈l = refl
+  Nf∈-++-∙∙⟨⟩ a∈j₁⇒j₂ (∈-arg b∈j₁ j₂∋bs∈k) k∋cs∈l =
+    Nf∈-++-∙∙⟨⟩ (Nf∈-Π-e a∈j₁⇒j₂ b∈j₁) j₂∋bs∈k k∋cs∈l
+  Nf∈-++-∙∙⟨⟩ a∈j₁⊗j₂ (∈-π₁ j₁∋bs∈k)       k∋cs∈l =
+    Nf∈-++-∙∙⟨⟩ (Nf∈-Σ-e₁ a∈j₁⊗j₂) j₁∋bs∈k k∋cs∈l
+  Nf∈-++-∙∙⟨⟩ a∈j₁⊗j₂ (∈-π₂ j₂∋bs∈k)       k∋cs∈l =
+    Nf∈-++-∙∙⟨⟩ (Nf∈-Σ-e₂ a∈j₁⊗j₂) j₂∋bs∈k k∋cs∈l
 
   -- Another admissible kinding rule for applications.
   Nf∈-Π-e′ : ∀ {n} {Γ : Ctx n} {a b j k} →
              Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Γ ⊢Nf a ↓⌜·⌝ b ∈ k
   Nf∈-Π-e′ (∈-Π-i j-kds a∈k) b∈⌊j⌋ = Nf∈-/H a∈k (∈-hsub [] b∈⌊j⌋)
+
+  -- Another pair of admissible projection rules.
+
+  Nf∈-Σ-e₁′ : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢Nf a ∈ j ⊗ k → Γ ⊢Nf ↓⌜π₁⌝ a ∈ j
+  Nf∈-Σ-e₁′ (∈-Σ-i a∈j b∈k) = a∈j
+
+  Nf∈-Σ-e₂′ : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢Nf a ∈ j ⊗ k → Γ ⊢Nf ↓⌜π₂⌝ a ∈ k
+  Nf∈-Σ-e₂′ (∈-Σ-i a∈j b∈k) = b∈k
+
+  -- Hereditary substitutions preserve simple kinds of neutral types
+  -- but not neutrality itself (version for hereditary substitutions
+  -- that hit the head).
+  Ne∈-Hit-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {x as j} →
+               Γ ⊢Ne var x ∙ as ∈ j → Δ ⊢/H ρ ∈ Γ → Hit ρ x →
+               Δ ⊢Nf var x ∙ as /H ρ ∈ j
+  Ne∈-Hit-/H (∈-∙ {x} {j} {l} {as} x∈j j∋as∈l) ρ∈Γ hit =
+    let x/ρ∈k , j≡k = Var∈-Hit-/H′ x∈j ρ∈Γ hit
+        k∋as∈l      = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈l
+    in subst (_ ⊢Nf_∈ l) (sym (ne-/H-Hit x hit))
+             (Nf∈-∙∙ x/ρ∈k (Sp∈-/H k∋as∈l ρ∈Γ))
 
   mutual
 
@@ -464,6 +539,10 @@ module KindedHereditarySubstitution where
       cong₂ _⋯_ (Nf∈-[]-/H-↑⋆ E a∈★ c∈k ρ∈Γ) (Nf∈-[]-/H-↑⋆ E b∈★ c∈k ρ∈Γ)
     kds-[]-/H-↑⋆ E (kds-Π j-kds k-kds) b∈k ρ∈Γ =
       cong₂ Π (kds-[]-/H-↑⋆ E j-kds b∈k ρ∈Γ)
+              (kds-[]-/H-↑⋆ (_ ∷ E) k-kds b∈k ρ∈Γ)
+    kds-[]-/H-↑⋆ E kds-◆               c∈k ρ∈Γ = refl
+    kds-[]-/H-↑⋆ E (kds-Σ j-kds k-kds) b∈k ρ∈Γ =
+      cong₂ Σ (kds-[]-/H-↑⋆ E j-kds b∈k ρ∈Γ)
               (kds-[]-/H-↑⋆ (_ ∷ E) k-kds b∈k ρ∈Γ)
 
     -- Simply well-kinded hereditary substitutions in simply
@@ -482,9 +561,13 @@ module KindedHereditarySubstitution where
     Nf∈-[]-/H-↑⋆ E (∈-→-f a∈★ b∈★)   c∈k ρ∈Γ =
       cong (_∙ []) (cong₂ _⇒_ (Nf∈-[]-/H-↑⋆ E a∈★ c∈k ρ∈Γ)
                               (Nf∈-[]-/H-↑⋆ E b∈★ c∈k ρ∈Γ))
+    Nf∈-[]-/H-↑⋆ E ∈-◆-i             b∈k ρ∈Γ = refl
     Nf∈-[]-/H-↑⋆ E (∈-Π-i j-kds a∈l) b∈k ρ∈Γ =
       cong (_∙ []) (cong₂ Λ (kds-[]-/H-↑⋆ E j-kds b∈k ρ∈Γ)
                             (Nf∈-[]-/H-↑⋆ (_ ∷ E) a∈l b∈k ρ∈Γ))
+    Nf∈-[]-/H-↑⋆ E (∈-Σ-i a∈j c∈l) b∈k ρ∈Γ =
+      cong (_∙ []) (cong₂ ⟨_,_⟩ (Nf∈-[]-/H-↑⋆ E a∈j b∈k ρ∈Γ)
+                                (Nf∈-[]-/H-↑⋆ E c∈l b∈k ρ∈Γ))
     Nf∈-[]-/H-↑⋆ E (∈-ne a∈★)        b∈k ρ∈Γ = Ne∈-[]-/H-↑⋆ E a∈★ b∈k ρ∈Γ
 
     Ne∈-[]-/H-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
@@ -609,28 +692,61 @@ module KindedHereditarySubstitution where
                    E ′++ kd k ∷ Γ ⊢ j₁ ∋∙ as ∈ j₂ → Γ ⊢Nf b ∈ k → Δ ⊢/H ρ ∈ Γ →
                    as //H (i ← b ∈ k) //H ρ H↑⋆ i ≡
                      as //H (ρ H↑) H↑⋆ i //H (i ← b /H ρ ∈ k)
-    Sp∈-[]-/H-↑⋆ E ∈-[]                b∈k ρ∈Γ = refl
-    Sp∈-[]-/H-↑⋆ E (∈-∷ a∈j₁ j₂∋as∈j₃) b∈k ρ∈Γ =
-      cong₂ _∷_ (Nf∈-[]-/H-↑⋆ E a∈j₁ b∈k ρ∈Γ) (Sp∈-[]-/H-↑⋆ E j₂∋as∈j₃ b∈k ρ∈Γ)
+    Sp∈-[]-/H-↑⋆ E ∈-[]                  b∈k ρ∈Γ = refl
+    Sp∈-[]-/H-↑⋆ E (∈-arg a∈j₁ j₂∋as∈j₃) b∈k ρ∈Γ =
+      cong₂ (λ a as → arg a ∷ as)
+            (Nf∈-[]-/H-↑⋆ E a∈j₁ b∈k ρ∈Γ) (Sp∈-[]-/H-↑⋆ E j₂∋as∈j₃ b∈k ρ∈Γ)
+    Sp∈-[]-/H-↑⋆ E (∈-π₁ j₁∋as∈j₃)       b∈k ρ∈Γ =
+      cong (π₁ ∷_) (Sp∈-[]-/H-↑⋆ E j₁∋as∈j₃ b∈k ρ∈Γ)
+    Sp∈-[]-/H-↑⋆ E (∈-π₂ j₂∋as∈j₃)       b∈k ρ∈Γ =
+      cong (π₂ ∷_) (Sp∈-[]-/H-↑⋆ E j₂∋as∈j₃ b∈k ρ∈Γ)
 
-    -- Reducing applications commute with hereditary substitution.
+    -- Reducing applications and projections commute with hereditary
+    -- substitution.
 
     Nf∈-∙∙-/H : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a as j k} →
                 Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ as ∈ k → Δ ⊢/H ρ ∈ Γ →
                 a ∙∙⟨ j ⟩ as /H ρ ≡ (a /H ρ) ∙∙⟨ j ⟩ (as //H ρ)
     Nf∈-∙∙-/H a∈j ∈-[] ρ∈Γ = refl
-    Nf∈-∙∙-/H {ρ = ρ} {a} {b ∷ bs} {j ⇒ k} a∈j⇒k (∈-∷ b∈j k∋bs∈l) ρ∈Γ = begin
-        a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs /H ρ
+    Nf∈-∙∙-/H {ρ = ρ} {a} {arg b ∷ bs} {j ⇒ k} a∈j⇒k (∈-arg b∈j k∋bs∈l) ρ∈Γ =
+      begin
+        a ·′⟨ j ⇒ k ⟩ arg b ∙∙⟨ k ⟩ bs /H ρ
       ≡⟨ Nf∈-∙∙-/H (Nf∈-Π-e a∈j⇒k b∈j) k∋bs∈l ρ∈Γ ⟩
-        (a ⌜·⌝⟨ j ⇒ k ⟩ b /H ρ) ∙∙⟨ _ ⟩ (bs //H ρ)
+        (a ·′⟨ j ⇒ k ⟩ arg b /H ρ) ∙∙⟨ _ ⟩ (bs //H ρ)
       ≡⟨ cong (_∙∙⟨ k ⟩ (bs //H ρ)) (Nf∈-Π-e-/H a∈j⇒k b∈j ρ∈Γ) ⟩
-        (a /H ρ) ⌜·⌝⟨ j ⇒ k ⟩ (b /H ρ) ∙∙⟨ k ⟩ (bs //H ρ)
+        (a /H ρ) ·′⟨ j ⇒ k ⟩ arg (b /H ρ) ∙∙⟨ k ⟩ (bs //H ρ)
+      ∎
+    Nf∈-∙∙-/H {ρ = ρ} {a} {π₁ ∷ bs} {j ⊗ k} a∈j⊗k (∈-π₁ j∋bs∈l) ρ∈Γ =
+      begin
+        a ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ bs /H ρ
+      ≡⟨ Nf∈-∙∙-/H (Nf∈-Σ-e₁ a∈j⊗k) j∋bs∈l ρ∈Γ ⟩
+        (a ·′⟨ j ⊗ k ⟩ π₁ /H ρ) ∙∙⟨ _ ⟩ (bs //H ρ)
+      ≡⟨ cong (_∙∙⟨ j ⟩ (bs //H ρ)) (Nf∈-Σ-e₁-/H a∈j⊗k ρ∈Γ) ⟩
+        (a /H ρ) ·′⟨ j ⊗ k ⟩ π₁ ∙∙⟨ j ⟩ (bs //H ρ)
+      ∎
+    Nf∈-∙∙-/H {ρ = ρ} {a} {π₂ ∷ bs} {j ⊗ k} a∈j⊗k (∈-π₂ k∋bs∈l) ρ∈Γ =
+      begin
+        a ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ bs /H ρ
+      ≡⟨ Nf∈-∙∙-/H (Nf∈-Σ-e₂ a∈j⊗k) k∋bs∈l ρ∈Γ ⟩
+        (a ·′⟨ j ⊗ k ⟩ π₂ /H ρ) ∙∙⟨ _ ⟩ (bs //H ρ)
+      ≡⟨ cong (_∙∙⟨ k ⟩ (bs //H ρ)) (Nf∈-Σ-e₂-/H a∈j⊗k ρ∈Γ) ⟩
+        (a /H ρ) ·′⟨ j ⊗ k ⟩ π₂ ∙∙⟨ k ⟩ (bs //H ρ)
       ∎
 
     Nf∈-Π-e-/H : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a b j k} →
                  Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Δ ⊢/H ρ ∈ Γ →
-                 a ⌜·⌝⟨ j ⇒ k ⟩ b /H ρ ≡ (a /H ρ) ⌜·⌝⟨ j ⇒ k ⟩ (b /H ρ)
+                 a ·′⟨ j ⇒ k ⟩ arg b /H ρ ≡ (a /H ρ) ·′⟨ j ⇒ k ⟩ arg (b /H ρ)
     Nf∈-Π-e-/H (∈-Π-i j-kds a∈k) b∈⌊j⌋ ρ∈Γ = Nf∈-[]-/H-↑⋆ [] a∈k b∈⌊j⌋ ρ∈Γ
+
+    Nf∈-Σ-e₁-/H : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a j k} →
+                  Γ ⊢Nf a ∈ j ⊗ k → Δ ⊢/H ρ ∈ Γ →
+                  a ·′⟨ j ⊗ k ⟩ π₁ /H ρ ≡ (a /H ρ) ·′⟨ j ⊗ k ⟩ π₁
+    Nf∈-Σ-e₁-/H (∈-Σ-i a∈j b∈k) ρ∈Γ = refl
+
+    Nf∈-Σ-e₂-/H : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a j k} →
+                  Γ ⊢Nf a ∈ j ⊗ k → Δ ⊢/H ρ ∈ Γ →
+                  a ·′⟨ j ⊗ k ⟩ π₂ /H ρ ≡ (a /H ρ) ·′⟨ j ⊗ k ⟩ π₂
+    Nf∈-Σ-e₂-/H (∈-Σ-i a∈j b∈k) ρ∈Γ = refl
 
   -- Potentially reducing applications commute with hereditary
   -- substitution.
@@ -645,3 +761,14 @@ module KindedHereditarySubstitution where
     ≡⟨ cong ((a /H ρ H↑) [ b /H ρ ∈_]) (sym (⌊⌋-Kind/H j)) ⟩
       (a /H ρ H↑) [ b /H ρ ∈ ⌊ j Kind/H ρ ⌋ ]
     ∎
+
+  -- Potentially reducing projections commute with hereditary
+  -- substitution.
+
+  Nf∈-Σ-e₂-/H′ : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a j k} →
+                 Γ ⊢Nf a ∈ j ⊗ k → Δ ⊢/H ρ ∈ Γ → ↓⌜π₂⌝ a /H ρ ≡ ↓⌜π₂⌝ (a /H ρ)
+  Nf∈-Σ-e₂-/H′ (∈-Σ-i a∈j b∈k) ρ∈Γ = refl
+
+  Nf∈-Σ-e₁-/H′ : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a j k} →
+                 Γ ⊢Nf a ∈ j ⊗ k → Δ ⊢/H ρ ∈ Γ → ↓⌜π₁⌝ a /H ρ ≡ ↓⌜π₁⌝ (a /H ρ)
+  Nf∈-Σ-e₁-/H′ (∈-Σ-i a∈j b∈k) ρ∈Γ = refl

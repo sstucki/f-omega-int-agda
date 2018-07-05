@@ -31,16 +31,23 @@ open import FOmegaInt.Syntax.Normalization
 
 open Syntax
 
-infix 4 _≋_ _≈_ _≈Hd_ _≈Sp_ _≈Asc_ _≈Ctx_
+infix 4 _≋_ _≈_ _≈El_ _≈Hd_ _≈Sp_ _≈Asc_ _≈Ctx_
 
 mutual
 
   data _≋_ {n} : Kind Elim n → Kind Elim n → Set where
-    ≋-Π : ∀ {j₁ j₂ k₁ k₂} → j₁ ≋ j₂ → k₁ ≋ k₂ → Π j₁ k₁ ≋ Π j₂ k₂
     ≋-⋯ : ∀ {a₁ a₂ b₁ b₂} → a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⋯ b₁ ≋ a₂ ⋯ b₂
+    ≋-Π : ∀ {j₁ j₂ k₁ k₂} → j₁ ≋ j₂ → k₁ ≋ k₂ → Π j₁ k₁ ≋ Π j₂ k₂
+    ≋-◆ :                                             ◆ ≋ ◆
+    ≋-Σ : ∀ {j₁ j₂ k₁ k₂} → j₁ ≋ j₂ → k₁ ≋ k₂ → Σ j₁ k₁ ≋ Σ j₂ k₂
 
   data _≈_ {n} : Elim n → Elim n → Set where
     ≈-∙ : ∀ {a₁ a₂ bs₁ bs₂} → a₁ ≈Hd a₂ → bs₁ ≈Sp bs₂ → a₁ ∙ bs₁ ≈ a₂ ∙ bs₂
+
+  data _≈El_ {n} : Eltr n → Eltr n → Set where
+    ≈-arg : ∀ {a₁ a₂} → a₁ ≈ a₂ → arg a₁ ≈El arg a₂
+    ≈-π₁  :                           π₁ ≈El π₁
+    ≈-π₂  :                           π₂ ≈El π₂
 
   data _≈Hd_ {n} : Head n → Head n → Set where
     ≈-var : ∀ x →                                           var x ≈Hd var x
@@ -51,10 +58,12 @@ mutual
     ≈-Λ   : ∀ {k₁ k₂ a₁ a₂} → ⌊ k₁ ⌋ ≡ ⌊ k₂ ⌋ → a₁ ≈ a₂ → Λ k₁ a₁ ≈Hd Λ k₂ a₂
     ≈-λ   : ∀ {a₁ a₂ b₁ b₂}                   → b₁ ≈ b₂ → ƛ a₁ b₁ ≈Hd ƛ a₂ b₂
     ≈-⊡   : ∀ {a₁ a₂ b₁ b₂} → a₁ ≈ a₂         → b₁ ≈ b₂ → a₁ ⊡ b₁ ≈Hd a₂ ⊡ b₂
+    ≈-⟨⟩  :                                                    ⟨⟩ ≈Hd ⟨⟩
+    ≈-,   : ∀ {a₁ a₂ b₁ b₂} → a₁ ≈ a₂         → b₁ ≈ b₂ → a₁ , b₁ ≈Hd a₂ , b₂
 
   data _≈Sp_ {n} : Spine n → Spine n → Set where
-    ≈-[] :                                                   [] ≈Sp []
-    ≈-∷  : ∀ {a₁ a₂ bs₁ bs₂} → a₁ ≈ a₂ → bs₁ ≈Sp bs₂ → a₁ ∷ bs₁ ≈Sp a₂ ∷ bs₂
+    ≈-[] :                                                     [] ≈Sp []
+    ≈-∷  : ∀ {a₁ a₂ bs₁ bs₂} → a₁ ≈El a₂ → bs₁ ≈Sp bs₂ → a₁ ∷ bs₁ ≈Sp a₂ ∷ bs₂
 
 data _≈Asc_ {n} : ElimAsc n → ElimAsc n → Set where
   ≈-kd : ∀ {k₁ k₂} → k₁ ≋ k₂ → kd k₁ ≈Asc kd k₂
@@ -97,6 +106,13 @@ data _≈Ctx_ : ∀ {n} → Ctx n → Ctx n → Set where
        a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⊡ b₁ ∙ [] ≈ a₂ ⊡ b₂ ∙ []
 ≈-⊡∙ a₁≈a₂ b₁≈b₂ = ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]
 
+≈-⟨⟩∙ : ∀ {n} → _≈_ {n = n} ⟨⟩∙ ⟨⟩∙
+≈-⟨⟩∙ = ≈-∙ (≈-⟨⟩) ≈-[]
+
+≈-,∙ : ∀ {n} {a₁ a₂ : Elim n} {b₁ b₂} →
+       a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ , b₁ ∙ [] ≈ a₂ , b₂ ∙ []
+≈-,∙ a₁≈a₂ b₁≈b₂ = ≈-∙ (≈-, a₁≈a₂ b₁≈b₂) ≈-[]
+
 
 ------------------------------------------------------------------------
 -- Simple properties of weake equality.
@@ -113,14 +129,20 @@ data _≈Ctx_ : ∀ {n} → Ctx n → Ctx n → Set where
        a₁ ≈ a₂ → bs₁ ≈Sp bs₂ → a₁ ∙∙ bs₁ ≈ a₂ ∙∙ bs₂
 ≈-∙∙ (≈-∙ a₁≈a₂ as₁≈as₂) bs₁≈bs₂ = ≈-∙ a₁≈a₂ (≈-++ as₁≈as₂ bs₁≈bs₂)
 
+≈-·′ : ∀ {n} {a₁ a₂ : Elim n} {b₁ b₂} →
+        a₁ ≈ a₂ → b₁ ≈El b₂ → a₁ ·′ b₁ ≈ a₂ ·′ b₂
+≈-·′ a₁≈a₂ b₁≈b₂ = ≈-∙∙ a₁≈a₂ (≈-∷ b₁≈b₂ ≈-[])
+
 ≈-⌜·⌝ : ∀ {n} {a₁ a₂ : Elim n} {b₁ b₂} →
         a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⌜·⌝ b₁ ≈ a₂ ⌜·⌝ b₂
-≈-⌜·⌝ a₁≈a₂ b₁≈b₂ = ≈-∙∙ a₁≈a₂ (≈-∷ b₁≈b₂ ≈-[])
+≈-⌜·⌝ a₁≈a₂ b₁≈b₂ = ≈-·′ a₁≈a₂ (≈-arg b₁≈b₂)
 
 -- Weakly equal kinds simplify equally.
 ≋-⌊⌋ : ∀ {n} {k₁ k₂ : Kind Elim n} → k₁ ≋ k₂ → ⌊ k₁ ⌋ ≡ ⌊ k₂ ⌋
-≋-⌊⌋ (≋-Π j₁≋j₂ k₁≋k₂) = cong₂ _⇒_ (≋-⌊⌋ j₁≋j₂) (≋-⌊⌋ k₁≋k₂)
 ≋-⌊⌋ (≋-⋯ a₁≈a₂ b₁≈b₂) = refl
+≋-⌊⌋ (≋-Π j₁≋j₂ k₁≋k₂) = cong₂ _⇒_ (≋-⌊⌋ j₁≋j₂) (≋-⌊⌋ k₁≋k₂)
+≋-⌊⌋ ≋-◆               = refl
+≋-⌊⌋ (≋-Σ j₁≋j₂ k₁≋k₂) = cong₂ _⊗_ (≋-⌊⌋ j₁≋j₂) (≋-⌊⌋ k₁≋k₂)
 
 module _ where
   open SimpleCtx          using (kd; ⌊_⌋Asc)
@@ -143,9 +165,16 @@ mutual
   ≋-refl : ∀ {n} (k : Kind Elim n) → k ≋ k
   ≋-refl (a ⋯ b) = ≋-⋯ (≈-refl a) (≈-refl b)
   ≋-refl (Π j k) = ≋-Π (≋-refl j) (≋-refl k)
+  ≋-refl ◆       = ≋-◆
+  ≋-refl (Σ j k) = ≋-Σ (≋-refl j) (≋-refl k)
 
   ≈-refl : ∀ {n} (a : Elim n) → a ≈ a
   ≈-refl (a ∙ as) = ≈-∙ (≈Hd-refl a) (≈Sp-refl as)
+
+  ≈El-refl : ∀ {n} (a : Eltr n) → a ≈El a
+  ≈El-refl (arg a) = ≈-arg (≈-refl a)
+  ≈El-refl π₁      = ≈-π₁
+  ≈El-refl π₂      = ≈-π₂
 
   ≈Hd-refl : ∀ {n} (a : Head n) → a ≈Hd a
   ≈Hd-refl (var x) = ≈-var x
@@ -156,10 +185,12 @@ mutual
   ≈Hd-refl (Λ k a) = ≈-Λ refl (≈-refl a)
   ≈Hd-refl (ƛ a b) = ≈-λ (≈-refl b)
   ≈Hd-refl (a ⊡ b) = ≈-⊡ (≈-refl a) (≈-refl b)
+  ≈Hd-refl ⟨⟩      = ≈-⟨⟩
+  ≈Hd-refl (a , b) = ≈-, (≈-refl a) (≈-refl b)
 
   ≈Sp-refl : ∀ {n} (as : Spine n) → as ≈Sp as
   ≈Sp-refl []       = ≈-[]
-  ≈Sp-refl (a ∷ as) = ≈-∷ (≈-refl a) (≈Sp-refl as)
+  ≈Sp-refl (a ∷ as) = ≈-∷ (≈El-refl a) (≈Sp-refl as)
 
 ≈Asc-refl : ∀ {n} (a : ElimAsc n) → a ≈Asc a
 ≈Asc-refl (kd k) = ≈-kd (≋-refl k)
@@ -175,14 +206,22 @@ mutual
 mutual
 
   ≋-trans : ∀ {n} {j k l : Kind Elim n} → j ≋ k → k ≋ l → j ≋ l
-  ≋-trans (≋-Π j₁≋j₂ k₁≋k₂) (≋-Π j₂≋j₃ k₂≋k₃) =
-    ≋-Π (≋-trans j₁≋j₂ j₂≋j₃) (≋-trans k₁≋k₂ k₂≋k₃)
   ≋-trans (≋-⋯ a₁≈a₂ b₁≈b₂) (≋-⋯ a₂≈a₃ b₂≈b₃) =
     ≋-⋯ (≈-trans a₁≈a₂ a₂≈a₃) (≈-trans b₁≈b₂ b₂≈b₃)
+  ≋-trans (≋-Π j₁≋j₂ k₁≋k₂) (≋-Π j₂≋j₃ k₂≋k₃) =
+    ≋-Π (≋-trans j₁≋j₂ j₂≋j₃) (≋-trans k₁≋k₂ k₂≋k₃)
+  ≋-trans ≋-◆               ≋-◆               = ≋-◆
+  ≋-trans (≋-Σ j₁≋j₂ k₁≋k₂) (≋-Σ j₂≋j₃ k₂≋k₃) =
+    ≋-Σ (≋-trans j₁≋j₂ j₂≋j₃) (≋-trans k₁≋k₂ k₂≋k₃)
 
   ≈-trans : ∀ {n} {a b c : Elim n} → a ≈ b → b ≈ c → a ≈ c
   ≈-trans (≈-∙ a₁≈a₂ bs₁≈bs₂) (≈-∙ a₂≈a₃ bs₂≈bs₃) =
     ≈-∙ (≈Hd-trans a₁≈a₂ a₂≈a₃) (≈Sp-trans bs₁≈bs₂ bs₂≈bs₃)
+
+  ≈El-trans : ∀ {n} {a b c : Eltr n} → a ≈El b → b ≈El c → a ≈El c
+  ≈El-trans (≈-arg a₁≈a₂) (≈-arg a₂≈a₃) = ≈-arg (≈-trans a₁≈a₂ a₂≈a₃)
+  ≈El-trans ≈-π₁          ≈-π₁          = ≈-π₁
+  ≈El-trans ≈-π₂          ≈-π₂          = ≈-π₂
 
   ≈Hd-trans : ∀ {n} {a b c : Head n} → a ≈Hd b → b ≈Hd c → a ≈Hd c
   ≈Hd-trans (≈-var x)         (≈-var .x)        = ≈-var x
@@ -197,11 +236,14 @@ mutual
   ≈Hd-trans (≈-λ a₁≈a₂)       (≈-λ a₂≈a₃)       = ≈-λ (≈-trans a₁≈a₂ a₂≈a₃)
   ≈Hd-trans (≈-⊡ a₁≈a₂ b₁≈b₂) (≈-⊡ a₂≈a₃ b₂≈b₃) =
     ≈-⊡ (≈-trans a₁≈a₂ a₂≈a₃) (≈-trans b₁≈b₂ b₂≈b₃)
+  ≈Hd-trans (≈-, a₁≈a₂ b₁≈b₂) (≈-, a₂≈a₃ b₂≈b₃) =
+    ≈-, (≈-trans a₁≈a₂ a₂≈a₃) (≈-trans b₁≈b₂ b₂≈b₃)
+  ≈Hd-trans ≈-⟨⟩              ≈-⟨⟩              = ≈-⟨⟩
 
   ≈Sp-trans : ∀ {n} {as bs cs : Spine n} → as ≈Sp bs → bs ≈Sp cs → as ≈Sp cs
   ≈Sp-trans ≈-[]                ≈-[]                = ≈-[]
   ≈Sp-trans (≈-∷ a₁≈a₂ bs₁≈bs₂) (≈-∷ a₂≈a₃ bs₂≈bs₃) =
-    ≈-∷ (≈-trans a₁≈a₂ a₂≈a₃) (≈Sp-trans bs₁≈bs₂ bs₂≈bs₃)
+    ≈-∷ (≈El-trans a₁≈a₂ a₂≈a₃) (≈Sp-trans bs₁≈bs₂ bs₂≈bs₃)
 
 ≈Asc-trans : ∀ {n} {a b c : ElimAsc n} → a ≈Asc b → b ≈Asc c → a ≈Asc c
 ≈Asc-trans (≈-kd k₁≋k₂) (≈-kd k₂≋k₃) = ≈-kd (≋-trans k₁≋k₂ k₂≋k₃)
@@ -219,9 +261,16 @@ mutual
   ≋-sym : ∀ {n} {j k : Kind Elim n} → j ≋ k → k ≋ j
   ≋-sym (≋-⋯ a₁≈a₂ b₁≈b₂) = ≋-⋯ (≈-sym a₁≈a₂) (≈-sym b₁≈b₂)
   ≋-sym (≋-Π j₁≋j₂ k₁≋k₂) = ≋-Π (≋-sym j₁≋j₂) (≋-sym k₁≋k₂)
+  ≋-sym ≋-◆               = ≋-◆
+  ≋-sym (≋-Σ j₁≋j₂ k₁≋k₂) = ≋-Σ (≋-sym j₁≋j₂) (≋-sym k₁≋k₂)
 
   ≈-sym : ∀ {n} {a b : Elim n} → a ≈ b → b ≈ a
   ≈-sym (≈-∙ a≈b as≈bs) = ≈-∙ (≈Hd-sym a≈b) (≈Sp-sym as≈bs)
+
+  ≈El-sym : ∀ {n} {a b : Eltr n} → a ≈El b → b ≈El a
+  ≈El-sym (≈-arg a≈b) = ≈-arg (≈-sym a≈b)
+  ≈El-sym ≈-π₁        = ≈-π₁
+  ≈El-sym ≈-π₂        = ≈-π₂
 
   ≈Hd-sym : ∀ {n} {a b : Head n} → a ≈Hd b → b ≈Hd a
   ≈Hd-sym (≈-var x)             = ≈-var x
@@ -232,10 +281,12 @@ mutual
   ≈Hd-sym (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) = ≈-Λ (sym ⌊k₁⌋≡⌊k₂⌋) (≈-sym a₁≈a₂)
   ≈Hd-sym (≈-λ a₁≈a₂)           = ≈-λ (≈-sym a₁≈a₂)
   ≈Hd-sym (≈-⊡ a₁≈a₂ b₁≈b₂)     = ≈-⊡ (≈-sym a₁≈a₂) (≈-sym b₁≈b₂)
+  ≈Hd-sym ≈-⟨⟩                  = ≈-⟨⟩
+  ≈Hd-sym (≈-, a₁≈a₂ b₁≈b₂)     = ≈-, (≈-sym a₁≈a₂) (≈-sym b₁≈b₂)
 
   ≈Sp-sym : ∀ {n} {as bs : Spine n} → as ≈Sp bs → bs ≈Sp as
   ≈Sp-sym ≈-[]                = ≈-[]
-  ≈Sp-sym (≈-∷ a₁≈a₂ as₁≈as₂) = ≈-∷ (≈-sym a₁≈a₂) (≈Sp-sym as₁≈as₂)
+  ≈Sp-sym (≈-∷ a₁≈a₂ as₁≈as₂) = ≈-∷ (≈El-sym a₁≈a₂) (≈Sp-sym as₁≈as₂)
 
 ≈Asc-sym : ∀ {n} {a b : ElimAsc n} → a ≈Asc b → b ≈Asc a
 ≈Asc-sym (≈-kd j≋k) = ≈-kd (≋-sym j≋k)
@@ -395,15 +446,24 @@ module Renaming where
 
     ≋-/Var : ∀ {m n k₁ k₂} →
              k₁ ≋ k₂ → (σ : Sub Fin m n) → k₁ Kind′/Var σ ≋ k₂ Kind′/Var σ
-    ≋-/Var (≋-Π j₁≋j₂ k₁≋k₂) σ =
-      ≋-Π (≋-/Var j₁≋j₂ σ) (≋-/Var k₁≋k₂ (σ ↑))
     ≋-/Var (≋-⋯ a₁≈a₂ b₁≈b₂) σ =
       ≋-⋯ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
+    ≋-/Var (≋-Π j₁≋j₂ k₁≋k₂) σ =
+      ≋-Π (≋-/Var j₁≋j₂ σ) (≋-/Var k₁≋k₂ (σ ↑))
+    ≋-/Var ≋-◆               σ = ≋-◆
+    ≋-/Var (≋-Σ j₁≋j₂ k₁≋k₂) σ =
+      ≋-Σ (≋-/Var j₁≋j₂ σ) (≋-/Var k₁≋k₂ (σ ↑))
 
     ≈-/Var : ∀ {m n a₁ a₂} →
              a₁ ≈ a₂ → (σ : Sub Fin m n) → a₁ Elim/Var σ ≈ a₂ Elim/Var σ
     ≈-/Var (≈-∙ a₁≈a₂ bs₁≈bs₂) σ =
       ≈-∙∙ (≈Hd-/Var a₁≈a₂ σ) (≈Sp-/Var bs₁≈bs₂ σ)
+
+    ≈El-/Var : ∀ {m n a₁ a₂} →
+               a₁ ≈El a₂ → (σ : Sub Fin m n) → a₁ Eltr/Var σ ≈El a₂ Eltr/Var σ
+    ≈El-/Var (≈-arg a₁≈a₂) σ = ≈-arg (≈-/Var a₁≈a₂ σ)
+    ≈El-/Var ≈-π₁          σ = ≈-π₁
+    ≈El-/Var ≈-π₂          σ = ≈-π₂
 
     ≈Hd-/Var : ∀ {m n a₁ a₂} →
                a₁ ≈Hd a₂ → (σ : Sub Fin m n) → a₁ Head/Var′ σ ≈ a₂ Head/Var′ σ
@@ -425,12 +485,15 @@ module Renaming where
     ≈Hd-/Var (≈-λ a₁≈a₂)           σ = ≈-λ∙ (≈-/Var a₁≈a₂ (σ ↑))
     ≈Hd-/Var (≈-⊡ a₁≈a₂ b₁≈b₂)     σ =
       ≈-⊡∙ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
+    ≈Hd-/Var ≈-⟨⟩                  σ = ≈-⟨⟩∙
+    ≈Hd-/Var (≈-, a₁≈a₂ b₁≈b₂)     σ =
+      ≈-,∙ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
 
     ≈Sp-/Var : ∀ {m n as₁ as₂} →
                as₁ ≈Sp as₂ → (σ : Sub Fin m n) → as₁ //Var σ ≈Sp as₂ //Var σ
     ≈Sp-/Var ≈-[]                σ = ≈-[]
     ≈Sp-/Var (≈-∷ a₁≈a₂ as₁≈as₂) σ =
-      ≈-∷ (≈-/Var a₁≈a₂ σ) (≈Sp-/Var as₁≈as₂ σ)
+      ≈-∷ (≈El-/Var a₁≈a₂ σ) (≈Sp-/Var as₁≈as₂ σ)
 
   ≈-weakenElim : ∀ {n} {a₁ a₂ : Elim n} →
                  a₁ ≈ a₂ → weakenElim a₁ ≈ weakenElim a₂
@@ -479,14 +542,23 @@ module WeakHereditarySubstitutionEquality where
 
     ≋-/H : ∀ {k m n j₁ j₂} {ρ₁ ρ₂ : HSub k m n} →
            j₁ ≋ j₂ → ρ₁ ⟨≈⟩ ρ₂ → j₁ Kind/H ρ₁ ≋ j₂ Kind/H ρ₂
-    ≋-/H (≋-Π j₁≋j₂ k₁≋k₂) ρ₁⟨≈⟩ρ₂ =
-      ≋-Π (≋-/H j₁≋j₂ ρ₁⟨≈⟩ρ₂) (≋-/H k₁≋k₂ (≈-H↑ ρ₁⟨≈⟩ρ₂))
     ≋-/H (≋-⋯ a₁≈a₂ b₁≈b₂) ρ₁⟨≈⟩ρ₂ =
       ≋-⋯ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈-/H b₁≈b₂ ρ₁⟨≈⟩ρ₂)
+    ≋-/H (≋-Π j₁≋j₂ k₁≋k₂) ρ₁⟨≈⟩ρ₂ =
+      ≋-Π (≋-/H j₁≋j₂ ρ₁⟨≈⟩ρ₂) (≋-/H k₁≋k₂ (≈-H↑ ρ₁⟨≈⟩ρ₂))
+    ≋-/H ≋-◆               ρ₁⟨≈⟩ρ₂ = ≋-◆
+    ≋-/H (≋-Σ j₁≋j₂ k₁≋k₂) ρ₁⟨≈⟩ρ₂ =
+      ≋-Σ (≋-/H j₁≋j₂ ρ₁⟨≈⟩ρ₂) (≋-/H k₁≋k₂ (≈-H↑ ρ₁⟨≈⟩ρ₂))
+
+    ≈El-/H : ∀ {k m n a₁ a₂} {ρ₁ ρ₂ : HSub k m n} →
+             a₁ ≈El a₂ → ρ₁ ⟨≈⟩ ρ₂ → a₁ Eltr/H ρ₁ ≈El a₂ Eltr/H ρ₂
+    ≈El-/H (≈-arg a₁≈a₂) ρ₁⟨≈⟩ρ₂ = ≈-arg (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂)
+    ≈El-/H ≈-π₁          ρ₁⟨≈⟩ρ₂ = ≈-π₁
+    ≈El-/H ≈-π₂          ρ₁⟨≈⟩ρ₂ = ≈-π₂
 
     ≈-/H : ∀ {k m n a₁ a₂} {ρ₁ ρ₂ : HSub k m n} →
            a₁ ≈ a₂ → ρ₁ ⟨≈⟩ ρ₂ → a₁ /H ρ₁ ≈ a₂ /H ρ₂
-    ≈-/H (≈-∙ (≈-var x) bs₁≈bs₂) (≈-hsub n a₁≈a₂) with compare n x
+    ≈-/H (≈-∙ (≈-var x)  bs₁≈bs₂) (≈-hsub n a₁≈a₂) with compare n x
     ≈-/H (≈-∙ (≈-var ._) bs₁≈bs₂) (≈-hsub n {a₁} {a₂} a₁≈a₂) | yes refl =
       ≈-∙∙⟨⟩ _ (begin
         ⌜ var (raise n zero) / sub ⌞ a₁ ⌟ ↑⋆ n ⌝   ≡⟨ helper n a₁ ⟩
@@ -538,12 +610,16 @@ module WeakHereditarySubstitutionEquality where
     ≈-/H (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) ρ₁⟨≈⟩ρ₂ =
       ≈-∙ (≈-⊡ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈-/H b₁≈b₂ ρ₁⟨≈⟩ρ₂))
           (≈Sp-/H cs₁≈cs₂ ρ₁⟨≈⟩ρ₂)
+    ≈-/H (≈-∙ ≈-⟨⟩ bs₁≈bs₂) ρ₁⟨≈⟩ρ₂ = ≈-∙ ≈-⟨⟩ (≈Sp-/H bs₁≈bs₂ ρ₁⟨≈⟩ρ₂)
+    ≈-/H (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) cs₁≈cs₂) ρ₁⟨≈⟩ρ₂ =
+      ≈-∙ (≈-, (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈-/H b₁≈b₂ ρ₁⟨≈⟩ρ₂))
+          (≈Sp-/H cs₁≈cs₂ ρ₁⟨≈⟩ρ₂)
 
     ≈Sp-/H : ∀ {k m n as₁ as₂} {ρ₁ ρ₂ : HSub k m n} →
              as₁ ≈Sp as₂ → ρ₁ ⟨≈⟩ ρ₂ → as₁ //H ρ₁ ≈Sp as₂ //H ρ₂
     ≈Sp-/H ≈-[]                ρ₁⟨≈⟩ρ₂ = ≈-[]
     ≈Sp-/H (≈-∷ a₁≈a₂ as₁≈as₂) ρ₁⟨≈⟩ρ₂ =
-      ≈-∷ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈Sp-/H as₁≈as₂ ρ₁⟨≈⟩ρ₂)
+      ≈-∷ (≈El-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈Sp-/H as₁≈as₂ ρ₁⟨≈⟩ρ₂)
 
     -- Weak equality is a congruence w.r.t reducing applications.
 
@@ -552,28 +628,62 @@ module WeakHereditarySubstitutionEquality where
     ≈-∙∙⟨⟩ k         a₁≈a₂ ≈-[]                = a₁≈a₂
     ≈-∙∙⟨⟩ ★         a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂) = ≈-∙∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)
     ≈-∙∙⟨⟩ (k₁ ⇒ k₂) a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂) =
-      ≈-∙∙⟨⟩ k₂ (≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) a₁≈a₂ b₁≈b₂) bs₁≈bs₂
+      ≈-∙∙⟨⟩ k₂ (≈-·′⟨⟩ (k₁ ⇒ k₂) a₁≈a₂ b₁≈b₂) bs₁≈bs₂
+    ≈-∙∙⟨⟩ ⋄         a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂) = ≈-∙∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)
+    ≈-∙∙⟨⟩ (k₁ ⊗ k₂) a₁≈a₂ (≈-∷ (≈-arg b₁≈b₂) bs₁≈bs₂) =
+      ≈-∙∙ a₁≈a₂ (≈-∷ (≈-arg b₁≈b₂) bs₁≈bs₂)
+    ≈-∙∙⟨⟩ (k₁ ⊗ k₂) a₁≈a₂ (≈-∷ ≈-π₁ bs₁≈bs₂)  =
+      ≈-∙∙⟨⟩ k₁ (≈-·′⟨⟩ (k₁ ⊗ k₂) a₁≈a₂ ≈-π₁) bs₁≈bs₂
+    ≈-∙∙⟨⟩ (k₁ ⊗ k₂) a₁≈a₂ (≈-∷ ≈-π₂ bs₁≈bs₂)  =
+      ≈-∙∙⟨⟩ k₂ (≈-·′⟨⟩ (k₁ ⊗ k₂) a₁≈a₂ ≈-π₂) bs₁≈bs₂
 
-    ≈-⌜·⌝⟨⟩ : ∀ k {n} {a₁ a₂ : Elim n} {b₁ b₂} →
-              a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⌜·⌝⟨ k ⟩ b₁ ≈ a₂ ⌜·⌝⟨ k ⟩ b₂
-    ≈-⌜·⌝⟨⟩ ★         a₁≈a₂                            b₁≈b₂ = ≈-⌜·⌝ a₁≈a₂ b₁≈b₂
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂))  c₁≈c₂ =
-      ≈-⌜·⌝ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) c₁≈c₂
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) c₁≈c₂ =
+    ≈-·′⟨⟩ : ∀ k {n} {a₁ a₂ : Elim n} {b₁ b₂} →
+             a₁ ≈ a₂ → b₁ ≈El b₂ → a₁ ·′⟨ k ⟩ b₁ ≈ a₂ ·′⟨ k ⟩ b₂
+    ≈-·′⟨⟩ k         (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) c₁≈c₂ =
+      ≈-·′ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) c₁≈c₂
+    ≈-·′⟨⟩ ★         (≈-∙ a₁≈a₂ ≈-[]) b₁≈b₂ = ≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ ≈-[])
+    ≈-·′⟨⟩ ⋄         (≈-∙ a₁≈a₂ ≈-[]) b₁≈b₂ = ≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) (≈-arg c₁≈c₂) =
       ≈-/H a₁≈a₂ (≈-hsub 0 c₁≈c₂)
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) ≈-[]) ≈-π₁ = a₁≈a₂
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) ≈-[]) ≈-π₂ = b₁≈b₂
     -- Degenerate cases.
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⊥ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊥ (≈-∷ c₁≈c₂ ≈-[])
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⊤ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊤ (≈-∷ c₁≈c₂ ≈-[])
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-var x) ≈-[])         c₁≈c₂ =
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⊥ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊥ (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⊤ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊤ (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-var x) ≈-[])         c₁≈c₂ =
       ≈-∙ (≈-var x) (≈-∷ c₁≈c₂ ≈-[])
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) ≈-[]) c₁≈c₂ =
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) ≈-[]) c₁≈c₂ =
       ≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) (≈-∷ c₁≈c₂ ≈-[])
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
       ≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-λ a₁≈a₂) ≈-[])       c₁≈c₂ =
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) ≈-π₁ =
+      ≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) (≈-∷ ≈-π₁ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) ≈-π₂ =
+      ≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) (≈-∷ ≈-π₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-λ a₁≈a₂) ≈-[])       c₁≈c₂ =
       ≈-∙ (≈-λ a₁≈a₂) (≈-∷ c₁≈c₂ ≈-[])
-    ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
       ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⟨⟩ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⟨⟩ (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
+      ≈-∙ (≈-, a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ ≈-⊥ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊥ (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ ≈-⊤ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊤ (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-var x) ≈-[])         c₁≈c₂ =
+      ≈-∙ (≈-var x) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) ≈-[]) c₁≈c₂ =
+      ≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
+      ≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) b₁≈b₂ =
+      ≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) (≈-∷ b₁≈b₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-λ a₁≈a₂) ≈-[])       c₁≈c₂ =
+      ≈-∙ (≈-λ a₁≈a₂) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
+      ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ ≈-⟨⟩ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⟨⟩ (≈-∷ c₁≈c₂ ≈-[])
+    ≈-·′⟨⟩ (k₁ ⊗ k₂) (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) ≈-[]) (≈-arg c₁≈c₂) =
+      ≈-∙ (≈-, a₁≈a₂ b₁≈b₂) (≈-∷ (≈-arg c₁≈c₂) ≈-[])
 
   -- A corollary.
   ≈-[∈] : ∀ {k n a₁ a₂} {b₁ b₂ : Elim n} →
@@ -583,7 +693,7 @@ module WeakHereditarySubstitutionEquality where
   -- Weak equality is a congruence w.r.t potentially reducing
   -- applications.
   ≈-↓⌜·⌝ : ∀ {n} {a₁ a₂ : Elim n} {b₁ b₂} → a₁ ≈ a₂ → b₁ ≈ b₂ →
-                  a₁ ↓⌜·⌝ b₁ ≈ a₂ ↓⌜·⌝ b₂
+           a₁ ↓⌜·⌝ b₁ ≈ a₂ ↓⌜·⌝ b₂
   ≈-↓⌜·⌝ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂))  c₁≈c₂ =
     ≈-⌜·⌝ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) c₁≈c₂
   ≈-↓⌜·⌝ {_} {_} {_} {b₁} {b₂}
@@ -594,18 +704,48 @@ module WeakHereditarySubstitutionEquality where
       a₂ [ b₂ ∈ ⌊ k₂ ⌋ ]   ∎
     where open ≈-Reasoning
   -- Degenerate cases.
-  ≈-↓⌜·⌝ (≈-∙ ≈-⊥ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊥ (≈-∷ c₁≈c₂ ≈-[])
-  ≈-↓⌜·⌝ (≈-∙ ≈-⊤ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊤ (≈-∷ c₁≈c₂ ≈-[])
-  ≈-↓⌜·⌝ (≈-∙ (≈-var x) ≈-[])         c₁≈c₂ =
-    ≈-∙ (≈-var x) (≈-∷ c₁≈c₂ ≈-[])
-  ≈-↓⌜·⌝ (≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) ≈-[]) c₁≈c₂ =
-    ≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) (≈-∷ c₁≈c₂ ≈-[])
-  ≈-↓⌜·⌝ (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
-    ≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
-  ≈-↓⌜·⌝ (≈-∙ (≈-λ a₁≈a₂) ≈-[])       c₁≈c₂ =
-    ≈-∙ (≈-λ a₁≈a₂) (≈-∷ c₁≈c₂ ≈-[])
-  ≈-↓⌜·⌝ (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ =
-    ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) (≈-∷ c₁≈c₂ ≈-[])
+  ≈-↓⌜·⌝ (≈-∙ ≈-⊥               ≈-[]) c₁≈c₂ = ≈-⌜·⌝ ≈-⊥∙ c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ ≈-⊤               ≈-[]) c₁≈c₂ = ≈-⌜·⌝ ≈-⊤∙ c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ (≈-var x)         ≈-[]) c₁≈c₂ = ≈-⌜·⌝ (≈-var∙ x) c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂) ≈-[]) c₁≈c₂ = ≈-⌜·⌝ (≈-∀∙ j₁≋j₂ a₁≈a₂) c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ = ≈-⌜·⌝ (≈-⇒∙ a₁≈a₂ b₁≈b₂) c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ (≈-λ a₁≈a₂)       ≈-[]) c₁≈c₂ = ≈-⌜·⌝ (≈-λ∙ a₁≈a₂) c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ = ≈-⌜·⌝ (≈-⊡∙ a₁≈a₂ b₁≈b₂) c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ ≈-⟨⟩              ≈-[]) c₁≈c₂ = ≈-⌜·⌝ ≈-⟨⟩∙ c₁≈c₂
+  ≈-↓⌜·⌝ (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) ≈-[]) c₁≈c₂ = ≈-⌜·⌝ (≈-,∙ a₁≈a₂ b₁≈b₂) c₁≈c₂
+
+  -- Weak equality is a congruence w.r.t potentially reducing
+  -- projections.
+
+  ≈-↓⌜π₁⌝ : ∀ {n} {a₁ a₂ : Elim n} → a₁ ≈ a₂ → ↓⌜π₁⌝ a₁ ≈ ↓⌜π₁⌝ a₂
+  ≈-↓⌜π₁⌝ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) =
+    ≈-·′ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-, a₁≈a₂ b₁≈b₂)     ≈-[]) = a₁≈a₂
+  -- Degenerate cases.
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-var x)             ≈-[]) = ≈-·′ (≈-var∙ x) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ ≈-⊥                   ≈-[]) = ≈-·′ ≈-⊥∙ ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ ≈-⊤                   ≈-[]) = ≈-·′ ≈-⊤∙ ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-∀ j₁≋j₂ a₁≈a₂)     ≈-[]) = ≈-·′ (≈-∀∙ j₁≋j₂ a₁≈a₂) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂)     ≈-[]) = ≈-·′ (≈-⇒∙ a₁≈a₂ b₁≈b₂) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) = ≈-·′ (≈-Λ∙ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-λ a₁≈a₂)           ≈-[]) = ≈-·′ (≈-λ∙ a₁≈a₂) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂)     ≈-[]) = ≈-·′ (≈-⊡∙ a₁≈a₂ b₁≈b₂) ≈-π₁
+  ≈-↓⌜π₁⌝ (≈-∙ ≈-⟨⟩                  ≈-[]) = ≈-·′ ≈-⟨⟩∙ ≈-π₁
+
+  ≈-↓⌜π₂⌝ : ∀ {n} {a₁ a₂ : Elim n} → a₁ ≈ a₂ → ↓⌜π₂⌝ a₁ ≈ ↓⌜π₂⌝ a₂
+  ≈-↓⌜π₂⌝ (≈-∙ a₂≈a₂ (≈-∷ b₂≈b₂ bs₂≈bs₂)) =
+    ≈-·′ (≈-∙ a₂≈a₂ (≈-∷ b₂≈b₂ bs₂≈bs₂)) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-, a₂≈a₂ b₂≈b₂)     ≈-[]) = b₂≈b₂
+  -- Degenerate cases.
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-var x)             ≈-[]) = ≈-·′ (≈-var∙ x) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ ≈-⊥                   ≈-[]) = ≈-·′ ≈-⊥∙ ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ ≈-⊤                   ≈-[]) = ≈-·′ ≈-⊤∙ ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-∀ j₂≋j₂ a₂≈a₂)     ≈-[]) = ≈-·′ (≈-∀∙ j₂≋j₂ a₂≈a₂) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-→ a₂≈a₂ b₂≈b₂)     ≈-[]) = ≈-·′ (≈-⇒∙ a₂≈a₂ b₂≈b₂) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-Λ ⌊k₂⌋≡⌊k₂⌋ a₂≈a₂) ≈-[]) = ≈-·′ (≈-Λ∙ ⌊k₂⌋≡⌊k₂⌋ a₂≈a₂) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-λ a₂≈a₂)           ≈-[]) = ≈-·′ (≈-λ∙ a₂≈a₂) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ (≈-⊡ a₂≈a₂ b₂≈b₂)     ≈-[]) = ≈-·′ (≈-⊡∙ a₂≈a₂ b₂≈b₂) ≈-π₂
+  ≈-↓⌜π₂⌝ (≈-∙ ≈-⟨⟩                  ≈-[]) = ≈-·′ ≈-⟨⟩∙ ≈-π₂
 
 open WeakHereditarySubstitutionEquality
 
@@ -631,8 +771,8 @@ module WeakEqEtaExpansion where
   ≈-η-exp′ : ∀ {n k j₁ j₂} {a₁ a₂ : Elim n}
              (hyp₁ : ⌊ j₁ ⌋≡ k) (hyp₂ : ⌊ j₂ ⌋≡ k) → a₁ ≈ a₂ →
              TK.η-exp j₁ hyp₁ a₁ ≈ TK.η-exp j₂ hyp₂ a₂
-  ≈-η-exp′ (is-★) (is-★) c₁≈c₂ = c₁≈c₂
-  ≈-η-exp′ (is-⇒ ⌊j₁⌋≡l₁ ⌊k₁⌋≡l₂) (is-⇒ ⌊j₂⌋≡l₁ ⌊k₂⌋≡l₂)
+  ≈-η-exp′ (at-⋯) (at-⋯) c₁≈c₂ = c₁≈c₂
+  ≈-η-exp′ (at-Π ⌊j₁⌋≡l₁ ⌊k₁⌋≡l₂) (at-Π ⌊j₂⌋≡l₁ ⌊k₂⌋≡l₂)
            (≈-∙ (≈-var x) as₁≈as₂) =
     ≈-Λ∙ ⌊j₁⌋≡⌊j₂⌋ (≈-η-exp′ ⌊k₁⌋≡l₂ ⌊k₂⌋≡l₂ x∙as₁≈x∙as₂′)
     where
@@ -640,19 +780,47 @@ module WeakEqEtaExpansion where
       x∙as₁≈x∙as₂′ =
         ≈-⌜·⌝ (≈-weakenElim (≈-∙ (≈-var x) as₁≈as₂))
               (≈-η-exp′ (⌊⌋≡-weaken ⌊j₁⌋≡l₁) (⌊⌋≡-weaken ⌊j₂⌋≡l₁) (≈-var∙ zero))
+  ≈-η-exp′ (at-◆) (at-◆) c₁≈c₂ = ≈-⟨⟩∙
+  ≈-η-exp′ (at-Σ ⌊j₁⌋≡l₁ ⌊k₁⌋≡l₂) (at-Σ ⌊j₂⌋≡l₁ ⌊k₂⌋≡l₂)
+           (≈-∙ (≈-var x) as₁≈as₂) =
+    ≈-,∙ x∙as₁₁≈x∙as₁₂′ x∙as₂₁≈x∙as₂₂′
+    where
+      x∙as₁₁≈x∙as₁₂′ =
+        ≈-η-exp′ ⌊j₁⌋≡l₁ ⌊j₂⌋≡l₁ (≈-·′ (≈-∙ (≈-var x) as₁≈as₂) ≈-π₁)
+      x∙as₂₁≈x∙as₂₂′ =
+        ≈-η-exp′ (⌊⌋≡-/H ⌊k₁⌋≡l₂) (⌊⌋≡-/H ⌊k₂⌋≡l₂)
+                 (≈-·′ (≈-∙ (≈-var x) as₁≈as₂) ≈-π₂)
   -- Degenerate cases: either ill-kinded or not neutral.
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ ≈-⊥ bs₁≈bs₂) = ≈-∙ ≈-⊥ bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ ≈-⊤ bs₁≈bs₂) = ≈-∙ ≈-⊤ bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂) =
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ ≈-⊥ bs₁≈bs₂) = ≈-∙ ≈-⊥ bs₁≈bs₂
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ ≈-⊤ bs₁≈bs₂) = ≈-∙ ≈-⊤ bs₁≈bs₂
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂) =
     ≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
     ≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂) =
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂) =
     ≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂) =
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂) =
     ≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
     ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ ≈-⟨⟩ bs₁≈bs₂) = ≈-∙ ≈-⟨⟩ bs₁≈bs₂
+  ≈-η-exp′ (at-Π _ _) (at-Π _ _) (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
+    ≈-∙ (≈-, a₁≈a₂ b₁≈b₂) cs₁≈cs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ ≈-⊥ bs₁≈bs₂) = ≈-∙ ≈-⊥ bs₁≈bs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ ≈-⊤ bs₁≈bs₂) = ≈-∙ ≈-⊤ bs₁≈bs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂) =
+    ≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
+    ≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂) =
+    ≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂) =
+    ≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
+    ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ ≈-⟨⟩ bs₁≈bs₂) = ≈-∙ ≈-⟨⟩ bs₁≈bs₂
+  ≈-η-exp′ (at-Σ _ _) (at-Σ _ _) (≈-∙ (≈-, a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
+    ≈-∙ (≈-, a₁≈a₂ b₁≈b₂) cs₁≈cs₂
 
   ≈-η-exp : ∀ {n} {j₁ j₂ : Kind Elim n} {a₁ a₂} →
             ⌊ j₁ ⌋ ≡ ⌊ j₂ ⌋ → a₁ ≈ a₂ → η-exp j₁ a₁ ≈ η-exp j₂ a₂
@@ -715,6 +883,10 @@ module WeakEqNormalization where
     ≈-nf {_} {Γ₁} {Γ₂} ⌊Γ₁⌋≡⌊Γ₂⌋ (a · b) =
       ≈-↓⌜·⌝ (≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ a) (≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ b)
     ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ (a ⊡ b) = ≈-⊡∙ (≈-refl ⌜ a ⌝) (≈-refl ⌜ b ⌝)
+    ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ (a , b) = ≈-,∙ (≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ a) (≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ b)
+    ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ ⟨⟩      = ≈-⟨⟩∙
+    ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ (π₁ a)  = ≈-↓⌜π₁⌝ (≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ a)
+    ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ (π₂ a)  = ≈-↓⌜π₂⌝ (≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ a)
 
     ≋-nfKind : ∀ {n} {Γ₁ Γ₂ : Ctx n} →
                ⌊ Γ₁ ⌋Ctx ≡ ⌊ Γ₂ ⌋Ctx → ∀ k → nfKind Γ₁ k ≋ nfKind Γ₂ k
@@ -722,3 +894,7 @@ module WeakEqNormalization where
     ≋-nfKind ⌊Γ₁⌋≡⌊Γ₂⌋ (Π j k) =
       let j≋j′ = ≋-nfKind ⌊Γ₁⌋≡⌊Γ₂⌋ j
       in ≋-Π j≋j′ (≋-nfKind (cong₂ _∷_ (cong kd (≋-⌊⌋ j≋j′)) ⌊Γ₁⌋≡⌊Γ₂⌋) k)
+    ≋-nfKind ⌊Γ₁⌋≡⌊Γ₂⌋ ◆       = ≋-◆
+    ≋-nfKind ⌊Γ₁⌋≡⌊Γ₂⌋ (Σ j k) =
+      let j≋j′ = ≋-nfKind ⌊Γ₁⌋≡⌊Γ₂⌋ j
+      in ≋-Σ j≋j′ (≋-nfKind (cong₂ _∷_ (cong kd (≋-⌊⌋ j≋j′)) ⌊Γ₁⌋≡⌊Γ₂⌋) k)
