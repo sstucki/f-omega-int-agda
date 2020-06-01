@@ -11,7 +11,6 @@ open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 import Data.Fin.Substitution.Context as Context
 open import Data.Fin.Substitution.Context.Properties
-open import Data.Star using (Star; ε; _◅_)
 open import Data.Nat using (ℕ; suc; zero)
 open import Data.Product using (proj₂)
 open import Data.Vec as Vec using ([]; _∷_)
@@ -19,6 +18,7 @@ open import Data.List as List using (List; []; _∷_; foldl; map; _++_; _∷ʳ_)
 open import Data.List.Properties using (++-monoid)
 import Data.Maybe as Maybe
 open import Function using (_∘_)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive using (ε; _◅_)
 open import Relation.Binary.PropositionalEquality as P hiding ([_])
 open P.≡-Reasoning
 
@@ -955,7 +955,7 @@ module Substitution where
     ; /✶-↑✶     = Lemmas./✶-↑✶
     }
 
-  open TermLemmas termLemmas public hiding (var; termSubst)
+  open TermLemmas termLemmas public hiding (var; termSubst; weaken-sub)
   open SubstApp (TermSubst.termLift termSubst) public using
     ( _Head/_; _//_
     ; ++-//; ∙∙-/; ⌜·⌝-/; ⌜⌝-/; ⌜⌝Kd-/; ⌞⌟-/; ⌞⌟Kd-/; ⌊⌋-Kind/; ⌊⌋-Kind′/

@@ -14,12 +14,12 @@ open import Data.Fin.Substitution.Typed
 open import Data.Maybe using (just; nothing)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.List using ([]; _∷_; _∷ʳ_)
-open import Data.List.All using (All; []; _∷_)
-open import Data.Star using (ε)
+open import Data.List.Relation.Unary.All using (All; []; _∷_)
 open import Data.Unit using (tt)
 open import Data.Vec as Vec using ([]; _∷_)
 import Data.Vec.Properties as VecProps
 open import Function using (_∘_; flip)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive using (ε)
 open import Relation.Binary.PropositionalEquality as P hiding ([_])
 
 open import FOmegaInt.Reduction.Full
@@ -160,15 +160,12 @@ module TrackSimpleKindsEtaExp where
   η-exp (Π j₁ j₂) (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) (a ∙ bs) = a ∙ bs
 
   -- η-expansion is sound (w.r.t. βη-reduction)
-  --
-  -- FIXME: remove superfluous parentheses once agda-stdlib issue #814
-  -- has been fixed.
   η-exp-βη : ∀ {n j k} (hyp : ⌊ j ⌋≡ k) (a : Elim n) →
              ⌞ a ⌟ →βη* ⌞ η-exp j hyp a ⌟
   η-exp-βη is-★                             _            = ε
   η-exp-βη (is-⇒ {j₁} {j₂} ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) (var x ∙ as) = begin
       ⌞ var x ∙ as ⌟
-    ⟶⟨ ⌈ exp-ne ⌞ j₁ ⌟Kd x ⌞ as ⌟Sp ⌉ ⟩ (
+    ⟶⟨ ⌈ exp-ne ⌞ j₁ ⌟Kd x ⌞ as ⌟Sp ⌉ ⟩
       Λ _ ((weaken ⌞ var x ∙ as ⌟) · var zero)
     ≡⟨ cong (λ a → Λ _ (a · var zero)) (sym (⌞⌟-/Var (var x ∙ as)) )  ⟩
       Λ _ (⌞ weakenElim (var x ∙ as) ⌟ · var zero)
@@ -180,7 +177,7 @@ module TrackSimpleKindsEtaExp where
              η-exp (weakenKind′ _) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero) ⌟
     ⟶⋆⟨ →βη*-Λ ε (η-exp-βη ⌊j₂⌋≡k₂ _) ⟩
       Λ _ ⌞ η-exp _ ⌊j₂⌋≡k₂ _ ⌟
-    ∎)
+    ∎
     where open →βη*-Reasoning
   -- Degenerate cases.
   η-exp-βη (is-⇒ _ _) (⊥       ∙ _) = ε

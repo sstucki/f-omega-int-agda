@@ -6,8 +6,9 @@ module FOmegaInt.Reduction.Cbv where
 
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Star using (map; gmap)
-import Relation.Binary.EquivalenceClosure as EqClos
+import Relation.Binary.Construct.Closure.Equivalence as EqClos
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive
+  using (map; gmap)
 import Relation.Binary.PropositionalEquality as PropEq
 open import Relation.Binary.Reduction
 

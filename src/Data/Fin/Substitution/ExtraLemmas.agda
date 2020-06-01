@@ -8,12 +8,13 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Star using (Star; ε; _◅_; _▻_)
 open import Data.Vec using (Vec; _∷_; lookup; map)
-open import Data.Vec.All hiding (lookup; map)
 open import Data.Vec.Properties using (map-cong; map-∘; lookup-map)
+open import Data.Vec.Relation.Unary.All hiding (lookup; map)
 open import Function using (_∘_; _$_; flip)
 open import Level using (_⊔_)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive
+  using (Star; ε; _◅_; _▻_)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (subst)
 open PropEq.≡-Reasoning
 open import Relation.Unary using (Pred)

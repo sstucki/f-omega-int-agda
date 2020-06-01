@@ -326,15 +326,15 @@ mutual
                   nf-Γ₂ E[ nf nf-Γ₁ a ∈ ⌊ k ⌋ ] ′++ nf-Γ₁
   nfCtx-[]             []                    Γ-ctx            a∈k = ≈Ctx-refl _
   nfCtx-[] {_} {suc n} (a ∷ Γ₂) {Γ₁} {b} {k} (a-wf D.∷ Γ-ctx) b∈k =
-    ≈-∷ (≈Asc-begin
+    ≈-∷ (Asc.begin
         nfAsc (nfCtx (Γ₂ E′/ sub b ′++ Γ₁)) (a TermAsc/ sub b ↑⋆ n)
-      ≈Asc⟨ nfAsc-[] Γ₂ a-wf b∈k ⟩
+      Asc.≈⟨ nfAsc-[] Γ₂ a-wf b∈k ⟩
         nfAsc (nfCtx (Γ₂ ′++ kd k ∷ Γ₁)) a Asc/H n ← nf nf-Γ₁ b ∈ ⌊ k ⌋
-      ≡Asc⟨ cong (λ Δ → nfAsc Δ a Asc/H n ← nf nf-Γ₁ b ∈ ⌊ k ⌋)
+      Asc.≡⟨ cong (λ Δ → nfAsc Δ a Asc/H n ← nf nf-Γ₁ b ∈ ⌊ k ⌋)
               (nf-++ Γ₂ (kd k ∷ Γ₁)) ⟩
         nfAsc (nfCtxExt (kd nf-k ∷ nf-Γ₁) Γ₂ ′++ kd nf-k ∷ nf-Γ₁) a Asc/H
               n ← nf nf-Γ₁ b ∈ ⌊ k ⌋
-      ∎Asc) (nfCtx-[] Γ₂ Γ-ctx b∈k)
+      Asc.∎) (nfCtx-[] Γ₂ Γ-ctx b∈k)
     where
       nf-Γ₁ = nfCtx Γ₁
       nf-k  = nfKind nf-Γ₁ k

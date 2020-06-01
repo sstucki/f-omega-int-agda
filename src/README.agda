@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------
 
 -- Author: Sandro Stucki
--- Copyright (c) 2017, 2018, 2019 EPFL
+-- Copyright (c) 2017-2020 EPFL
 
 -- The code in this repository contains an Agda mechanization of the
 -- type system Fω extended with interval kinds ("F omega int").  An
@@ -26,12 +26,17 @@
 --  * subject reduction for types (w.r.t. full β-reduction),
 --  * type safety (progress & preservation) w.r.t. to the CBV semantics.
 --
+-- For more details on Fω with interval kinds, see my PhD thesis
+-- "Higher-Order Subtyping with Type Intervals", which is available at
+--
+--   http://dx.doi.org/10.5075/epfl-thesis-8014
+--
 -- The code makes heavy use of the Agda standard library, which is
--- freely available from
+-- freely available at
 --
 --   https://github.com/agda/agda-stdlib/
 --
--- The code has been tested using Agda 2.6.0.1 and version 1.0.1 of
+-- The code has been tested using Agda 2.6.1 and version 1.3 of
 -- the Agda standard library.
 
 module README where

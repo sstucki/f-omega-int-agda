@@ -12,7 +12,7 @@ open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.List using ([]; _∷_; _++_)
 open import Data.Vec as Vec using ([])
 open import Relation.Binary using (IsEquivalence; Setoid)
-import Relation.Binary.EqReasoning as EqReasoning
+import Relation.Binary.Reasoning.Setoid as SetoidReasoning
 open import Relation.Binary.PropositionalEquality as P
 
 open import FOmegaInt.Syntax
@@ -27,7 +27,7 @@ open import FOmegaInt.Syntax.Normalization
 -- types in elimination form up to type/kind ascriptions in
 -- abstractions (lambdas).
 --
--- TODO: explain what's the point of this.
+-- TODO: explain the point of weak equality.
 
 open Syntax
 
@@ -336,37 +336,56 @@ mutual
 
 -- Equational reasoning for weak equality.
 module ≈-Reasoning {n : ℕ} where
-  open EqReasoning (≈-setoid n) public
-  open EqReasoning (≋-setoid n) public using () renaming
+  open SetoidReasoning (≈-setoid n) public
+  module Kd = SetoidReasoning (≋-setoid n)
+  module Hd = SetoidReasoning (≈Hd-setoid n)
+  module Sp = SetoidReasoning (≈Sp-setoid n)
+  module Asc = SetoidReasoning (≈Asc-setoid n)
+  module Ctx = SetoidReasoning (≈Ctx-setoid n)
+  {--
+  open SetoidReasoning (≋-setoid n) public using () renaming
     ( begin_  to ≋-begin_
-    ; _≈⟨_⟩_  to _≋⟨_⟩_
-    ; _≡⟨_⟩_  to _≡Kd⟨_⟩_
+    ; step-≈  to step-≋
+    ; step-≡  to step-≡Kd
     ; _∎      to _∎Kd
     )
-  open EqReasoning (≈Hd-setoid n) public using () renaming
+  open SetoidReasoning (≈Hd-setoid n) public using () renaming
     ( begin_  to ≈Hd-begin_
-    ; _≈⟨_⟩_  to _≈Hd⟨_⟩_
-    ; _≡⟨_⟩_  to _≡Hd⟨_⟩_
+    ; step-≈  to step-≈Hd
+    ; step-≡  to step-≡Hd
     ; _∎      to _∎Hd
     )
-  open EqReasoning (≈Sp-setoid n) public using () renaming
+  open SetoidReasoning (≈Sp-setoid n) public using () renaming
     ( begin_  to ≈Sp-begin_
-    ; _≈⟨_⟩_  to _≈Sp⟨_⟩_
-    ; _≡⟨_⟩_  to _≡Sp⟨_⟩_
+    ; step-≈  to step-≈Sp
+    ; step-≡  to step-≡Sp
     ; _∎      to _∎Sp
     )
-  open EqReasoning (≈Asc-setoid n) public using () renaming
+  open SetoidReasoning (≈Asc-setoid n) public using () renaming
     ( begin_  to ≈Asc-begin_
-    ; _≈⟨_⟩_  to _≈Asc⟨_⟩_
-    ; _≡⟨_⟩_  to _≡Asc⟨_⟩_
+    ; step-≈  to step-≈Asc
+    ; step-≡  to step-≡Asc
     ; _∎      to _∎Asc
     )
-  open EqReasoning (≈Ctx-setoid n) public using () renaming
+  open SetoidReasoning (≈Ctx-setoid n) public using () renaming
     ( begin_  to ≈Ctx-begin_
-    ; _≈⟨_⟩_  to _≈Ctx⟨_⟩_
-    ; _≡⟨_⟩_  to _≡Ctx⟨_⟩_
+    ; step-≈  to step-≈Ctx
+    ; step-≡  to step-≡Ctx
     ; _∎      to _∎Ctx
     )
+  infixr 2 step-≋ step-≡Kd step-≈Hd step-≡Hd step-≈Sp step-≡Sp
+  infixr 2 step-≈Asc step-≡Asc step-≈Ctx step-≡Ctx
+  syntax step-≋ x y≈z x≈y = x ≋⟨ x≈y ⟩ y≈z
+  syntax step-≡Kd x y≡z x≡y = x ≡Kd⟨ x≡y ⟩ y≡z
+  syntax step-≈Hd x y≈z x≈y = x ≈Hd⟨ x≈y ⟩ y≈z
+  syntax step-≡Hd x y≡z x≡y = x ≡Hd⟨ x≡y ⟩ y≡z
+  syntax step-≈Sp x y≈z x≈y = x ≈Sp⟨ x≈y ⟩ y≈z
+  syntax step-≡Sp x y≡z x≡y = x ≡Sp⟨ x≡y ⟩ y≡z
+  syntax step-≈Asc x y≈z x≈y = x ≈Asc⟨ x≈y ⟩ y≈z
+  syntax step-≡Asc x y≡z x≡y = x ≡Asc⟨ x≡y ⟩ y≡z
+  syntax step-≈Ctx x y≈z x≈y = x ≈Ctx⟨ x≈y ⟩ y≈z
+  syntax step-≡Ctx x y≡z x≡y = x ≡Ctx⟨ x≡y ⟩ y≡z
+  --}
 
 ------------------------------------------------------------------------
 -- Substitution lemmas for weak equality.

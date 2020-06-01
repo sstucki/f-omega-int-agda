@@ -8,14 +8,15 @@ open import Data.Fin using (suc; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.List using ([]; _∷_)
-open import Data.Star using (ε; _◅_; gmap)
 open import Data.Sum using ([_,_])
 open import Data.Product using (_,_; ∃; _×_)
 open import Function using (flip; _∘_)
 open import Relation.Binary using (Setoid; Preorder)
-import Relation.Binary.EquivalenceClosure as EqClos
+import Relation.Binary.Construct.Closure.Equivalence as EqClos
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive
+  using (ε; _◅_; gmap)
+import Relation.Binary.Construct.Closure.Symmetric as SymClos
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
-import Relation.Binary.SymmetricClosure as SymClos
 open import Relation.Binary.Reduction
 import Function.Equivalence as Equiv
 

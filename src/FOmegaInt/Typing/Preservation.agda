@@ -30,7 +30,7 @@
 module FOmegaInt.Typing.Preservation where
 
 open import Data.Product using (_,_)
-open import Data.Star using (ε; _◅_)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive using (ε; _◅_)
 open import Relation.Binary.PropositionalEquality using (subst)
 open import Relation.Nullary.Negation using (contradiction)
 

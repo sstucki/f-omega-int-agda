@@ -10,9 +10,9 @@ open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; zero; suc; _+_)
 import Data.Nat.Properties as NatProp
 open import Data.Unit using (⊤; tt)
-open import Data.Vec     as Vec using (Vec; []; _∷_)
-open import Data.Vec.All as All using (All; []; _∷_)
-open import Data.Vec.All.Properties using (gmap)
+open import Data.Vec as Vec using (Vec; []; _∷_)
+open import Data.Vec.Relation.Unary.All as All using (All; []; _∷_)
+open import Data.Vec.Relation.Unary.All.Properties using (gmap)
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning

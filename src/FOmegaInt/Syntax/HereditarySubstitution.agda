@@ -12,13 +12,13 @@ open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (∃; _,_; _×_)
-open import Data.Star using (ε)
 import Data.Vec as Vec
 import Data.Vec.Properties as VecProp
 open import Data.List using ([]; _∷_; _++_)
 open import Function using (_∘_)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive using (ε)
 open import Relation.Binary.PropositionalEquality as P hiding ([_])
-open import Relation.Nullary
+open import Relation.Nullary using (¬_)
 open import Relation.Nullary.Negation
 
 open import FOmegaInt.Reduction.Full
@@ -986,21 +986,12 @@ module _ where
 
 module _ where
   open →β*-Reasoning
-  open Kd→β*-Reasoning renaming
-    ( begin_  to beginKd_
-    ; _∎      to _∎Kd
-    ; _⟶⟨_⟩_  to _Kd→⟨_⟩_
-    ; _⟶⋆⟨_⟩_ to _Kd→*⟨_⟩_
-    ; _≡⟨_⟩_  to _Kd≡⟨_⟩_
-    )
+  private module Kd = Kd→β*-Reasoning
   open Substitution hiding (subst)
 
   mutual
 
     -- Hereditary substitution commutes with ⌞_⌟ up to β-reduction.
-    --
-    -- FIXME: remove superfluous parentheses once agda-stdlib issue
-    -- #814 has been fixed.
 
     ⌞⌟-[]-β : ∀ {m} n a k (b : Elim (n + suc m)) →
               ⌞ b ⌟ / sub ⌞ a ⌟ ↑⋆ n  →β*  ⌞ b /H n ← a ∈ k ⌟
@@ -1027,43 +1018,43 @@ module _ where
     ⌞⌟-[]-β n a k (⊥ ∙ bs) = ⌞∙⌟-[]-β n a k ⊥ ⊥ bs ε
     ⌞⌟-[]-β n a k (⊤ ∙ bs) = ⌞∙⌟-[]-β n a k ⊤ ⊤ bs ε
     ⌞⌟-[]-β n a k (Π j b ∙ bs) = ⌞∙⌟-[]-β n a k _ _ bs (begin
-        (⌞ Π j b ⌟Hd / sub ⌞ a ⌟ ↑⋆ n)
+        ⌞ Π j b ⌟Hd / sub ⌞ a ⌟ ↑⋆ n
       ⟶⋆⟨ →β*-Π (⌞⌟Kd-[]-β n a k j) (⌞⌟-[]-β (suc n) a k b) ⟩
         Π ⌞ j Kind/H n ← a ∈ k ⌟Kd ⌞ b /H suc n ← a ∈ k ⌟
       ∎)
     ⌞⌟-[]-β n a k ((b ⇒ c) ∙ bs) = ⌞∙⌟-[]-β n a k _ _ bs (begin
-        (⌞ b ⇒ c ⌟Hd / sub ⌞ a ⌟ ↑⋆ n)
+        ⌞ b ⇒ c ⌟Hd / sub ⌞ a ⌟ ↑⋆ n
       ⟶⋆⟨ →β*-⇒ (⌞⌟-[]-β n a k b) (⌞⌟-[]-β n a k c) ⟩
         ⌞ b /H n ← a ∈ k ⌟ ⇒ ⌞ c /H n ← a ∈ k ⌟
       ∎)
     ⌞⌟-[]-β n a k (Λ j b ∙ bs) = ⌞∙⌟-[]-β n a k _ _ bs (begin
-        (⌞ Λ j b ⌟Hd / sub ⌞ a ⌟ ↑⋆ n)
+        ⌞ Λ j b ⌟Hd / sub ⌞ a ⌟ ↑⋆ n
       ⟶⋆⟨ →β*-Λ (⌞⌟Kd-[]-β n a k j) (⌞⌟-[]-β (suc n) a k b) ⟩
         Λ ⌞ j Kind/H n ← a ∈ k ⌟Kd ⌞ b /H suc n ← a ∈ k ⌟
       ∎)
     ⌞⌟-[]-β n a k (ƛ c b ∙ bs) = ⌞∙⌟-[]-β n a k _ _ bs (begin
-        (⌞ ƛ c b ⌟Hd / sub ⌞ a ⌟ ↑⋆ n)
+        ⌞ ƛ c b ⌟Hd / sub ⌞ a ⌟ ↑⋆ n
       ⟶⋆⟨ →β*-ƛ (⌞⌟-[]-β n a k c) (⌞⌟-[]-β (suc n) a k b) ⟩
         ƛ ⌞ c /H n ← a ∈ k ⌟ ⌞ b /H suc n ← a ∈ k ⌟
       ∎)
     ⌞⌟-[]-β n a k (b ⊡ c ∙ bs) = ⌞∙⌟-[]-β n a k _ _ bs (begin
-        (⌞ b ⊡ c ⌟Hd / sub ⌞ a ⌟ ↑⋆ n)
+        ⌞ b ⊡ c ⌟Hd / sub ⌞ a ⌟ ↑⋆ n
       ⟶⋆⟨ →β*-⊡ (⌞⌟-[]-β n a k b) (⌞⌟-[]-β n a k c) ⟩
         ⌞ b /H n ← a ∈ k ⌟ ⊡ ⌞ c /H n ← a ∈ k ⌟
       ∎)
 
     ⌞⌟Kd-[]-β : ∀ {m} n a k (j : Kind Elim (n + suc m)) →
                 ⌞ j ⌟Kd Kind/ sub ⌞ a ⌟ ↑⋆ n  Kd→β*  ⌞ j Kind/H n ← a ∈ k ⌟Kd
-    ⌞⌟Kd-[]-β n a k (b ⋯ c) = beginKd
+    ⌞⌟Kd-[]-β n a k (b ⋯ c) = Kd.begin
         (⌞ b ⋯ c ⌟Kd Kind/ sub ⌞ a ⌟ ↑⋆ n)
-      Kd→*⟨ Kd→β*-⋯ (⌞⌟-[]-β n a k b) (⌞⌟-[]-β n a k c) ⟩
+      Kd.⟶⋆⟨ Kd→β*-⋯ (⌞⌟-[]-β n a k b) (⌞⌟-[]-β n a k c) ⟩
         ⌞ b /H n ← a ∈ k ⌟ ⋯ ⌞ c /H n ← a ∈ k ⌟
-      ∎Kd
-    ⌞⌟Kd-[]-β n a k (Π j l) = beginKd
+      Kd.∎
+    ⌞⌟Kd-[]-β n a k (Π j l) = Kd.begin
         (⌞ Π j l ⌟Kd Kind/ sub ⌞ a ⌟ ↑⋆ n)
-      Kd→*⟨ Kd→β*-Π (⌞⌟Kd-[]-β n a k j) (⌞⌟Kd-[]-β (suc n) a k l) ⟩
+      Kd.⟶⋆⟨ Kd→β*-Π (⌞⌟Kd-[]-β n a k j) (⌞⌟Kd-[]-β (suc n) a k l) ⟩
         Π ⌞ j Kind/H n ← a ∈ k ⌟Kd ⌞ l Kind/H (suc n) ← a ∈ k ⌟Kd
-      ∎Kd
+      Kd.∎
 
     ⌞∙⌟-[]-β : ∀ {m} n a k b₁ b₂ (bs : Spine (n + suc m)) →
                b₂ / sub ⌞ a ⌟ ↑⋆ n →β* b₁ →
@@ -1103,15 +1094,12 @@ module _ where
     ⌞⌟-⌜·⌝-β ((a ⇒ b) ∙ []) (j ⇒ k) c = ε
     ⌞⌟-⌜·⌝-β (Λ l a ∙ []) (j ⇒ k) b = begin
       Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
-      (⌞ a ⌟ [ ⌞ b ⌟ ]           ⟶⋆⟨ ⌞⌟-[]-β 0 b j a ⟩
-      ⌞ a /H 0 ← b ∈ j ⌟         ∎)
+      ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-[]-β 0 b j a ⟩
+      ⌞ a /H 0 ← b ∈ j ⌟         ∎
     ⌞⌟-⌜·⌝-β (ƛ a b   ∙ []) (j ⇒ k) c = ε
     ⌞⌟-⌜·⌝-β (a ⊡ b   ∙ []) (j ⇒ k) c = ε
 
   -- Potentially reducing applications commute with ⌞_⌟ up to β-reduction.
-  --
-  -- FIXME: remove superfluous parentheses once agda-stdlib issue #814
-  -- has been fixed.
   ⌞⌟-↓⌜·⌝-β : ∀ {n} (a : Elim n) b → ⌞ a ⌟ · ⌞ b ⌟ →β* ⌞ a ↓⌜·⌝ b ⌟
   ⌞⌟-↓⌜·⌝-β (a ∙ (c ∷ cs)) b = begin
     ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡⟨ sym (⌞⌟-· (a ∙ (c ∷ cs)) b) ⟩
@@ -1123,7 +1111,7 @@ module _ where
   ⌞⌟-↓⌜·⌝-β ((a ⇒ b) ∙ []) c = ε
   ⌞⌟-↓⌜·⌝-β (Λ l a ∙ []) b = begin
     Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
-    (⌞ a ⌟ [ ⌞ b ⌟ ]           ⟶⋆⟨ ⌞⌟-[]-β 0 b ⌊ l ⌋ a ⟩
-    ⌞ a /H 0 ← b ∈ ⌊ l ⌋ ⌟     ∎)
+    ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-[]-β 0 b ⌊ l ⌋ a ⟩
+    ⌞ a /H 0 ← b ∈ ⌊ l ⌋ ⌟     ∎
   ⌞⌟-↓⌜·⌝-β (ƛ a b   ∙ []) c = ε
   ⌞⌟-↓⌜·⌝-β (a ⊡ b   ∙ []) c = ε

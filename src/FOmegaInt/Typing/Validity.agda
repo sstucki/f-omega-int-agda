@@ -10,9 +10,9 @@ open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Product as Prod using (∃; _,_; _×_; proj₁; proj₂)
 open import Data.Vec as Vec using ([]; _∷_)
-import Data.Vec.Relation.Pointwise.Inductive as Pointwise
-open import Data.Star using (ε; _◅_)
+import Data.Vec.Relation.Binary.Pointwise.Inductive as Pointwise
 open import Function using (_∘_)
+open import Relation.Binary.Construct.Closure.ReflexiveTransitive using (ε; _◅_)
 open import Relation.Binary.PropositionalEquality hiding ([_])
 open import Relation.Binary.TransReasoning
 open import Relation.Nullary using (¬_)

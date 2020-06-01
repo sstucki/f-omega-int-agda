@@ -1,4 +1,4 @@
-f-omega-int-agda -- Fω with interval kinds mechanized in Agda
+f-omega-int-agda – Fω with interval kinds mechanized in Agda
 =============================================================
 
 A mechanized type safety proof for Fω extended with interval kinds.
@@ -23,7 +23,7 @@ The Agda mechanization
 
 The file `src/README.agda` contains a more detailed overview of the formalization.
 
-The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes heavy use of the [Agda standard library](https://github.com/agda/agda-stdlib).  The code in this repository has been type-checked using Agda 2.5.3 and version 0.14 of the Agda standard library.  The latest versions of the Agda distribution and standard library, along with setup instructions, can be found at
+The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes heavy use of the [Agda standard library](https://github.com/agda/agda-stdlib).  The code in this repository has been type-checked using Agda 2.6.1 and version 1.3 of the Agda standard library.  The latest versions of the Agda distribution and standard library, along with setup instructions, can be found at
 
  * https://github.com/agda/agda
  * https://github.com/agda/agda-stdlib
@@ -50,4 +50,4 @@ The source code is released under the MIT License.  See the `LICENSE` file for d
 
 
 ------------------------------------------------------------------------
-Sandro Stucki -- Copyright (c) 2017, 2018, 2019 EPFL
+Sandro Stucki — Copyright (c) 2017–2020 EPFL

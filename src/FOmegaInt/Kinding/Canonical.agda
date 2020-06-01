@@ -11,12 +11,12 @@ open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Context.Properties
 open import Data.Fin.Substitution.Typed
 open import Data.List using ([]; _∷_; _∷ʳ_; map)
-open import Data.List.All using (All; []; _∷_)
+open import Data.List.Relation.Unary.All using (All; []; _∷_)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (∃; _,_; _×_)
 open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.Vec.All as VecAll using ([]; _∷_)
-open import Data.Vec.Relation.Pointwise.Inductive as Pointwise
+open import Data.Vec.Relation.Unary.All as VecAll using ([]; _∷_)
+open import Data.Vec.Relation.Binary.Pointwise.Inductive as Pointwise
   using (Pointwise; []; _∷_; map⁺)
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality

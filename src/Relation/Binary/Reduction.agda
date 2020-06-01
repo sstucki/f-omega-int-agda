@@ -16,7 +16,7 @@ import Relation.Binary.Construct.Closure.ReflexiveTransitive.Properties
   as StarProp
 open import Relation.Binary.Construct.Closure.Symmetric using (fwd)
 import Relation.Binary.PropositionalEquality as PropEq
-import Relation.Binary.EqReasoning as EqReasoning
+import Relation.Binary.Reasoning.Setoid as SetoidReasoning
 
 
 -- Binary relations over abstract terms (i.e. ℕ-indexed sets).
@@ -75,7 +75,7 @@ module _ {T} (reduction : Reduction T) where
 
   -- Equational reasoning for ↔-equivalence.
   module ↔-Reasoning {n : ℕ} where
-    open EqReasoning (↔-setoid n) public
+    open SetoidReasoning (↔-setoid n) public
     open Setoid (↔-setoid n) using (sym)
 
     infixr 2 _→⟨_⟩_ _←⟨_⟩_ _→*⟨_⟩_ _←*⟨_⟩_

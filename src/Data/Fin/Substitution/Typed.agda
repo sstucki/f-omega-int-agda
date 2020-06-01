@@ -14,10 +14,10 @@ open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.Vec.All as All using (All; []; _∷_)
 open import Data.Vec.Properties using (map-cong; map-id; map-∘; lookup-map)
-open import Data.Vec.Relation.Pointwise.Inductive as PW
+open import Data.Vec.Relation.Binary.Pointwise.Inductive as PW
   using (Pointwise; []; _∷_; map; map⁺)
+open import Data.Vec.Relation.Unary.All as All using (All; []; _∷_)
 open import Function as Fun using (_∘_; flip)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (trans)
 open PropEq.≡-Reasoning
