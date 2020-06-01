@@ -30,7 +30,7 @@ The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes
 
 The easiest way to check all the code is to compile the `README.agda` file from the `src/` directory.  Run
 
-    agda src/README.agda -i src -i <path-to-Agda-standard-library>/src
+    agda src/README.agda
 
 in the console, or simply open the file using the [Agda Emacs mode](https://github.com/agda/agda#configuring-the-emacs-mode) and type `C-c C-l`.
 

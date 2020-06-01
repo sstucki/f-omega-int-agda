@@ -1,0 +1,3 @@
+name: f-omega-int -- F-omega with interval kinds mechanized in Agda
+depend: standard-library
+include: src/
