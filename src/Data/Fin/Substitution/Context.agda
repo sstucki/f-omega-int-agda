@@ -2,6 +2,8 @@
 -- Abstract typing contexts
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe --without-K #-}
+
 module Data.Fin.Substitution.Context where
 
 open import Data.Fin using (Fin)

@@ -2,6 +2,8 @@
 -- Full β-reduction in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Reduction.Full where
 
 open import Data.Fin using (suc; zero)

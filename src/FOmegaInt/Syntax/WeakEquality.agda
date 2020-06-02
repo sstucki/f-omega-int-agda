@@ -16,6 +16,7 @@ import Relation.Binary.Reasoning.Setoid as SetoidReasoning
 open import Relation.Binary.PropositionalEquality as P
 
 open import FOmegaInt.Syntax
+open import FOmegaInt.Syntax.SingleVariableSubstitution
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 
@@ -31,7 +32,7 @@ open import FOmegaInt.Syntax.Normalization
 
 open Syntax
 
-infix 4 _≋_ _≈_ _≈Hd_ _≈Sp_ _≈Asc_ _≈Ctx_
+infix 4 _≋_ _≈_ _≈Hd_ _≈Sp_ _≈Asc_ _≈Ctx_ _⟨≈⟩_ _≈?_
 
 mutual
 
@@ -66,6 +67,16 @@ data _≈Ctx_ : ∀ {n} → Ctx n → Ctx n → Set where
   ≈-[] : [] ≈Ctx []
   ≈-∷  : ∀ {n a₁ a₂} {Γ₁ Γ₂ : Ctx n} →
          a₁ ≈Asc a₂ → Γ₁ ≈Ctx Γ₂ → a₁ ∷ Γ₁ ≈Ctx a₂ ∷ Γ₂
+
+-- Weak equality of single-variable substations and results.
+
+data _⟨≈⟩_ : ∀ {m n} → SVSub m n → SVSub m n → Set where
+  ≈-sub : ∀ {n}   {a b : Elim n}    →  a ≈ b  → sub a ⟨≈⟩ sub b
+  ≈-↑   : ∀ {m n} {σ τ : SVSub m n} → σ ⟨≈⟩ τ →   σ ↑ ⟨≈⟩ τ ↑
+
+data _≈?_ {n} : SVRes n → SVRes n → Set where
+  ≈-hit  : ∀ {a b : Elim n} → a ≈ b →  hit a ≈? hit b
+  ≈-miss : ∀ (x : Fin n)            → miss x ≈? miss x
 
 -- Shorthands.
 
@@ -342,50 +353,7 @@ module ≈-Reasoning {n : ℕ} where
   module Sp = SetoidReasoning (≈Sp-setoid n)
   module Asc = SetoidReasoning (≈Asc-setoid n)
   module Ctx = SetoidReasoning (≈Ctx-setoid n)
-  {--
-  open SetoidReasoning (≋-setoid n) public using () renaming
-    ( begin_  to ≋-begin_
-    ; step-≈  to step-≋
-    ; step-≡  to step-≡Kd
-    ; _∎      to _∎Kd
-    )
-  open SetoidReasoning (≈Hd-setoid n) public using () renaming
-    ( begin_  to ≈Hd-begin_
-    ; step-≈  to step-≈Hd
-    ; step-≡  to step-≡Hd
-    ; _∎      to _∎Hd
-    )
-  open SetoidReasoning (≈Sp-setoid n) public using () renaming
-    ( begin_  to ≈Sp-begin_
-    ; step-≈  to step-≈Sp
-    ; step-≡  to step-≡Sp
-    ; _∎      to _∎Sp
-    )
-  open SetoidReasoning (≈Asc-setoid n) public using () renaming
-    ( begin_  to ≈Asc-begin_
-    ; step-≈  to step-≈Asc
-    ; step-≡  to step-≡Asc
-    ; _∎      to _∎Asc
-    )
-  open SetoidReasoning (≈Ctx-setoid n) public using () renaming
-    ( begin_  to ≈Ctx-begin_
-    ; step-≈  to step-≈Ctx
-    ; step-≡  to step-≡Ctx
-    ; _∎      to _∎Ctx
-    )
-  infixr 2 step-≋ step-≡Kd step-≈Hd step-≡Hd step-≈Sp step-≡Sp
-  infixr 2 step-≈Asc step-≡Asc step-≈Ctx step-≡Ctx
-  syntax step-≋ x y≈z x≈y = x ≋⟨ x≈y ⟩ y≈z
-  syntax step-≡Kd x y≡z x≡y = x ≡Kd⟨ x≡y ⟩ y≡z
-  syntax step-≈Hd x y≈z x≈y = x ≈Hd⟨ x≈y ⟩ y≈z
-  syntax step-≡Hd x y≡z x≡y = x ≡Hd⟨ x≡y ⟩ y≡z
-  syntax step-≈Sp x y≈z x≈y = x ≈Sp⟨ x≈y ⟩ y≈z
-  syntax step-≡Sp x y≡z x≡y = x ≡Sp⟨ x≡y ⟩ y≡z
-  syntax step-≈Asc x y≈z x≈y = x ≈Asc⟨ x≈y ⟩ y≈z
-  syntax step-≡Asc x y≡z x≡y = x ≡Asc⟨ x≡y ⟩ y≡z
-  syntax step-≈Ctx x y≈z x≈y = x ≈Ctx⟨ x≈y ⟩ y≈z
-  syntax step-≡Ctx x y≡z x≡y = x ≡Ctx⟨ x≡y ⟩ y≡z
-  --}
+
 
 ------------------------------------------------------------------------
 -- Substitution lemmas for weak equality.
@@ -399,63 +367,82 @@ module ≈-Reasoning {n : ℕ} where
 --                                ≈
 --                           a ------→ b
 --                           |         |
---                       -/σ |         | -/σ
+--                       -/ρ |         | -/ρ
 --                           ↓    ≈    ↓
---                          a/σ ····→ b/σ
+--                          a/ρ ····→ b/ρ
 --
--- where σ is a renaming.
+-- where ρ is a renaming.
 module Renaming where
-  open Substitution hiding (_↑; wk)
-  open VarSubst     hiding (var)
+  open Substitution
+  module V = VarSubst
 
   mutual
 
     -- Renamings preserve weak equality.
 
     ≋-/Var : ∀ {m n k₁ k₂} →
-             k₁ ≋ k₂ → (σ : Sub Fin m n) → k₁ Kind′/Var σ ≋ k₂ Kind′/Var σ
-    ≋-/Var (≋-Π j₁≋j₂ k₁≋k₂) σ =
-      ≋-Π (≋-/Var j₁≋j₂ σ) (≋-/Var k₁≋k₂ (σ ↑))
-    ≋-/Var (≋-⋯ a₁≈a₂ b₁≈b₂) σ =
-      ≋-⋯ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
+             k₁ ≋ k₂ → (ρ : Sub Fin m n) → k₁ Kind′/Var ρ ≋ k₂ Kind′/Var ρ
+    ≋-/Var (≋-Π j₁≋j₂ k₁≋k₂) ρ =
+      ≋-Π (≋-/Var j₁≋j₂ ρ) (≋-/Var k₁≋k₂ (ρ V.↑))
+    ≋-/Var (≋-⋯ a₁≈a₂ b₁≈b₂) ρ =
+      ≋-⋯ (≈-/Var a₁≈a₂ ρ) (≈-/Var b₁≈b₂ ρ)
 
     ≈-/Var : ∀ {m n a₁ a₂} →
-             a₁ ≈ a₂ → (σ : Sub Fin m n) → a₁ Elim/Var σ ≈ a₂ Elim/Var σ
-    ≈-/Var (≈-∙ a₁≈a₂ bs₁≈bs₂) σ =
-      ≈-∙∙ (≈Hd-/Var a₁≈a₂ σ) (≈Sp-/Var bs₁≈bs₂ σ)
+             a₁ ≈ a₂ → (ρ : Sub Fin m n) → a₁ Elim/Var ρ ≈ a₂ Elim/Var ρ
+    ≈-/Var (≈-∙ a₁≈a₂ bs₁≈bs₂) ρ =
+      ≈-∙∙ (≈Hd-/Var a₁≈a₂ ρ) (≈Sp-/Var bs₁≈bs₂ ρ)
 
     ≈Hd-/Var : ∀ {m n a₁ a₂} →
-               a₁ ≈Hd a₂ → (σ : Sub Fin m n) → a₁ Head/Var′ σ ≈ a₂ Head/Var′ σ
-    ≈Hd-/Var (≈-var x)             σ = ≈-var∙ (Vec.lookup σ x)
-    ≈Hd-/Var ≈-⊥                   σ = ≈-⊥∙
-    ≈Hd-/Var ≈-⊤                   σ = ≈-⊤∙
-    ≈Hd-/Var (≈-∀ k₁≋k₂ a₁≈a₂)     σ =
-      ≈-∀∙ (≋-/Var k₁≋k₂ σ) (≈-/Var a₁≈a₂ (σ ↑))
-    ≈Hd-/Var (≈-→ a₁≈a₂ b₁≈b₂)     σ =
-      ≈-⇒∙ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
-    ≈Hd-/Var (≈-Λ {k₁} {k₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) σ =
+               a₁ ≈Hd a₂ → (ρ : Sub Fin m n) → a₁ Head/Var′ ρ ≈ a₂ Head/Var′ ρ
+    ≈Hd-/Var (≈-var x)             ρ = ≈-var∙ (Vec.lookup ρ x)
+    ≈Hd-/Var ≈-⊥                   ρ = ≈-⊥∙
+    ≈Hd-/Var ≈-⊤                   ρ = ≈-⊤∙
+    ≈Hd-/Var (≈-∀ k₁≋k₂ a₁≈a₂)     ρ =
+      ≈-∀∙ (≋-/Var k₁≋k₂ ρ) (≈-/Var a₁≈a₂ (ρ V.↑))
+    ≈Hd-/Var (≈-→ a₁≈a₂ b₁≈b₂)     ρ =
+      ≈-⇒∙ (≈-/Var a₁≈a₂ ρ) (≈-/Var b₁≈b₂ ρ)
+    ≈Hd-/Var (≈-Λ {k₁} {k₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ρ =
       ≈-Λ∙ (begin
              ⌊ k₁ Kind′/Var _ ⌋   ≡⟨ ⌊⌋-Kind′/Var k₁ ⟩
              ⌊ k₁ ⌋               ≡⟨ ⌊k₁⌋≡⌊k₂⌋ ⟩
              ⌊ k₂ ⌋               ≡⟨ sym (⌊⌋-Kind′/Var k₂) ⟩
              ⌊ k₂ Kind′/Var _ ⌋   ∎)
-           (≈-/Var a₁≈a₂ (σ ↑))
+           (≈-/Var a₁≈a₂ (ρ V.↑))
       where open ≡-Reasoning
-    ≈Hd-/Var (≈-λ a₁≈a₂)           σ = ≈-λ∙ (≈-/Var a₁≈a₂ (σ ↑))
-    ≈Hd-/Var (≈-⊡ a₁≈a₂ b₁≈b₂)     σ =
-      ≈-⊡∙ (≈-/Var a₁≈a₂ σ) (≈-/Var b₁≈b₂ σ)
+    ≈Hd-/Var (≈-λ a₁≈a₂)           ρ = ≈-λ∙ (≈-/Var a₁≈a₂ (ρ V.↑))
+    ≈Hd-/Var (≈-⊡ a₁≈a₂ b₁≈b₂)     ρ =
+      ≈-⊡∙ (≈-/Var a₁≈a₂ ρ) (≈-/Var b₁≈b₂ ρ)
 
     ≈Sp-/Var : ∀ {m n as₁ as₂} →
-               as₁ ≈Sp as₂ → (σ : Sub Fin m n) → as₁ //Var σ ≈Sp as₂ //Var σ
-    ≈Sp-/Var ≈-[]                σ = ≈-[]
-    ≈Sp-/Var (≈-∷ a₁≈a₂ as₁≈as₂) σ =
-      ≈-∷ (≈-/Var a₁≈a₂ σ) (≈Sp-/Var as₁≈as₂ σ)
+               as₁ ≈Sp as₂ → (ρ : Sub Fin m n) → as₁ //Var ρ ≈Sp as₂ //Var ρ
+    ≈Sp-/Var ≈-[]                ρ = ≈-[]
+    ≈Sp-/Var (≈-∷ a₁≈a₂ as₁≈as₂) ρ =
+      ≈-∷ (≈-/Var a₁≈a₂ ρ) (≈Sp-/Var as₁≈as₂ ρ)
+
+  ≈?-/Var : ∀ {m n r₁ r₂} →
+            r₁ ≈? r₂ → (ρ : Sub Fin m n) → r₁ ?/Var ρ ≈? r₂ ?/Var ρ
+  ≈?-/Var (≈-hit a₁≈a₂) ρ = ≈-hit (≈-/Var a₁≈a₂ ρ)
+  ≈?-/Var (≈-miss x)    ρ = ≈-miss (Vec.lookup ρ x)
 
   ≈-weakenElim : ∀ {n} {a₁ a₂ : Elim n} →
                  a₁ ≈ a₂ → weakenElim a₁ ≈ weakenElim a₂
-  ≈-weakenElim a₁≈a₂ = ≈-/Var a₁≈a₂ wk
+  ≈-weakenElim a₁≈a₂ = ≈-/Var a₁≈a₂ V.wk
+
+  ≈-weakenSVRes : ∀ {n} {r₁ r₂ : SVRes n} →
+                  r₁ ≈? r₂ → weakenSVRes r₁ ≈? weakenSVRes r₂
+  ≈-weakenSVRes r₁≈r₂ = ≈?-/Var r₁≈r₂ V.wk
 
 open Renaming
+
+-- Look up a weak equation in a pair of pointwise weakly equal
+-- single-variable substitutions.
+
+⟨≈⟩-lookup : ∀ {m n σ₁} {σ₂ : SVSub m n} →
+             σ₁ ⟨≈⟩ σ₂ → (x : Fin m) → lookupSV σ₁ x ≈? lookupSV σ₂ x
+⟨≈⟩-lookup (≈-sub a₁≈a₂) zero    = ≈-hit a₁≈a₂
+⟨≈⟩-lookup (≈-sub a₁≈a₂) (suc x) = ≈-miss x
+⟨≈⟩-lookup (≈-↑ σ₁≈σ₂)   zero    = ≈-miss zero
+⟨≈⟩-lookup (≈-↑ σ₁≈σ₂)   (suc x) = ≈-weakenSVRes (⟨≈⟩-lookup σ₁≈σ₂ x)
 
 -- Weak equality lifted to hereditary substitutions.
 --
@@ -464,107 +451,68 @@ open Renaming
 -- heads, eliminations and spines preserve weak equality:
 --
 --                                ≈
---                           a ------→ b
+--                           a ------- b
 --                           |         |
---                       -/ρ |         | -/σ
+--                      -/σ₁ |         | -/σ₂
 --                           ↓    ≈    ↓
---                          a/ρ ····→ b/σ
+--                          a/σ₁ ···· b/σ₂
 --
--- where ρ and σ are point-wise weakly equal hereditary substitutions.
+-- where σ₁ and σ₁ are weakly equal hereditary substitutions.
+
 module WeakHereditarySubstitutionEquality where
-  open Substitution
-
-  infix 4 _⟨≈⟩_
-
-  -- Weak equality of suspended hereditary substations.
-  data _⟨≈⟩_ : ∀ {k m n} → HSub k m n → HSub k m n → Set where
-    ≈-hsub : ∀ {k m} n {a b : Elim m} → a ≈ b → (n ← a ∈ k) ⟨≈⟩ (n ← b ∈ k)
-
-  -- Lift a pair of weakly equal hereditary substitutions over an
-  -- additional variable.
-  ≈-H↑ : ∀ {k m n} {ρ σ : HSub k m n} → ρ ⟨≈⟩ σ → ρ H↑ ⟨≈⟩ σ H↑
-  ≈-H↑ (≈-hsub n a≈b) = ≈-hsub (suc n) a≈b
-
-  -- Lift a pair of weakely equal hereditary substitutions over
-  -- multiple additional variables.
-  ≈-H↑⋆ : ∀ {k m n} i {ρ σ : HSub k m n} → ρ ⟨≈⟩ σ → ρ H↑⋆ i ⟨≈⟩ σ H↑⋆ i
-  ≈-H↑⋆ zero    ρ⟨≈⟩σ = ρ⟨≈⟩σ
-  ≈-H↑⋆ (suc n) ρ⟨≈⟩σ = ≈-H↑ (≈-H↑⋆ n ρ⟨≈⟩σ)
+  open Substitution hiding (_↑; sub)
 
   mutual
 
     -- Point-wise weakly equal hereditary substitutions preserve weak
     -- equality.
 
-    ≋-/H : ∀ {k m n j₁ j₂} {ρ₁ ρ₂ : HSub k m n} →
-           j₁ ≋ j₂ → ρ₁ ⟨≈⟩ ρ₂ → j₁ Kind/H ρ₁ ≋ j₂ Kind/H ρ₂
-    ≋-/H (≋-Π j₁≋j₂ k₁≋k₂) ρ₁⟨≈⟩ρ₂ =
-      ≋-Π (≋-/H j₁≋j₂ ρ₁⟨≈⟩ρ₂) (≋-/H k₁≋k₂ (≈-H↑ ρ₁⟨≈⟩ρ₂))
-    ≋-/H (≋-⋯ a₁≈a₂ b₁≈b₂) ρ₁⟨≈⟩ρ₂ =
-      ≋-⋯ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈-/H b₁≈b₂ ρ₁⟨≈⟩ρ₂)
+    ≋-/⟨⟩ : ∀ {k m n j₁ j₂} {σ₁ σ₂ : SVSub m n} →
+            j₁ ≋ j₂ → σ₁ ⟨≈⟩ σ₂ → j₁ Kind/⟨ k ⟩ σ₁ ≋ j₂ Kind/⟨ k ⟩ σ₂
+    ≋-/⟨⟩ (≋-Π j₁≋j₂ k₁≋k₂) σ₁≈σ₂ =
+      ≋-Π (≋-/⟨⟩ j₁≋j₂ σ₁≈σ₂) (≋-/⟨⟩ k₁≋k₂ (≈-↑ σ₁≈σ₂))
+    ≋-/⟨⟩ (≋-⋯ a₁≈a₂ b₁≈b₂) σ₁≈σ₂ =
+      ≋-⋯ (≈-/⟨⟩ a₁≈a₂ σ₁≈σ₂) (≈-/⟨⟩ b₁≈b₂ σ₁≈σ₂)
 
-    ≈-/H : ∀ {k m n a₁ a₂} {ρ₁ ρ₂ : HSub k m n} →
-           a₁ ≈ a₂ → ρ₁ ⟨≈⟩ ρ₂ → a₁ /H ρ₁ ≈ a₂ /H ρ₂
-    ≈-/H (≈-∙ (≈-var x) bs₁≈bs₂) (≈-hsub n a₁≈a₂) with compare n x
-    ≈-/H (≈-∙ (≈-var ._) bs₁≈bs₂) (≈-hsub n {a₁} {a₂} a₁≈a₂) | yes refl =
-      ≈-∙∙⟨⟩ _ (begin
-        ⌜ var (raise n zero) / sub ⌞ a₁ ⌟ ↑⋆ n ⌝   ≡⟨ helper n a₁ ⟩
-        a₁ Elim/Var V.wk⋆ n                        ≈⟨ ≈-/Var a₁≈a₂ (V.wk⋆ n) ⟩
-        a₂ Elim/Var V.wk⋆ n                        ≡⟨ sym (helper n a₂) ⟩
-        ⌜ var (raise n zero) / sub ⌞ a₂ ⌟ ↑⋆ n ⌝   ∎)
-          (≈Sp-/H bs₁≈bs₂ (≈-hsub n a₁≈a₂))
-      where
-        module V = VarSubst
-        helper : ∀ {m} n (a : Elim m) →
-                 ⌜ var (raise n zero) / sub ⌞ a ⌟ ↑⋆ n ⌝ ≡ a Elim/Var V.wk⋆ n
-        helper n a = begin
-          ⌜ var x / sub ⌞ a ⌟ ↑⋆ n ⌝   ≡⟨ cong ⌜_⌝ (begin
-            var x / sub ⌞ a ⌟ ↑⋆ n     ≡⟨ raise-/-↑⋆ n zero ⟩
-            ⌞ a ⌟ / wk⋆ n              ≡⟨ cong (⌞ a ⌟ /_) (sym (liftSub-wk⋆ n)) ⟩
-            ⌞ a ⌟ / liftSub (V.wk⋆ n)  ≡⟨ sym (/-liftSub ⌞ a ⌟) ⟩
-            ⌞ a ⌟ /Var V.wk⋆ n         ∎) ⟩
-          ⌜ ⌞ a ⌟ /Var V.wk⋆ n ⌝       ≡⟨ ⌜⌝-/Var ⌞ a ⌟ ⟩
-          ⌜ ⌞ a ⌟ ⌝ Elim/Var V.wk⋆ n   ≡⟨ cong (_Elim/Var _) (⌜⌝∘⌞⌟-id a) ⟩
-          a Elim/Var V.wk⋆ n           ∎
-          where
-            open ≡-Reasoning
-            open ExtLemmas₄ lemmas₄ using (raise-/-↑⋆)
-            open LiftSubLemmas varLiftSubLemmas
-              using (liftSub; liftSub-wk⋆; /-liftSub)
-            x = raise n zero
-        open ≈-Reasoning
-    ≈-/H (≈-∙ (≈-var ._) bs₁≈bs₂) (≈-hsub n a₁≈a₂) | no y refl =
-      ≈-∙ (≈-var y) (≈Sp-/H bs₁≈bs₂ (≈-hsub n a₁≈a₂))
-    ≈-/H (≈-∙ ≈-⊥ bs₁≈bs₂) ρ₁⟨≈⟩ρ₂ = ≈-∙ ≈-⊥ (≈Sp-/H bs₁≈bs₂ ρ₁⟨≈⟩ρ₂)
-    ≈-/H (≈-∙ ≈-⊤ bs₁≈bs₂) ρ₁⟨≈⟩ρ₂ = ≈-∙ ≈-⊤ (≈Sp-/H bs₁≈bs₂ ρ₁⟨≈⟩ρ₂)
-    ≈-/H (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂) ρ₁⟨≈⟩ρ₂ =
-      ≈-∙ (≈-∀ (≋-/H k₁≋k₂ ρ₁⟨≈⟩ρ₂) (≈-/H a₁≈a₂ (≈-H↑ ρ₁⟨≈⟩ρ₂)))
-          (≈Sp-/H bs₁≈bs₂ ρ₁⟨≈⟩ρ₂)
-    ≈-/H (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) ρ₁⟨≈⟩ρ₂ =
-      ≈-∙ (≈-→ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈-/H b₁≈b₂ ρ₁⟨≈⟩ρ₂))
-          (≈Sp-/H cs₁≈cs₂ ρ₁⟨≈⟩ρ₂)
-    ≈-/H (≈-∙ (≈-Λ {k₁} {k₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂) ρ₁⟨≈⟩ρ₂ =
+    ≈-/⟨⟩ : ∀ {k m n a₁ a₂} {σ₁ σ₂ : SVSub m n} →
+            a₁ ≈ a₂ → σ₁ ⟨≈⟩ σ₂ → a₁ /⟨ k ⟩ σ₁ ≈ a₂ /⟨ k ⟩ σ₂
+    ≈-/⟨⟩ (≈-∙ (≈-var x) bs₁≈bs₂) σ₁≈σ₂ =
+      ≈-?∙∙⟨⟩ _ (⟨≈⟩-lookup σ₁≈σ₂ x) (≈Sp-/⟨⟩ bs₁≈bs₂ σ₁≈σ₂)
+    ≈-/⟨⟩ (≈-∙ ≈-⊥ bs₁≈bs₂) σ₁≈σ₂ = ≈-∙ ≈-⊥ (≈Sp-/⟨⟩ bs₁≈bs₂ σ₁≈σ₂)
+    ≈-/⟨⟩ (≈-∙ ≈-⊤ bs₁≈bs₂) σ₁≈σ₂ = ≈-∙ ≈-⊤ (≈Sp-/⟨⟩ bs₁≈bs₂ σ₁≈σ₂)
+    ≈-/⟨⟩ (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂) σ₁≈σ₂ =
+      ≈-∙ (≈-∀ (≋-/⟨⟩ k₁≋k₂ σ₁≈σ₂) (≈-/⟨⟩ a₁≈a₂ (≈-↑ σ₁≈σ₂)))
+          (≈Sp-/⟨⟩ bs₁≈bs₂ σ₁≈σ₂)
+    ≈-/⟨⟩ (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) σ₁≈σ₂ =
+      ≈-∙ (≈-→ (≈-/⟨⟩ a₁≈a₂ σ₁≈σ₂) (≈-/⟨⟩ b₁≈b₂ σ₁≈σ₂))
+          (≈Sp-/⟨⟩ cs₁≈cs₂ σ₁≈σ₂)
+    ≈-/⟨⟩ (≈-∙ (≈-Λ {k₁} {k₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂) σ₁≈σ₂ =
       ≈-∙ (≈-Λ (begin
-                 ⌊ k₁ Kind/H _ ⌋   ≡⟨ ⌊⌋-Kind/H k₁ ⟩
-                 ⌊ k₁ ⌋            ≡⟨ ⌊k₁⌋≡⌊k₂⌋ ⟩
-                 ⌊ k₂ ⌋            ≡⟨ sym (⌊⌋-Kind/H k₂) ⟩
-                 ⌊ k₂ Kind/H _ ⌋   ∎)
-               (≈-/H a₁≈a₂ (≈-H↑ ρ₁⟨≈⟩ρ₂)))
-          (≈Sp-/H bs₁≈bs₂ ρ₁⟨≈⟩ρ₂)
+                 ⌊ k₁ Kind/⟨ _ ⟩ _ ⌋   ≡⟨ ⌊⌋-Kind/⟨⟩ k₁ ⟩
+                 ⌊ k₁ ⌋                ≡⟨ ⌊k₁⌋≡⌊k₂⌋ ⟩
+                 ⌊ k₂ ⌋                ≡⟨ sym (⌊⌋-Kind/⟨⟩ k₂) ⟩
+                 ⌊ k₂ Kind/⟨ _ ⟩ _ ⌋   ∎)
+               (≈-/⟨⟩ a₁≈a₂ (≈-↑ σ₁≈σ₂)))
+          (≈Sp-/⟨⟩ bs₁≈bs₂ σ₁≈σ₂)
       where open ≡-Reasoning
-    ≈-/H (≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂) ρ₁⟨≈⟩ρ₂ =
-      ≈-∙ (≈-λ (≈-/H a₁≈a₂ (≈-H↑ ρ₁⟨≈⟩ρ₂))) (≈Sp-/H bs₁≈bs₂ ρ₁⟨≈⟩ρ₂)
-    ≈-/H (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) ρ₁⟨≈⟩ρ₂ =
-      ≈-∙ (≈-⊡ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈-/H b₁≈b₂ ρ₁⟨≈⟩ρ₂))
-          (≈Sp-/H cs₁≈cs₂ ρ₁⟨≈⟩ρ₂)
+    ≈-/⟨⟩ (≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂) σ₁≈σ₂ =
+      ≈-∙ (≈-λ (≈-/⟨⟩ a₁≈a₂ (≈-↑ σ₁≈σ₂))) (≈Sp-/⟨⟩ bs₁≈bs₂ σ₁≈σ₂)
+    ≈-/⟨⟩ (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) σ₁≈σ₂ =
+      ≈-∙ (≈-⊡ (≈-/⟨⟩ a₁≈a₂ σ₁≈σ₂) (≈-/⟨⟩ b₁≈b₂ σ₁≈σ₂))
+          (≈Sp-/⟨⟩ cs₁≈cs₂ σ₁≈σ₂)
 
-    ≈Sp-/H : ∀ {k m n as₁ as₂} {ρ₁ ρ₂ : HSub k m n} →
-             as₁ ≈Sp as₂ → ρ₁ ⟨≈⟩ ρ₂ → as₁ //H ρ₁ ≈Sp as₂ //H ρ₂
-    ≈Sp-/H ≈-[]                ρ₁⟨≈⟩ρ₂ = ≈-[]
-    ≈Sp-/H (≈-∷ a₁≈a₂ as₁≈as₂) ρ₁⟨≈⟩ρ₂ =
-      ≈-∷ (≈-/H a₁≈a₂ ρ₁⟨≈⟩ρ₂) (≈Sp-/H as₁≈as₂ ρ₁⟨≈⟩ρ₂)
+    ≈Sp-/⟨⟩ : ∀ {k m n as₁ as₂} {σ₁ σ₂ : SVSub m n} →
+              as₁ ≈Sp as₂ → σ₁ ⟨≈⟩ σ₂ → as₁ //⟨ k ⟩ σ₁ ≈Sp as₂ //⟨ k ⟩ σ₂
+    ≈Sp-/⟨⟩ ≈-[]                σ₁≈σ₂ = ≈-[]
+    ≈Sp-/⟨⟩ (≈-∷ a₁≈a₂ as₁≈as₂) σ₁≈σ₂ =
+      ≈-∷ (≈-/⟨⟩ a₁≈a₂ σ₁≈σ₂) (≈Sp-/⟨⟩ as₁≈as₂ σ₁≈σ₂)
 
     -- Weak equality is a congruence w.r.t reducing applications.
+
+    ≈-?∙∙⟨⟩ : ∀ k {n} {r₁ r₂ : SVRes n} {as₁ as₂} →
+              r₁ ≈? r₂ → as₁ ≈Sp as₂ → r₁ ?∙∙⟨ k ⟩ as₁ ≈ r₂ ?∙∙⟨ k ⟩ as₂
+    ≈-?∙∙⟨⟩ k (≈-hit a₁≈a₂) as₁≈as₂ = ≈-∙∙⟨⟩ k a₁≈a₂ as₁≈as₂
+    ≈-?∙∙⟨⟩ k (≈-miss x)    as₁≈as₂ = ≈-∙ (≈-var x) as₁≈as₂
 
     ≈-∙∙⟨⟩ : ∀ k {n} {a₁ a₂ : Elim n} {bs₁ bs₂} →
              a₁ ≈ a₂ → bs₁ ≈Sp bs₂ → a₁ ∙∙⟨ k ⟩ bs₁ ≈ a₂ ∙∙⟨ k ⟩ bs₂
@@ -579,7 +527,7 @@ module WeakHereditarySubstitutionEquality where
     ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂))  c₁≈c₂ =
       ≈-⌜·⌝ (≈-∙ a₁≈a₂ (≈-∷ b₁≈b₂ bs₁≈bs₂)) c₁≈c₂
     ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) c₁≈c₂ =
-      ≈-/H a₁≈a₂ (≈-hsub 0 c₁≈c₂)
+      ≈-/⟨⟩ a₁≈a₂ (≈-sub c₁≈c₂)
     -- Degenerate cases.
     ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⊥ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊥ (≈-∷ c₁≈c₂ ≈-[])
     ≈-⌜·⌝⟨⟩ (k₁ ⇒ k₂) (≈-∙ ≈-⊤ ≈-[]) c₁≈c₂ = ≈-∙ ≈-⊤ (≈-∷ c₁≈c₂ ≈-[])
@@ -597,7 +545,7 @@ module WeakHereditarySubstitutionEquality where
   -- A corollary.
   ≈-[∈] : ∀ {k n a₁ a₂} {b₁ b₂ : Elim n} →
           a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ [ b₁ ∈ k ] ≈ a₂ [ b₂ ∈ k ]
-  ≈-[∈] a₁≈a₂ b₁≈b₂ = ≈-/H a₁≈a₂ (≈-hsub 0 b₁≈b₂)
+  ≈-[∈] a₁≈a₂ b₁≈b₂ = ≈-/⟨⟩ a₁≈a₂ (≈-sub b₁≈b₂)
 
   -- Weak equality is a congruence w.r.t potentially reducing
   -- applications.
@@ -608,7 +556,7 @@ module WeakHereditarySubstitutionEquality where
   ≈-↓⌜·⌝ {_} {_} {_} {b₁} {b₂}
          (≈-∙ (≈-Λ {k₁} {k₂} {a₁} {a₂} ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) c₁≈c₂ =
     begin
-      a₁ [ b₁ ∈ ⌊ k₁ ⌋ ]   ≈⟨ ≈-/H a₁≈a₂ (≈-hsub 0 c₁≈c₂) ⟩
+      a₁ [ b₁ ∈ ⌊ k₁ ⌋ ]   ≈⟨ ≈-/⟨⟩ a₁≈a₂ (≈-sub c₁≈c₂) ⟩
       a₂ [ b₂ ∈ ⌊ k₁ ⌋ ]   ≡⟨ cong (a₂ [ b₂ ∈_]) ⌊k₁⌋≡⌊k₂⌋ ⟩
       a₂ [ b₂ ∈ ⌊ k₂ ⌋ ]   ∎
     where open ≈-Reasoning
@@ -632,6 +580,7 @@ module WeakEqEtaExpansion where
   private module TK = TrackSimpleKindsEtaExp
   open Substitution
   open SimpHSubstLemmas
+  open ≈-Reasoning
 
   -- NOTE. The definition of the function ≈-η-exp′ in this module is
   -- structurally recursive in the *simple* kind parameter k, but
@@ -683,7 +632,18 @@ module WeakEqEtaExpansion where
     ≈⟨ ≈-η-exp′ (⌊⌋≡-trans ⌊j₁⌋≡⌊j₂⌋ (⌊⌋-⌊⌋≡ j₂)) (⌊⌋-⌊⌋≡ j₂) a₁≈a₂ ⟩
       η-exp j₂ a₂
     ∎
-    where open ≈-Reasoning
+
+  open SimpleCtx using (kd; ⌊_⌋Asc; kd-inj′)
+  open ContextConversions using (⌊_⌋Ctx)
+
+  -- A variant of `nf-var-kd' that is a corollary of the above.
+
+  nf-var-kd-⌊⌋ : ∀ {n} (Γ : Ctx n) {k} x →
+                 ⌊ lookup x Γ ⌋Asc ≡ kd ⌊ k ⌋ → nf Γ (var x) ≈ η-exp k (var∙ x)
+  nf-var-kd-⌊⌋ Γ x hyp with lookup x Γ
+  nf-var-kd-⌊⌋ Γ x hyp | kd j = ≈-η-exp (kd-inj′ hyp) (≈-var∙ x)
+  nf-var-kd-⌊⌋ Γ x ()  | tp _
+
 
 open WeakEqEtaExpansion
 

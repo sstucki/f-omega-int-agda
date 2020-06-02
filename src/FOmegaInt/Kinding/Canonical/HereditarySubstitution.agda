@@ -8,18 +8,16 @@ open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Context.Properties
 open import Data.Fin.Substitution.Typed
-open import Data.List using ([]; _∷_; _∷ʳ_; map)
-open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (∃; _,_; _×_; proj₁; proj₂)
 open import Data.Vec as Vec using ([]; _∷_)
-import Data.Vec.Properties as VecProp
+import Data.Vec.Properties as VecProps
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 
 open import FOmegaInt.Syntax
+open import FOmegaInt.Syntax.SingleVariableSubstitution
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 open import FOmegaInt.Kinding.Canonical as CanonicalKinding
@@ -29,648 +27,563 @@ open Syntax
 open ElimCtx
 open SimpleCtx          using (⌊_⌋Asc; kd; tp)
 open ContextConversions using (⌊_⌋Ctx)
-open Substitution       hiding (subst)
+open Substitution       hiding (_↑; sub; subst)
 open RenamingCommutes
 open SimpHSubstLemmas
-open SimpleKinding.Kinding
-  renaming (_⊢Var_∈_ to _⊢sVar_∈_; _⊢Ne_∈_ to _⊢sNe_∈_)
+open SimpleKinding.Kinding using (_⊢_kds; kds-Π)
 open CanonicalKinding.Kinding
 open KindedHereditarySubstitution
-  using (_⊢/H_∈_; ∈-hsub; kds-/H; kds-[]-/H-↑⋆)
+  using (_⊢/⟨_⟩_∈_; ∈-hsub; ∈-H↑; kds-/⟨⟩; kds-[]-/⟨⟩-↑⋆)
 open CanonicalKinding.KindedRenaming
-  using (kd-weaken⋆; Nf⇇-weaken⋆; <:⇇-weaken⋆)
+  using (typedVarSubst; kd-/Var; ≃-/Var; <∷-/Var; kd-weaken; <∷-weaken)
+module TV = TypedVarSubst typedVarSubst
 open ContextNarrowing
-open WellFormedContextLemmas (_⊢_wf)
+
+
+----------------------------------------------------------------------
+-- Ascription order: a wrapper judgment that combines subtyping and
+-- subkinding.
+--
+-- NOTE. Subtyping instances are always trivial, i.e. they only
+-- support (syntactic) reflexivity.
+
+infix 4 _⊢_≤_
+
+data _⊢_≤_ {n} (Γ : Ctx n) : ElimAsc n → ElimAsc n → Set where
+  ≤-<∷   : ∀ {j k} → Γ ⊢ j <∷ k → Γ ⊢ k kd → Γ ⊢ kd j ≤ kd k
+  ≤-refl : ∀ {a} → Γ ⊢ a ≤ a
+
+-- Transitivity of the ascription order.
+
+≤-trans : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a ≤ b → Γ ⊢ b ≤ c → Γ ⊢ a ≤ c
+≤-trans (≤-<∷ j<∷k _)    (≤-<∷ k<∷l l-kd) = ≤-<∷ (<∷-trans j<∷k k<∷l) l-kd
+≤-trans (≤-<∷ j<∷k k-kd) ≤-refl           = ≤-<∷ j<∷k k-kd
+≤-trans ≤-refl           a≤c              = a≤c
+
+-- Kinds in related ascriptions simplify equally.
+
+≤-⌊⌋ : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ kd j ≤ kd k → ⌊ j ⌋ ≡ ⌊ k ⌋
+≤-⌊⌋ (≤-<∷ j<∷k _) = <∷-⌊⌋ j<∷k
+≤-⌊⌋ ≤-refl        = refl
+
+-- Renamings preserve the ascription order.
+
+≤-/Var : ∀ {m n Γ Δ a b} {ρ : Sub Fin m n} →
+         Γ ⊢ a ≤ b → Δ TV.⊢/Var ρ ∈ Γ → Δ ⊢ a ElimAsc/Var ρ ≤ b ElimAsc/Var ρ
+≤-/Var (≤-<∷ j<∷k k-kd) ρ∈Γ = ≤-<∷ (<∷-/Var j<∷k ρ∈Γ) (kd-/Var k-kd ρ∈Γ)
+≤-/Var ≤-refl           ρ∈Γ = ≤-refl
+
+-- Admissible subsumption rules w.r.t. the ascription order.
+
+Nf⇇-⇑-≤ : ∀ {n} {Γ : Ctx n} {a k j} →
+          Γ ⊢Nf a ⇇ k → Γ ⊢ kd k ≤ kd j → Γ ⊢Nf a ⇇ j
+Nf⇇-⇑-≤ a⇇k (≤-<∷ k<∷j j-kd) = Nf⇇-⇑ a⇇k k<∷j
+Nf⇇-⇑-≤ a⇇k ≤-refl           = a⇇k
+
+≃-⇑-≤ : ∀ {n} {Γ : Ctx n} {a b k j} →
+        Γ ⊢ a ≃ b ⇇ k → Γ ⊢ kd k ≤ kd j → Γ ⊢ a ≃ b ⇇ j
+≃-⇑-≤ a≃b⇇k (≤-<∷ k<∷j j-kd) = ≃-⇑ a≃b⇇k k<∷j j-kd
+≃-⇑-≤ a≃b⇇k ≤-refl           = a≃b⇇k
+
+-- An admissible variable rule based on the ascription order.
+
+Var∈-⇑-≤  : ∀ {n} {Γ : Ctx n} {a k} x →
+            Γ ctx → lookup x Γ ≡ a → Γ ⊢ a ≤ kd k → Γ ⊢Var x ∈ k
+Var∈-⇑-≤ x Γ-ctx Γ[x]≡j (≤-<∷ j<∷k k-kd) = ⇇-⇑ (⇉-var x Γ-ctx Γ[x]≡j) j<∷k k-kd
+Var∈-⇑-≤ x Γ-ctx Γ[x]≡k ≤-refl           = ⇉-var x Γ-ctx Γ[x]≡k
 
 
 ----------------------------------------------------------------------
 -- Well-kinded hereditary substitutions (i.e. substitution lemmas) in
 -- canonical types
 
-infix 4 _⊢/H_⇇_ _⊢/H_≃_⇇_
+infix 4 _⊢/⟨_⟩_⇇_ _⊢/⟨_⟩_≃_⇇_ _⊢?⟨_⟩_⇇_ _⊢?⟨_⟩_≃_⇇_
 
--- Well-kinded equality of suspended hereditary substitutions.
-data _⊢/H_≃_⇇_ : ∀ {k m n} → Ctx n → HSub k m n → HSub k m n → Ctx m → Set where
-  ≃-hsub : ∀ {k m n} {Δ₂ : CtxExt′ m n} {Γ₂ Γ₁} {a b j} →
-           Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ a ∈ k ] ext → Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ b ∈ k ] ext →
-           Γ₁ ⊢ a ≃ b ⇇ j → ⌊ j ⌋≡ k →
-           Δ₂ ′++ Γ₁ ⊢/H (n ← a ∈ k) ≃ (n ← b ∈ k) ⇇ Γ₂ ′++ kd j ∷ Γ₁
+-- Well-kinded pointwise equality of hereditary substitutions and
+-- their lookup results.
 
--- Lift a pair of point-wise equal kinded hereditary substitution over
--- an additional type variable.
-≃-H↑ : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} {a b} →
-        Δ ⊢ a ≅ b Asc/H ρ wf → Δ ⊢ a ≅ b Asc/H σ wf → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-        a ∷ Δ ⊢/H ρ H↑ ≃ σ H↑ ⇇ b ∷ Γ
-≃-H↑ d≅e[a] d≅e[b] (≃-hsub Δ≅Γ[a] Δ≅Γ[b] a≃b⇇j ⌊j⌋≡k) =
-  ≃-hsub (d≅e[a] ∷ Δ≅Γ[a]) (d≅e[b] ∷ Δ≅Γ[b]) a≃b⇇j ⌊j⌋≡k
+data _⊢/⟨_⟩_≃_⇇_ : ∀ {m n} →
+                   Ctx n → SKind → SVSub m n → SVSub m n → Ctx m → Set where
+  ≃-hsub : ∀ {n} {Γ : Ctx n} {k a b j} →
+           Γ ⊢ a ≃ b ⇇ j → ⌊ j ⌋≡ k →
+           Γ ⊢/⟨ k ⟩ sub a ≃ sub b ⇇ kd j ∷ Γ
+  ≃-H↑   : ∀ {m n Δ k Γ} {σ τ : SVSub m n} {j l} →
+           Δ ⊢ j ≅ l Kind/⟨ k ⟩ σ → Δ ⊢ j ≅ l Kind/⟨ k ⟩ τ →
+           Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → kd j ∷ Δ ⊢/⟨ k ⟩ σ ↑ ≃ τ ↑ ⇇ kd l ∷ Γ
 
--- Lift a kinded hereditary substitution over multiple additional
--- variables.
-≃-H↑⋆ : ∀ {k m n i} {E : CtxExt′ n i} {Φ Δ Γ} {ρ σ : HSub k m n} →
-         Δ ⊢ E ≅ Φ E/H ρ ext → Δ ⊢ E ≅ Φ E/H σ ext → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-         E ′++ Δ ⊢/H ρ H↑⋆ i ≃ σ H↑⋆ i ⇇ Φ ′++ Γ
-≃-H↑⋆ {Φ = []}    []            []            ρ≃σ⇇Γ = ρ≃σ⇇Γ
-≃-H↑⋆ {Φ = _ ∷ _} (a≅b ∷ E≅Φ/ρ) (a≅c ∷ E≅Φ/σ) ρ≃σ⇇Γ =
-  ≃-H↑ a≅b a≅c (≃-H↑⋆ E≅Φ/ρ E≅Φ/σ ρ≃σ⇇Γ)
+data _⊢?⟨_⟩_≃_⇇_ {n} (Γ : Ctx n) (k : SKind)
+                 : SVRes n → SVRes n → ElimAsc n → Set where
+  ≃-hit  : ∀ {a b j} →
+           Γ ⊢ a ≃ b ⇇ j → ⌊ j ⌋≡ k → Γ ⊢?⟨ k ⟩ hit a ≃ hit b ⇇ kd j
+  ≃-miss : ∀ y {a b} → Γ ctx → lookup y Γ ≡ a → Γ ⊢ a ≤ b →
+           Γ ⊢?⟨ k ⟩ miss y ≃ miss y ⇇ b
 
 -- Well-kinded suspended hereditary substations are just a degenerate
 -- case of equal hereditary substitutions where the underlying
 -- substitutions coincide (syntactically).
 
-_⊢/H_⇇_ : ∀ {k m n} → Ctx n → HSub k m n → Ctx m → Set
-Δ ⊢/H ρ ⇇ Γ = Δ ⊢/H ρ ≃ ρ ⇇ Γ
+_⊢/⟨_⟩_⇇_ : ∀ {m n} → Ctx n → SKind → SVSub m n → Ctx m → Set
+Δ ⊢/⟨ k ⟩ σ ⇇ Γ = Δ ⊢/⟨ k ⟩ σ ≃ σ ⇇ Γ
 
-⇇-hsub : ∀ {k m n} {Δ₂ : CtxExt′ m n} {Γ₂ Γ₁} {a j} →
-         Γ₁ ⊢ Δ₂ ≅ Γ₂ E[ a ∈ k ] ext → Γ₁ ⊢Nf a ⇇ j → Γ₁ ⊢ j kd → ⌊ j ⌋≡ k →
-         Δ₂ ′++ Γ₁ ⊢/H (n ← a ∈ k) ⇇ Γ₂ ′++ kd j ∷ Γ₁
-⇇-hsub Δ≅Γ[a] a⇇j j-kd ⌊j⌋≡k = ≃-hsub Δ≅Γ[a] Δ≅Γ[a] (≃-reflNf⇇ a⇇j j-kd) ⌊j⌋≡k
+⇇-hsub : ∀ {n} {Γ : Ctx n} {k a j} →
+         Γ ⊢Nf a ⇇ j → Γ ⊢ j kd → ⌊ j ⌋≡ k →
+         Γ ⊢/⟨ k ⟩ sub a ⇇ kd j ∷ Γ
+⇇-hsub a⇇j j-kd ⌊j⌋≡k = ≃-hsub (≃-reflNf⇇ a⇇j j-kd) ⌊j⌋≡k
 
--- Lift a kinded hereditary substitution over an additional variable.
-⇇-H↑ : ∀ {k m n Δ Γ} {ρ : HSub k m n} {a b} →
-       Δ ⊢ a ≅ b Asc/H ρ wf → Δ ⊢/H ρ ⇇ Γ → a ∷ Δ ⊢/H ρ H↑ ⇇ b ∷ Γ
-⇇-H↑ a≅b ρ⇇Γ = ≃-H↑ a≅b a≅b ρ⇇Γ
+⇇-H↑ : ∀ {m n Δ k Γ} {σ : SVSub m n} {j l} →
+       Δ ⊢ j ≅ l Kind/⟨ k ⟩ σ → Δ ⊢/⟨ k ⟩ σ ⇇ Γ →
+       kd j ∷ Δ ⊢/⟨ k ⟩ σ ↑ ⇇ kd l ∷ Γ
+⇇-H↑ j≅l/σ σ⇇Γ = ≃-H↑ j≅l/σ j≅l/σ σ⇇Γ
 
--- Lift a kinded hereditary substitution over multiple additional
--- variables.
-⇇-H↑⋆ : ∀ {k m n i} {E : CtxExt′ n i} {Φ Δ Γ} {ρ : HSub k m n} →
-        Δ ⊢ E ≅ Φ E/H ρ ext → Δ ⊢/H ρ ⇇ Γ → E ′++ Δ ⊢/H ρ H↑⋆ i ⇇ Φ ′++ Γ
-⇇-H↑⋆ E≅Φ/ρ ρ⇇Γ = ≃-H↑⋆ E≅Φ/ρ E≅Φ/ρ ρ⇇Γ
+_⊢?⟨_⟩_⇇_ : ∀ {n} → Ctx n → SKind → SVRes n → ElimAsc n → Set
+Δ ⊢?⟨ k ⟩ σ ⇇ Γ = Δ ⊢?⟨ k ⟩ σ ≃ σ ⇇ Γ
 
--- Left and right-hand validity of equal hereditary substitutions.
+⇇-hit  : ∀ {n} {Γ : Ctx n} {k a j} →
+         Γ ⊢Nf a ⇇ j → Γ ⊢ j kd → ⌊ j ⌋≡ k → Γ ⊢?⟨ k ⟩ hit a ⇇ kd j
+⇇-hit a⇇j j-kd ⌊j⌋≡k = ≃-hit (≃-reflNf⇇ a⇇j j-kd) ⌊j⌋≡k
 
-/H≃-valid₁ : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢/H ρ ⇇ Γ
-/H≃-valid₁ (≃-hsub Δ≅Γ[a] _ a≃b⇇j ⌊j⌋≡k) =
-  ⇇-hsub Δ≅Γ[a] (proj₁ (≃-valid a≃b⇇j)) (≃-valid-kd a≃b⇇j) ⌊j⌋≡k
+⇇-miss = λ {n} {Γ} {k} → ≃-miss {n} {Γ} {k}
 
-/H≃-valid₂ : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢/H σ ⇇ Γ
-/H≃-valid₂ (≃-hsub _ Δ≅Γ[b] a≃b⇇j ⌊j⌋≡k) =
-  ⇇-hsub Δ≅Γ[b] (proj₂ (≃-valid a≃b⇇j)) (≃-valid-kd a≃b⇇j) ⌊j⌋≡k
+-- Renamings preserve equality of SV results.
+
+?≃-/Var : ∀ {m n Γ k Δ r₁ r₂ a} {ρ : Sub Fin m n} →
+          Γ ⊢?⟨ k ⟩ r₁ ≃ r₂ ⇇ a → Δ TV.⊢/Var ρ ∈ Γ →
+          Δ ⊢?⟨ k ⟩ r₁ ?/Var ρ ≃ r₂ ?/Var ρ ⇇ a ElimAsc/Var ρ
+?≃-/Var (≃-hit a≃b∈k ⌊j⌋≡k) ρ∈Γ =
+  ≃-hit (≃-/Var a≃b∈k ρ∈Γ) (⌊⌋≡-/Var ⌊j⌋≡k)
+?≃-/Var {Γ = Γ} {k} {Δ} {ρ = ρ} (≃-miss y {a} {b} _ Γ[x]≡a a≤b) ρ∈Γ =
+  helper (cong (_ElimAsc/Var ρ) Γ[x]≡a) (TS.lookup y ρ∈Γ)
+  where
+    module TS = TypedSub TV.typedSub
+
+    helper : ∀ {x c} → c ≡ a ElimAsc/Var ρ → Δ TV.⊢Var x ∈ c →
+             Δ ⊢?⟨ k ⟩ miss x ≃ miss x ⇇ b ElimAsc/Var ρ
+    helper Δ[x]≡a/ρ (TV.var x Δ-ctx) =
+      ≃-miss x (TS./∈-wf ρ∈Γ) Δ[x]≡a/ρ (≤-/Var a≤b ρ∈Γ)
+
+?≃-weaken : ∀ {n} {Γ : Ctx n} {k r₁ r₂ a b} →
+            Γ ⊢ a wf → Γ ⊢?⟨ k ⟩ r₁ ≃ r₂ ⇇ b →
+            (a ∷ Γ) ⊢?⟨ k ⟩ weakenSVRes r₁ ≃ weakenSVRes r₂ ⇇ weakenElimAsc b
+?≃-weaken a-wf r₁≃r₂⇇a = ?≃-/Var r₁≃r₂⇇a (TV.∈-wk a-wf)
+
+-- Look up a variable in a pair of well-kinded pointwise equal
+-- hereditary substitution.
+
+lookup-/⟨⟩≃ : ∀ {m n Δ k Γ} {σ τ : SVSub m n} →
+              Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → (x : Fin m) →
+              Δ ⊢?⟨ k ⟩ lookupSV σ x ≃ lookupSV τ x ⇇ lookup x Γ Asc/⟨ k ⟩ σ
+lookup-/⟨⟩≃ (≃-hsub {_} {Γ} {k} {a} {b} {j} a≃b⇇k ⌊j⌋≡k) zero =
+  subst (Γ ⊢?⟨ k ⟩ hit a ≃ hit b ⇇_)
+        (cong kd (sym (Kind/Var-wk-↑⋆-hsub-vanishes 0 j))) (≃-hit a≃b⇇k ⌊j⌋≡k)
+lookup-/⟨⟩≃ (≃-hsub {Γ = Γ} {k} {a} {_} {j} a≃b⇇k ⌊j⌋≡k) (suc x) =
+  subst (Γ ⊢?⟨ k ⟩ miss x ≃ miss x ⇇_) (begin
+      lookup x Γ
+    ≡˘⟨ Asc/Var-wk-↑⋆-hsub-vanishes 0 (lookup x Γ) ⟩
+      weakenElimAsc (lookup x Γ) Asc/⟨ k ⟩ sub a
+    ≡˘⟨ cong (_Asc/⟨ k ⟩ sub a) (VecProps.lookup-map x weakenElimAsc (toVec Γ)) ⟩
+       lookup (suc x) (kd j ∷ Γ) Asc/⟨ k ⟩ sub a
+    ∎) (≃-miss x (≃-ctx a≃b⇇k) refl ≤-refl)
+lookup-/⟨⟩≃ (≃-H↑ {Δ = Δ} {k} {j = j} {l} j≅l/σ j≅l/τ σ≃τ⇇Γ) zero =
+  let j-kd , l/σ-kd = ≅-valid j≅l/σ
+      j-wf  = wf-kd j-kd
+      j≤l/σ = ≤-<∷ (<∷-weaken j-wf (≅⇒<∷ j≅l/σ)) (kd-weaken j-wf l/σ-kd)
+  in subst (kd j ∷ Δ ⊢?⟨ k ⟩ miss zero ≃ miss zero ⇇_)
+           (sym (wk-Asc/⟨⟩-↑⋆ 0 (kd l)))
+           (≃-miss zero (j-wf ∷ (kd-ctx j-kd)) refl j≤l/σ)
+lookup-/⟨⟩≃ (≃-H↑ {k = k} {Γ} {σ} {_} {_} {l} j≅l/σ _ σ≃τ⇇Γ) (suc x) =
+  subst (_ ⊢?⟨ k ⟩ _ ≃ _ ⇇_) (begin
+      weakenElimAsc (lookup x Γ Asc/⟨ k ⟩ σ)
+    ≡˘⟨ wk-Asc/⟨⟩-↑⋆ 0 (lookup x Γ) ⟩
+      weakenElimAsc (lookup x Γ) Asc/⟨ k ⟩ σ ↑
+    ≡˘⟨ cong (_Asc/⟨ k ⟩ σ ↑)
+             (VecProps.lookup-map x weakenElimAsc (toVec Γ)) ⟩
+      lookup (suc x) (kd l ∷ Γ) Asc/⟨ k ⟩ σ ↑
+    ∎) (?≃-weaken (wf-kd (proj₁ (≅-valid j≅l/σ))) (lookup-/⟨⟩≃ σ≃τ⇇Γ x))
+
+-- Equation and context validity lemmas for hereditary substitutions.
+
+/⟨⟩≃-valid₁ : ∀ {k m n Δ Γ} {σ τ : SVSub m n} →
+              Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → Δ ⊢/⟨ k ⟩ σ ⇇ Γ
+/⟨⟩≃-valid₁ (≃-hsub a≃b⇇j ⌊j⌋≡k) =
+  ⇇-hsub (proj₁ (≃-valid a≃b⇇j)) (≃-valid-kd a≃b⇇j) ⌊j⌋≡k
+/⟨⟩≃-valid₁ (≃-H↑ a≅b/σ _ σ≃τ∈Γ) = ⇇-H↑ a≅b/σ (/⟨⟩≃-valid₁ σ≃τ∈Γ)
+
+/⟨⟩≃-valid₂ : ∀ {k m n Δ Γ} {σ τ : SVSub m n} →
+              Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → Δ ⊢/⟨ k ⟩ τ ⇇ Γ
+/⟨⟩≃-valid₂ (≃-hsub a≃b⇇j ⌊j⌋≡k) =
+  ⇇-hsub (proj₂ (≃-valid a≃b⇇j)) (≃-valid-kd a≃b⇇j) ⌊j⌋≡k
+/⟨⟩≃-valid₂ (≃-H↑ _ a≅b/τ σ≃τ∈Γ) = ⇇-H↑ a≅b/τ (/⟨⟩≃-valid₂ σ≃τ∈Γ)
+
+/⟨⟩≃-ctx : ∀ {k m n Γ Δ} {σ τ : SVSub m n} →
+           Γ ctx → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → Δ ctx
+/⟨⟩≃-ctx j∷Γ-ctx (≃-hsub a≃b⇇j ⌊j⌋≡k)     = wf-∷₂ j∷Γ-ctx
+/⟨⟩≃-ctx l∷Γ-ctx (≃-H↑ j≅l/σ j≅l/τ σ≃τ⇇Γ) =
+  let j-kd , _ = ≅-valid j≅l/σ
+      Γ-ctx    = wf-∷₂ l∷Γ-ctx
+  in (wf-kd j-kd) ∷ /⟨⟩≃-ctx Γ-ctx σ≃τ⇇Γ
 
 -- Symmetry of hereditary substitution equality.
-/H≃-sym : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢/H σ ≃ ρ ⇇ Γ
-/H≃-sym (≃-hsub Δ≅Γ[a] Δ≅Γ[b] a≃b⇇j ⌊j⌋≡k) =
-  ≃-hsub Δ≅Γ[b] Δ≅Γ[a] (≃-sym a≃b⇇j) ⌊j⌋≡k
 
--- If the first of two equal substitutions hits a variable, then so
--- does the second.
-/H≃-Hit : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} {x} →
-           Δ ⊢/H ρ ≃ σ ⇇ Γ → Hit ρ x → Hit σ x
-/H≃-Hit (≃-hsub Δ≅Γ[a] Δ≅Γ[b] a≃b⇇j ⌊j⌋≡k) refl = refl
-
--- If the first of two equal substitutions misses a variable, then so
--- does the second.
-/H≃-Miss : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} {x y} →
-            Δ ⊢/H ρ ≃ σ ⇇ Γ → Miss ρ x y → Miss σ x y
-/H≃-Miss (≃-hsub Δ≅Γ[a] Δ≅Γ[b] a≃b⇇j ⌊j⌋≡k) refl = refl
-
-private
-  module KL = TermLikeLemmas termLikeLemmasKind′
-  module EL = TermLikeLemmas termLikeLemmasElim
-  module AL = TermLikeLemmas termLikeLemmasElimAsc
+/⟨⟩≃-sym : ∀ {k m n Δ Γ} {σ τ : SVSub m n} →
+           Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → Δ ⊢/⟨ k ⟩ τ ≃ σ ⇇ Γ
+/⟨⟩≃-sym (≃-hsub a≃b⇇j ⌊j⌋≡k)     = ≃-hsub (≃-sym a≃b⇇j) ⌊j⌋≡k
+/⟨⟩≃-sym (≃-H↑ a≅b/σ a≅b/τ σ≃τ∈Γ) = ≃-H↑ a≅b/τ a≅b/σ (/⟨⟩≃-sym σ≃τ∈Γ)
 
 -- Simplification of kinded substitutions.
---
--- FIXME: the second substitution σ is ignored here and it might be
--- better to reformulate the lemma in terms of a simple kinded
--- (hereditary) substitution Δ ⊢/H ρ ⇇ Γ, i.e. such that ρ = σ but
--- Agda 2.5.2 won't accept that variant because there's too much green
--- slime in the indices of the constructor _←_∈_ of HSub.
-/H⇇-/H∈ : ∀ {k m n Δ Γ} {ρ σ : HSub k m n} →
-          Δ ⊢/H ρ ≃ σ ⇇ Γ → ⌊ Δ ⌋Ctx ⊢/H ρ ∈ ⌊ Γ ⌋Ctx
-/H⇇-/H∈ (≃-hsub {Δ₂ = Δ₂} {Γ₂} {Γ₁} {a} {_} {j} Δ₂≅Γ₁[a] _ a≃b⇇j ⌊j⌋≡k)
-  rewrite sym (⌊⌋≡⇒⌊⌋-≡ ⌊j⌋≡k) =
-  subst₂ (_⊢/H _ ∈_) (begin
-      map′ (λ _ k → k) (map′ (λ _ → ⌊_⌋Asc) Γ₂) ′++ ⌊ Γ₁ ⌋Ctx
-    ≡⟨ cong (_′++ _) (sym (map′-∘ (λ _ k → k) (λ _ → ⌊_⌋Asc) Γ₂)) ⟩
-      map′ (λ _ → ⌊_⌋Asc) Γ₂ ′++ ⌊ Γ₁ ⌋Ctx
-    ≡⟨ cong (_′++ _) (map′-cong (λ a → sym (⌊⌋-Asc/H a)) Γ₂) ⟩
-      map′ (λ i b → ⌊ b Asc/H i ← a ∈ ⌊ j ⌋ ⌋Asc) Γ₂ ′++ ⌊ Γ₁ ⌋Ctx
-    ≡⟨ cong (_′++ _)
-            (map′-∘ (λ _ → ⌊_⌋Asc) (λ i b → b Asc/H i ← a ∈ ⌊ j ⌋) Γ₂)  ⟩
-      map′ (λ _ → ⌊_⌋Asc) (Γ₂ E[ a ∈ ⌊ j ⌋ ]) ′++ ⌊ Γ₁ ⌋Ctx
-    ≡⟨ cong (_′++ _) (sym (⌊⌋-≅-ext Δ₂≅Γ₁[a]))  ⟩
-      map′ (λ _ → ⌊_⌋Asc) Δ₂ ′++ ⌊ Γ₁ ⌋Ctx
-    ≡⟨ ′++-map ⌊_⌋Asc Δ₂ Γ₁ ⟩
-      ElimCtx.map ⌊_⌋Asc (Δ₂ ′++ Γ₁)
-    ∎) (′++-map ⌊_⌋Asc Γ₂ (kd j ∷ Γ₁))
-         (∈-hsub (map′ (λ _ → ⌊_⌋Asc) Γ₂) (Nf⇇-Nf∈ a⇇j))
-    where a⇇j = proj₁ (≃-valid a≃b⇇j)
 
--- Lookup a hit in a well-kinded hereditary substitution.
-Var∈-Hit-/H≃ : ∀ {m n} {E : CtxExt′ m n} {Γ₂ Γ₁ a b j k l} →
-               let Γ = Γ₂ ′++ kd k ∷ Γ₁
-                   Δ = E ′++ Γ₁
-                   ρ = n ← a ∈ l
-                   σ = n ← b ∈ l
-                   x = raise n zero
-               in Δ ctx → lookup x Γ ≡ kd j →
-                  Γ₁ ⊢ E ≅ Γ₂ E[ a ∈ l ] ext → Γ₁ ⊢ a ≃ b ⇇ k → ⌊ k ⌋≡ l →
-                  Δ ⊢ var∙ x /H ρ ≃ var∙ x /H σ ⇇ j Kind/H ρ × ⌊ j Kind/H ρ ⌋≡ l
-Var∈-Hit-/H≃ {_} {n} {E} {Γ₂} {Γ₁} {a} {b} {j} {k} {l} Δ-ctx Γ[x]≡kd-j
-             E≅Γ₂[a] (<:-antisym k-kd a<:b b<:a) ⌊k⌋≡l =
-  <:-antisym (subst  (E ′++ Γ₁ ⊢_kd) k′≡j/ρ (kd-weaken⋆ {Δ′ = E} E-ext k-kd))
-             (subst₂ (E ′++ Γ₁ ⊢_<:_⇇ j Kind/H n ← a ∈ l)
-                     (helper n a) (helper n b)
-                     (subst (E ′++ Γ₁ ⊢ _ <: _ ⇇_) k′≡j/ρ
-                            (<:⇇-weaken⋆ {Δ′ = E} E-ext a<:b)))
-             (subst₂ (E ′++ Γ₁ ⊢_<:_⇇ j Kind/H n ← a ∈ l)
-                     (helper n b) (helper n a)
-                     (subst (E ′++ Γ₁ ⊢ _ <: _ ⇇_) k′≡j/ρ
-                            (<:⇇-weaken⋆ {Δ′ = E} E-ext b<:a))) ,
-  ⌊⌋≡-trans (cong ⌊_⌋ (sym k′≡j/ρ)) (⌊⌋≡-weaken⋆ n ⌊k⌋≡l)
-  where
-    E-ext = proj₁ (wf-split Δ-ctx)
-
-    k′≡j/ρ = begin
-        weakenKind′⋆ n k
-      ≡⟨ sym (KL./-wk⋆ n) ⟩
-        k Kind′/ wk⋆ n
-      ≡⟨ cong (_Kind′/ wk⋆ n) (sym (Kind/-wk-↑⋆-hsub-vanishes 0 k)) ⟩
-        (weakenKind′ k) Kind/H 0 ← a ∈ l Kind′/ wk⋆ n
-      ≡⟨ sym (wk⋆-Kind/H-↑⋆ n (weakenKind′ k)) ⟩
-        (weakenKind′ k) Kind′/ wk⋆ n Kind/H (0 ← a ∈ l) H↑⋆ n
-      ≡⟨ cong ((weakenKind′ k) Kind′/ wk⋆ n Kind/H_) (zero-←-↑⋆ n) ⟩
-        (weakenKind′ k) Kind′/ wk⋆ n Kind/H n ← a ∈ l
-      ≡⟨ kd-inj (cong (_Asc/H n ← a ∈ l) (begin
-            kd (weakenKind′ k Kind′/ wk⋆ n)
-          ≡⟨ AL./-wk⋆ n ⟩
-            weakenElimAsc⋆ n (weakenElimAsc (kd k))
-          ≡⟨ sym (lookup-weaken⋆′ n zero [] Γ₂ (kd k ∷ Γ₁)) ⟩
-            lookup (raise n zero) (Γ₂ ′++ kd k ∷ Γ₁)
-          ≡⟨ Γ[x]≡kd-j ⟩
-            kd j
-          ∎)) ⟩
-        j Kind/H (n ← a ∈ l)
-      ∎
-
-    helper : ∀ n {m} (a : Elim m) →
-             weakenElim⋆ n a ≡ var∙ (raise n zero) /H n ← a ∈ l
-    helper n a = begin
-        weakenElim⋆ n a
-      ≡⟨ sym (EL./-wk⋆ n) ⟩
-        a Elim/ wk⋆ n
-      ≡⟨ cong (_Elim/ wk⋆ n) (sym (⌜⌝∘⌞⌟-id a)) ⟩
-        ⌜ ⌞ a ⌟ ⌝ Elim/ wk⋆ n
-      ≡⟨ sym (⌜⌝-/ ⌞ a ⌟) ⟩
-        ⌜ ⌞ a ⌟ / wk⋆ n ⌝
-      ≡⟨ cong ⌜_⌝ (sym (ExtLemmas₄.raise-/-↑⋆ lemmas₄ n zero)) ⟩
-        ⌜ Vec.lookup (sub ⌞ a ⌟ ↑⋆ n) (raise n zero) ⌝
-      ≡⟨ sym (var∙-/H-/ (n ← a ∈ l) (raise n zero)) ⟩
-        var∙ (raise n zero) /H n ← a ∈ l
-      ∎
-
--- Lookup a miss in a well-kinded hereditary substitution.
-Var∈-Miss-/H : ∀ {m n} {E : CtxExt′ m n} {Γ₂ Γ₁} {x a j k l} →
-               let Γ = Γ₂ ′++ kd k ∷ Γ₁
-                   Δ = E ′++ Γ₁
-               in Δ ctx → lookup (lift n suc x) Γ ≡ kd j →
-                  Γ₁ ⊢ E ≅ Γ₂ E[ a ∈ l ] ext → ⌊ k ⌋≡ l →
-                  Δ ⊢Var var x ∈ j Kind/H (n ← a ∈ l)
-Var∈-Miss-/H {_} {n} {E} {Γ₂} {Γ₁} {x} {a} {j} {k} {l}
-             Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] ⌊k⌋≡l =
-  let open VecProp using (map-cong; map-id; map-∘)
-
-      Γ₁-ctx = proj₂ (wf-split {Δ = CtxExt′⇒CtxExt E} Δ-ctx)
-
-      Γ₂/ρ++Γ₁[x]≡kd-j/σ = begin
-          lookup x (Γ₂ E[ a ∈ l ] ′++ Γ₁)
-        ≡⟨ cong (λ l → lookup x (Γ₂ E[ a ∈ l ] ′++ Γ₁)) (sym (⌊⌋≡⇒⌊⌋-≡ ⌊k⌋≡l)) ⟩
-          lookup x (Γ₂ E[ a ∈ ⌊ k ⌋ ] ′++ Γ₁)
-        ≡⟨ lookup-E[] Γ₂ a k x ⟩
-          lookup (lift n suc x) (Γ₂ ′++ kd k ∷ Γ₁) Asc/H n ← a ∈ ⌊ k ⌋
-        ≡⟨ cong₂ (λ b l → b Asc/H n ← a ∈ l) Γ[x]≡kd-j (⌊⌋≡⇒⌊⌋-≡ ⌊k⌋≡l) ⟩
-          kd (j Kind/H n ← a ∈ l)
-        ∎
-
-      k , Δ[x]≡kd-k , k≅j/ρ = lookup-≅-kd x Γ₁-ctx E≅Γ₂[a] Γ₂/ρ++Γ₁[x]≡kd-j/σ
-
-  in ⇇-⇑ (⇉-var x Δ-ctx Δ[x]≡kd-k) (≅⇒<∷ k≅j/ρ) (proj₂ (≅-valid k≅j/ρ))
+/⟨⟩⇇-/⟨⟩∈ : ∀ {k m n Δ Γ} {σ : SVSub m n} →
+            Δ ⊢/⟨ k ⟩ σ ⇇ Γ → ⌊ Δ ⌋Ctx ⊢/⟨ k ⟩ σ ∈ ⌊ Γ ⌋Ctx
+/⟨⟩⇇-/⟨⟩∈ (≃-hsub a≃a⇇j ⌊j⌋≡k) =
+  subst (_ ⊢/⟨_⟩ _ ∈ _) (⌊⌋≡⇒⌊⌋-≡ ⌊j⌋≡k)
+        (∈-hsub (Nf⇇-Nf∈ (proj₁ (≃-valid a≃a⇇j))))
+/⟨⟩⇇-/⟨⟩∈ (≃-H↑ {Δ = Δ} {k} {Γ} {σ} {_} {j} {l} j≅l/σ _ σ≃σ∈Γ) =
+  subst ((_⊢/⟨ k ⟩ σ ↑ ∈ ⌊ kd l ∷ Γ ⌋Ctx) ∘ (_∷ ⌊ Δ ⌋Ctx)) (begin
+          ⌊ kd l ⌋Asc              ≡˘⟨ ⌊⌋-Asc/⟨⟩ (kd l) ⟩
+          ⌊ kd l Asc/⟨ k ⟩ σ ⌋Asc  ≡˘⟨ cong kd (≅-⌊⌋ j≅l/σ) ⟩
+          ⌊ kd j ⌋Asc              ∎)
+        (∈-H↑ (/⟨⟩⇇-/⟨⟩∈ σ≃σ∈Γ))
 
 -- TODO: explain why we need to track simple kinds explicitly.
 module TrackSimpleKindsSubst where
 
   -- TODO: explain how/why preservation of (sub)kinding/subtyping
   -- under reducing applications, hereditary substitution and equal
-  -- hereditary substitutions circularly depend on each other
-  -- (including a description of the critical path).
+  -- hereditary substitutions circularly depend on each other.
 
   mutual
 
-    -- Hereditary substitutions preserve well-formedness of ascriptions.
-    wf-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a} →
-            Γ ⊢ a wf → Δ ⊢/H ρ ⇇ Γ → Δ ⊢ a Asc/H ρ wf
-    wf-/H (wf-kd k-kd)  ρ⇇Γ = wf-kd (kd-/H k-kd ρ⇇Γ)
-    wf-/H (wf-tp a⇉a⋯a) ρ⇇Γ = wf-tp (Nf⇉-/H a⇉a⋯a ρ⇇Γ)
-
-    -- Equal hereditary substitutions preserve well-formedness of
-    -- contexts.
-    ctx-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} → Γ ctx → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ctx
-    ctx-/H≃ Γ-ctx (≃-hsub E≅Γ₂[a] _ a≃b⇇j ⌊j⌋≡k) = ctx-/H′ _ E≅Γ₂[a] Γ-ctx
-      where
-        a⇇j  = proj₁ (≃-valid a≃b⇇j)
-        j-kd = ≃-valid-kd a≃b⇇j
-
-        ctx-/H′ : ∀ {k m n} {E : CtxExt′ m n} Γ₂ {Γ₁ a j} →
-                  Γ₁ ⊢ E ≅ Γ₂ E[ a ∈ k ] ext →
-                  Γ₂ ′++ kd j ∷ Γ₁ ctx → E ′++ Γ₁ ctx
-        ctx-/H′ []      []                (_    ∷ Γ-ctx) = Γ-ctx
-        ctx-/H′ (c ∷ Γ) (b≅c[a] ∷ E≅Γ[a]) (c-wf ∷ Γ-ctx) =
-          proj₁ (≅wf-valid b≅c[a]) ∷ ctx-/H′ Γ E≅Γ[a] Γ-ctx
-
     -- Hereditary substitutions preserve well-formedness of kinds.
-    kd-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {j} →
-            Γ ⊢ j kd → Δ ⊢/H ρ ⇇ Γ → Δ ⊢ j Kind/H ρ kd
-    kd-/H (kd-⋯ a⇉a⋯a b⇉b⋯b) ρ⇇Γ =
-      kd-⋯ (Nf⇉-/H a⇉a⋯a ρ⇇Γ) (Nf⇉-/H b⇉b⋯b ρ⇇Γ)
-    kd-/H (kd-Π j-kd k-kd)   ρ⇇Γ =
-      let j/ρ-kd = kd-/H j-kd ρ⇇Γ
-      in kd-Π j/ρ-kd (kd-/H k-kd (⇇-H↑ (≅-kd (≅-refl j/ρ-kd)) ρ⇇Γ))
+
+    kd-/⟨⟩ : ∀ {k m n Γ Δ} {σ : SVSub m n} {j} →
+             Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ⇇ Γ → Δ ⊢ j Kind/⟨ k ⟩ σ kd
+    kd-/⟨⟩ (kd-⋯ a⇉a⋯a b⇉b⋯b) σ⇇Γ =
+      kd-⋯ (Nf⇉-/⟨⟩ a⇉a⋯a σ⇇Γ) (Nf⇉-/⟨⟩ b⇉b⋯b σ⇇Γ)
+    kd-/⟨⟩ (kd-Π j-kd k-kd)   σ⇇Γ =
+      let j/σ-kd = kd-/⟨⟩ j-kd σ⇇Γ
+      in kd-Π j/σ-kd (kd-/⟨⟩ k-kd (⇇-H↑ (≅-refl j/σ-kd) σ⇇Γ))
 
     -- Hereditary substitutions preserve synthesized kinds of normal
     -- types.
-    Nf⇉-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a j} →
-             Γ ⊢Nf a ⇉ j → Δ ⊢/H ρ ⇇ Γ → Δ ⊢Nf a /H ρ ⇉ j Kind/H ρ
-    Nf⇉-/H (⇉-⊥-f Γ-ctx) ρ⇇Γ = ⇉-⊥-f (ctx-/H≃ Γ-ctx ρ⇇Γ)
-    Nf⇉-/H (⇉-⊤-f Γ-ctx) ρ⇇Γ = ⇉-⊤-f (ctx-/H≃ Γ-ctx ρ⇇Γ)
-    Nf⇉-/H (⇉-∀-f k-kd a⇉a⋯a)  ρ⇇Γ =
-      let k/ρ-kd = kd-/H k-kd ρ⇇Γ
-      in ⇉-∀-f k/ρ-kd (Nf⇉-/H a⇉a⋯a (⇇-H↑ (≅wf-refl (wf-kd k/ρ-kd)) ρ⇇Γ))
-    Nf⇉-/H (⇉-→-f a⇉a⋯a b⇉b⋯b) ρ⇇Γ =
-      ⇉-→-f (Nf⇉-/H a⇉a⋯a ρ⇇Γ) (Nf⇉-/H b⇉b⋯b ρ⇇Γ)
-    Nf⇉-/H (⇉-Π-i k-kd a⇉a⋯a)  ρ⇇Γ =
-      let k/ρ-kd = kd-/H k-kd ρ⇇Γ
-      in ⇉-Π-i k/ρ-kd (Nf⇉-/H a⇉a⋯a (⇇-H↑ (≅-kd (≅-refl k/ρ-kd)) ρ⇇Γ))
-    Nf⇉-/H (⇉-s-i a∈b⋯c) ρ⇇Γ = Nf⇇-s-i (Ne∈-/H a∈b⋯c ρ⇇Γ)
+
+    Nf⇉-/⟨⟩ : ∀ {k m n Γ Δ} {σ : SVSub m n} {a j} →
+              Γ ⊢Nf a ⇉ j → Δ ⊢/⟨ k ⟩ σ ⇇ Γ → Δ ⊢Nf a /⟨ k ⟩ σ ⇉ j Kind/⟨ k ⟩ σ
+    Nf⇉-/⟨⟩ (⇉-⊥-f Γ-ctx) σ⇇Γ = ⇉-⊥-f (/⟨⟩≃-ctx Γ-ctx σ⇇Γ)
+    Nf⇉-/⟨⟩ (⇉-⊤-f Γ-ctx) σ⇇Γ = ⇉-⊤-f (/⟨⟩≃-ctx Γ-ctx σ⇇Γ)
+    Nf⇉-/⟨⟩ (⇉-∀-f k-kd a⇉a⋯a)  σ⇇Γ =
+      let k/σ-kd = kd-/⟨⟩ k-kd σ⇇Γ
+      in ⇉-∀-f k/σ-kd (Nf⇉-/⟨⟩ a⇉a⋯a (⇇-H↑ (≅-refl k/σ-kd) σ⇇Γ))
+    Nf⇉-/⟨⟩ (⇉-→-f a⇉a⋯a b⇉b⋯b) σ⇇Γ =
+      ⇉-→-f (Nf⇉-/⟨⟩ a⇉a⋯a σ⇇Γ) (Nf⇉-/⟨⟩ b⇉b⋯b σ⇇Γ)
+    Nf⇉-/⟨⟩ (⇉-Π-i k-kd a⇉a⋯a)  σ⇇Γ =
+      let k/σ-kd = kd-/⟨⟩ k-kd σ⇇Γ
+      in ⇉-Π-i k/σ-kd (Nf⇉-/⟨⟩ a⇉a⋯a (⇇-H↑ (≅-refl k/σ-kd) σ⇇Γ))
+    Nf⇉-/⟨⟩ (⇉-s-i a∈b⋯c) σ⇇Γ = Nf⇇-s-i (Ne∈-/⟨⟩ a∈b⋯c σ⇇Γ)
 
     -- Neutral proper types kind-check against their synthesized kinds
     -- after substitution.
-    Ne∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a b c} →
-             Γ ⊢Ne a ∈ b ⋯ c → Δ ⊢/H ρ ⇇ Γ → Δ ⊢Nf a /H ρ ⇇ b /H ρ ⋯ c /H ρ
-    Ne∈-/H {ρ = ρ} (∈-∙ {x} x∈j j⇉as⇉l) ρ⇇Γ with hit? ρ x
-    Ne∈-/H (∈-∙ x∈j j⇉as⇉l) ρ⇇Γ | yes hit =
-      let x/ρ⇇j/ρ , ⌊j/ρ⌋≡k , j-kd = Var⇇-Hit-/H hit x∈j ρ⇇Γ
-      in subst (_ ⊢Nf_⇇ _) (sym (ne-/H-Hit _ hit))
-               (Nf⇇-∙∙ x/ρ⇇j/ρ (Sp⇉-/H (kd-kds j-kd) j⇉as⇉l ρ⇇Γ) ⌊j/ρ⌋≡k)
-    Ne∈-/H (∈-∙ x∈j j⇉as⇉l) ρ⇇Γ | no y miss =
-      let y∈j/ρ , j-kd = Var⇇-Miss-/H y miss x∈j ρ⇇Γ
-      in subst (_ ⊢Nf_⇇ _) (sym (ne-/H-Miss _ y miss))
-               (Nf⇇-ne (∈-∙ y∈j/ρ (Sp⇉-/H (kd-kds j-kd) j⇉as⇉l ρ⇇Γ)))
 
-    -- FIXME: the second substitution σ is ignored here and it might
-    -- be better to reformulate the lemma in terms of a simple kinded
-    -- (hereditary) substitution Δ ⊢/H ρ ⇇ Γ, i.e. such that ρ = σ but
-    -- Agda 2.5.2 won't accept that variant because there's too much
-    -- green slime in the indices of the constructor _←_∈_ of HSub.
-    Var⇇-Hit-/H : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {x j} → Hit ρ x →
-                  Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                  Δ ⊢Nf var∙ x /H ρ ⇇ j Kind/H ρ × ⌊ j Kind/H ρ ⌋≡ k × Γ ⊢ j kd
-    Var⇇-Hit-/H refl (⇉-var _ Γ-ctx Γ[x]≡kd-j)
-                (≃-hsub {_} {_} {n} E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l) =
-      let Δ-ctx = ctx-/H≃ Γ-ctx (≃-hsub E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l)
-          a≃b⇇j/ρ , ⌊j/ρ⌋≡k = Var∈-Hit-/H≃ Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] a≃b⇇k ⌊k⌋≡l
-          a⇇j/ρ   , _ = ≃-valid a≃b⇇j/ρ
-          j-kd        = Var∈-valid (⇉-var (raise n zero) Γ-ctx Γ[x]≡kd-j)
-      in a⇇j/ρ , ⌊j/ρ⌋≡k , j-kd
-    Var⇇-Hit-/H hit (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ≃σ⇇Γ =
-      let x/ρ⇇j₁/ρ , ⌊j₁/ρ⌋≡k , _ = Var⇇-Hit-/H hit x∈j₁ ρ≃σ⇇Γ
-          j₁/ρ<:j₂/ρ = <∷-/H≃ j₁<∷j₂ (/H≃-valid₁ ρ≃σ⇇Γ)
-      in Nf⇇-⇑ x/ρ⇇j₁/ρ j₁/ρ<:j₂/ρ ,
-         ⌊⌋≡-trans (sym (<∷-⌊⌋ j₁/ρ<:j₂/ρ)) ⌊j₁/ρ⌋≡k ,
-         j₂-kd
+    Ne∈-/⟨⟩ : ∀ {k m n Γ Δ} {σ : SVSub m n} {a b c} →
+              Γ ⊢Ne a ∈ b ⋯ c → Δ ⊢/⟨ k ⟩ σ ⇇ Γ →
+              Δ ⊢Nf a /⟨ k ⟩ σ ⇇ b /⟨ k ⟩ σ ⋯ c /⟨ k ⟩ σ
+    Ne∈-/⟨⟩ (∈-∙ {x} x∈j j⇉as⇉b⋯c) σ⇇Γ =
+      let j-kds = kd-kds (Var∈-valid x∈j)
+      in Var∈-/⟨⟩-⇑-?∙∙ x∈j σ⇇Γ ≤-refl (Sp⇉-/⟨⟩ j-kds j⇉as⇉b⋯c σ⇇Γ)
 
-    -- FIXME: the second substitution σ is ignored here and it might
-    -- be better to reformulate the lemma in terms of a simple kinded
-    -- (hereditary) substitution Δ ⊢/H ρ ⇇ Γ, i.e. such that ρ = σ but
-    -- Agda 2.5.2 won't accept that variant because there's too much
-    -- green slime in the indices of the constructor _←_∈_ of HSub.
-    Var⇇-Miss-/H : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {x j} y → Miss ρ x y →
-                   Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                   Δ ⊢Var var y ∈ j Kind/H ρ × Γ ⊢ j kd
-    Var⇇-Miss-/H y refl (⇉-var _ Γ-ctx Γ[x]≡kd-j)
-                 (≃-hsub {_} {_} {n} E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l) =
-      let Δ-ctx = ctx-/H≃ Γ-ctx (≃-hsub E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l)
-          x/ρ⇇j/ρ = Var∈-Miss-/H Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] ⌊k⌋≡l
-          j-kd = Var∈-valid (⇉-var (lift n suc y) Γ-ctx Γ[x]≡kd-j)
-      in x/ρ⇇j/ρ , j-kd
-    Var⇇-Miss-/H y miss (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ≃σ⇇Γ =
-      let y∈j₁/ρ , _ = Var⇇-Miss-/H y miss x∈j₁ ρ≃σ⇇Γ
-          ρ⇇Γ        = /H≃-valid₁ ρ≃σ⇇Γ
-          j₁/ρ<:j₂/ρ = <∷-/H≃ j₁<∷j₂ ρ⇇Γ
-      in ⇇-⇑ y∈j₁/ρ j₁/ρ<:j₂/ρ (kd-/H j₂-kd ρ⇇Γ) , j₂-kd
+    Var∈-/⟨⟩-⇑-?∙∙ : ∀ {k m n Γ Δ} {σ : SVSub m n} {x j l as b c} →
+                     Γ ⊢Var x ∈ j → Δ ⊢/⟨ k ⟩ σ ⇇ Γ →
+                     Δ ⊢ kd j Asc/⟨ k ⟩ σ ≤ kd l → Δ ⊢ l ⇉∙ as ⇉ b ⋯ c →
+                     Δ ⊢Nf lookupSV σ x ?∙∙⟨ k ⟩ as ⇇ b ⋯ c
+    Var∈-/⟨⟩-⇑-?∙∙ (⇉-var x _ Γ[x]≡kd-j) σ⇇Γ j/σ≤l l⇉as⇉b⋯c =
+      ?⇇-⇑-?∙∙ (subst (_ ⊢?⟨ _ ⟩ _ ⇇_) (cong (_Asc/⟨ _ ⟩ _) Γ[x]≡kd-j)
+                      (lookup-/⟨⟩≃ σ⇇Γ x))
+               j/σ≤l l⇉as⇉b⋯c
+    Var∈-/⟨⟩-⇑-?∙∙ (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) σ⇇Γ j₂/σ≤l l⇉as⇉b⋯c =
+      let j₁/σ≤j₂/σ = ≤-<∷ (<∷-/⟨⟩≃ j₁<∷j₂ σ⇇Γ) (kd-/⟨⟩ j₂-kd σ⇇Γ)
+      in Var∈-/⟨⟩-⇑-?∙∙ x∈j₁ σ⇇Γ (≤-trans j₁/σ≤j₂/σ j₂/σ≤l) l⇉as⇉b⋯c
 
     -- Hereditary substitutions preserve synthesized kinds of spines.
-    Sp⇉-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {as j₁ j₂} →
-             ⌊ Γ ⌋Ctx ⊢ j₁ kds → Γ ⊢ j₁ ⇉∙ as ⇉ j₂ → Δ ⊢/H ρ ⇇ Γ →
-             Δ ⊢ j₁ Kind/H ρ ⇉∙ as //H ρ ⇉ j₂ Kind/H ρ
-    Sp⇉-/H _ ⇉-[] ρ⇇Γ = ⇉-[]
-    Sp⇉-/H {k} (kds-Π j₁-kds j₂-kds)
-           (⇉-∷ {a} {_} {j₁} {j₂} a⇇j₁ j₁-kd j₂[a]⇉as⇉j₃) ρ⇇Γ =
-      ⇉-∷ (Nf⇇-/H a⇇j₁ ρ⇇Γ) (kd-/H j₁-kd ρ⇇Γ)
-          (subst (_ ⊢_⇉∙ _ ⇉ _) j₂[a]/ρ≡j₂/ρ[a/ρ]
-                 (Sp⇉-/H (kds-/H j₂-kds (∈-hsub [] a∈⌊j₁⌋)) j₂[a]⇉as⇉j₃ ρ⇇Γ))
+    Sp⇉-/⟨⟩ : ∀ {k m n Γ Δ} {σ : SVSub m n} {as j₁ j₂} →
+              ⌊ Γ ⌋Ctx ⊢ j₁ kds → Γ ⊢ j₁ ⇉∙ as ⇉ j₂ → Δ ⊢/⟨ k ⟩ σ ⇇ Γ →
+              Δ ⊢ j₁ Kind/⟨ k ⟩ σ ⇉∙ as //⟨ k ⟩ σ ⇉ j₂ Kind/⟨ k ⟩ σ
+    Sp⇉-/⟨⟩ _ ⇉-[] σ⇇Γ = ⇉-[]
+    Sp⇉-/⟨⟩ {k} (kds-Π j₁-kds j₂-kds)
+            (⇉-∷ {a} {_} {j₁} {j₂} a⇇j₁ j₁-kd j₂[a]⇉as⇉j₃) σ⇇Γ =
+      ⇉-∷ (Nf⇇-/⟨⟩ a⇇j₁ σ⇇Γ) (kd-/⟨⟩ j₁-kd σ⇇Γ)
+          (subst (_ ⊢_⇉∙ _ ⇉ _) j₂[a]/σ≡j₂/σ[a/σ]
+                 (Sp⇉-/⟨⟩ (kds-/⟨⟩ j₂-kds (∈-hsub a∈⌊j₁⌋)) j₂[a]⇉as⇉j₃ σ⇇Γ))
       where
         a∈⌊j₁⌋ = Nf⇇-Nf∈ a⇇j₁
 
-        j₂[a]/ρ≡j₂/ρ[a/ρ] = begin
-            j₂ Kind[ a ∈ ⌊ j₁ ⌋ ] Kind/H _
-          ≡⟨ kds-[]-/H-↑⋆ [] j₂-kds a∈⌊j₁⌋ (/H⇇-/H∈ ρ⇇Γ) ⟩
-            j₂ Kind/H _ H↑ Kind/H 0 ← (a /H _) ∈ ⌊ j₁ ⌋
-          ≡⟨ cong (_ Kind[ a /H _ ∈_]) (sym (⌊⌋-Kind/H j₁)) ⟩
-            (j₂ Kind/H _ H↑) Kind[ a /H _ ∈ ⌊ j₁ Kind/H _ ⌋ ]
+        j₂[a]/σ≡j₂/σ[a/σ] = begin
+            j₂ Kind[ a ∈ ⌊ j₁ ⌋ ] Kind/⟨ k ⟩ _
+          ≡⟨ kds-[]-/⟨⟩-↑⋆ [] j₂-kds a∈⌊j₁⌋ (/⟨⟩⇇-/⟨⟩∈ σ⇇Γ) ⟩
+            j₂ Kind/⟨ k ⟩ _ ↑ Kind/⟨ ⌊ j₁ ⌋ ⟩ sub (a /⟨ k ⟩ _)
+          ≡⟨ cong (_ Kind[ a /⟨ k ⟩ _ ∈_]) (sym (⌊⌋-Kind/⟨⟩ j₁)) ⟩
+            (j₂ Kind/⟨ k ⟩ _ ↑) Kind[ a /⟨ k ⟩ _ ∈ ⌊ j₁ Kind/⟨ k ⟩ _ ⌋ ]
           ∎
 
     -- Hereditary substitutions preserve checked kinds of normal
     -- types.
-    Nf⇇-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a j} →
-             Γ ⊢Nf a ⇇ j → Δ ⊢/H ρ ⇇ Γ → Δ ⊢Nf a /H ρ ⇇ j Kind/H ρ
-    Nf⇇-/H (⇇-⇑ a⇉j j<∷k) ρ⇇Γ = ⇇-⇑ (Nf⇉-/H a⇉j ρ⇇Γ) (<∷-/H≃ j<∷k ρ⇇Γ)
-
-    -- Equal hereditary substitutions map well-formed ascriptions to
-    -- identities.
-    wf-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a} →
-             Γ ⊢ a wf → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a Asc/H ρ ≅ a Asc/H σ wf
-    wf-/H≃ (wf-kd k-kd)  ρ≃σ⇇Γ = ≅-kd (kd-/H≃-≅ k-kd ρ≃σ⇇Γ)
-    wf-/H≃ (wf-tp a⇉a⋯a) ρ≃σ⇇Γ =
-      let a/ρ⇉a/ρ⋯a/ρ = Nf⇉-/H a⇉a⋯a (/H≃-valid₁ ρ≃σ⇇Γ)
-          a/σ⇉a/σ⋯a/σ = Nf⇉-/H a⇉a⋯a (/H≃-valid₂ ρ≃σ⇇Γ)
-          a/ρ⋯a/ρ-kd  = kd-⋯ a/ρ⇉a/ρ⋯a/ρ a/ρ⇉a/ρ⋯a/ρ
-          a/ρ<:a/σ    = Nf⇉-⋯-/H≃ a⇉a⋯a ρ≃σ⇇Γ
-          a/σ<:a/ρ    = Nf⇉-⋯-/H≃ a⇉a⋯a (/H≃-sym ρ≃σ⇇Γ)
-          a/ρ⇇a/ρ⋯a/ρ = Nf⇉⇒Nf⇇ a/ρ⇉a/ρ⋯a/ρ
-          a/σ⇇a/ρ⋯a/ρ = ⇇-⇑ a/σ⇉a/σ⋯a/σ (<∷-⋯ a/ρ<:a/σ a/σ<:a/ρ)
-      in ≅-tp (<:-antisym a/ρ⋯a/ρ-kd
-                          (<:-⇇ a/ρ⇇a/ρ⋯a/ρ a/σ⇇a/ρ⋯a/ρ a/ρ<:a/σ)
-                          (<:-⇇ a/σ⇇a/ρ⋯a/ρ a/ρ⇇a/ρ⋯a/ρ a/σ<:a/ρ))
+    Nf⇇-/⟨⟩ : ∀ {k m n Γ Δ} {σ : SVSub m n} {a j} →
+              Γ ⊢Nf a ⇇ j → Δ ⊢/⟨ k ⟩ σ ⇇ Γ → Δ ⊢Nf a /⟨ k ⟩ σ ⇇ j Kind/⟨ k ⟩ σ
+    Nf⇇-/⟨⟩ (⇇-⇑ a⇉j j<∷k) σ⇇Γ = ⇇-⇑ (Nf⇉-/⟨⟩ a⇉j σ⇇Γ) (<∷-/⟨⟩≃ j<∷k σ⇇Γ)
 
     -- Equal hereditary substitutions well-formed kinds to subkinds.
-    kd-/H≃-<∷ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {k} →
-                Γ ⊢ k kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                Δ ⊢ k Kind/H ρ <∷ k Kind/H σ
-    kd-/H≃-<∷ (kd-⋯ a⇉a⋯a b⇉b⋯b) ρ≃σ⇇Γ =
-      <∷-⋯ (Nf⇉-⋯-/H≃ a⇉a⋯a (/H≃-sym ρ≃σ⇇Γ)) (Nf⇉-⋯-/H≃ b⇉b⋯b ρ≃σ⇇Γ)
-    kd-/H≃-<∷ (kd-Π j-kd k-kd)   ρ≃σ⇇Γ =
-      let ρ⇇Γ     = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ     = /H≃-valid₂ ρ≃σ⇇Γ
-          σ≃ρ⇇Γ   = /H≃-sym ρ≃σ⇇Γ
-          j/ρ≅j/ρ = kd-/H≃-≅ j-kd ρ⇇Γ
-          j/σ≅j/σ = kd-/H≃-≅ j-kd σ⇇Γ
-          j/σ≅j/ρ = kd-/H≃-≅ j-kd σ≃ρ⇇Γ
-      in <∷-Π (kd-/H≃-<∷ j-kd σ≃ρ⇇Γ)
-              (kd-/H≃-<∷ k-kd (≃-H↑ (≅-kd j/σ≅j/ρ) (≅-kd j/σ≅j/σ) ρ≃σ⇇Γ))
-              (kd-Π (kd-/H j-kd ρ⇇Γ) (kd-/H k-kd (⇇-H↑ (≅-kd j/ρ≅j/ρ) ρ⇇Γ)))
+    kd-/⟨⟩≃-<∷ : ∀ {m n Γ k Δ} {σ τ : SVSub m n} {j} →
+                 Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+                 Δ ⊢ j Kind/⟨ k ⟩ σ <∷ j Kind/⟨ k ⟩ τ
+    kd-/⟨⟩≃-<∷ (kd-⋯ a⇉a⋯a b⇉b⋯b) σ≃τ⇇Γ =
+      <∷-⋯ (Nf⇉-⋯-/⟨⟩≃ a⇉a⋯a (/⟨⟩≃-sym σ≃τ⇇Γ)) (Nf⇉-⋯-/⟨⟩≃ b⇉b⋯b σ≃τ⇇Γ)
+    kd-/⟨⟩≃-<∷ (kd-Π j-kd k-kd)   σ≃τ⇇Γ =
+      let σ⇇Γ     = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ     = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          τ≃σ⇇Γ   = /⟨⟩≃-sym σ≃τ⇇Γ
+          j/σ≅j/σ = kd-/⟨⟩≃-≅ j-kd σ⇇Γ
+          j/τ≅j/τ = kd-/⟨⟩≃-≅ j-kd τ⇇Γ
+          j/τ≅j/σ = kd-/⟨⟩≃-≅ j-kd τ≃σ⇇Γ
+      in <∷-Π (kd-/⟨⟩≃-<∷ j-kd τ≃σ⇇Γ)
+              (kd-/⟨⟩≃-<∷ k-kd (≃-H↑ j/τ≅j/σ j/τ≅j/τ σ≃τ⇇Γ))
+              (kd-Π (kd-/⟨⟩ j-kd σ⇇Γ) (kd-/⟨⟩ k-kd (⇇-H↑ j/σ≅j/σ σ⇇Γ)))
 
     -- Equal hereditary substitutions map well-formed kinds to kind
     -- identities.
-    kd-/H≃-≅ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {k} →
-               Γ ⊢ k kd → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ k Kind/H ρ ≅ k Kind/H σ
-    kd-/H≃-≅ k-kd ρ≃σ⇇Γ =
-      <∷-antisym (kd-/H k-kd (/H≃-valid₁ ρ≃σ⇇Γ))
-                 (kd-/H k-kd (/H≃-valid₂ ρ≃σ⇇Γ))
-                 (kd-/H≃-<∷ k-kd ρ≃σ⇇Γ) (kd-/H≃-<∷ k-kd (/H≃-sym ρ≃σ⇇Γ))
+    kd-/⟨⟩≃-≅ : ∀ {m n Γ k Δ} {σ τ : SVSub m n} {j} →
+                Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+                Δ ⊢ j Kind/⟨ k ⟩ σ ≅ j Kind/⟨ k ⟩ τ
+    kd-/⟨⟩≃-≅ k-kd σ≃τ⇇Γ =
+      <∷-antisym (kd-/⟨⟩ k-kd (/⟨⟩≃-valid₁ σ≃τ⇇Γ))
+                 (kd-/⟨⟩ k-kd (/⟨⟩≃-valid₂ σ≃τ⇇Γ))
+                 (kd-/⟨⟩≃-<∷ k-kd σ≃τ⇇Γ) (kd-/⟨⟩≃-<∷ k-kd (/⟨⟩≃-sym σ≃τ⇇Γ))
 
     -- Equal hereditary substitutions map normal forms to subtypes.
 
-    Nf⇉-⋯-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a b c} →
-                Γ ⊢Nf a ⇉ b ⋯ c → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a /H ρ <: a /H σ
-    Nf⇉-⋯-/H≃ (⇉-⊥-f Γ-ctx) ρ≃σ⇇Γ =
-      <:-⊥ (⇉-⊥-f (ctx-/H≃ Γ-ctx (/H≃-valid₁ ρ≃σ⇇Γ)))
-    Nf⇉-⋯-/H≃ (⇉-⊤-f Γ-ctx) ρ≃σ⇇Γ =
-      <:-⊤ (⇉-⊤-f (ctx-/H≃ Γ-ctx (/H≃-valid₂ ρ≃σ⇇Γ)))
-    Nf⇉-⋯-/H≃ (⇉-∀-f k-kd a⇉a⋯a) ρ≃σ⇇Γ =
-      let ρ⇇Γ       = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ       = /H≃-valid₂ ρ≃σ⇇Γ
-          σ≃ρ⇇Γ     = /H≃-sym  ρ≃σ⇇Γ
-          k/σ≅k/σ   = kd-/H≃-≅ k-kd σ⇇Γ
-          k/ρ≅k/ρ   = kd-/H≃-≅ k-kd ρ⇇Γ
-          k/σ≅k/ρ   = kd-/H≃-≅ k-kd σ≃ρ⇇Γ
-          ρ≃σ⇇j/σ∷Γ = ≃-H↑ (≅-kd k/σ≅k/ρ) (≅-kd k/σ≅k/σ) ρ≃σ⇇Γ
-      in <:-∀ (≅⇒<∷ k/σ≅k/ρ) (Nf⇉-⋯-/H≃ a⇉a⋯a ρ≃σ⇇j/σ∷Γ)
-              (⇉-∀-f (kd-/H k-kd ρ⇇Γ)
-                     (Nf⇉-/H a⇉a⋯a (⇇-H↑ (≅-kd k/ρ≅k/ρ) ρ⇇Γ)))
-    Nf⇉-⋯-/H≃ (⇉-→-f a⇉a⋯a b⇉b⋯b) ρ≃σ⇇Γ =
-      <:-→ (Nf⇉-⋯-/H≃ a⇉a⋯a (/H≃-sym ρ≃σ⇇Γ)) (Nf⇉-⋯-/H≃ b⇉b⋯b ρ≃σ⇇Γ)
-    Nf⇉-⋯-/H≃ (⇉-s-i a∈b⋯c) ρ≃σ⇇Γ = Ne∈-/H≃ a∈b⋯c ρ≃σ⇇Γ
+    Nf⇉-⋯-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a b c} →
+                 Γ ⊢Nf a ⇉ b ⋯ c → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+                 Δ ⊢ a /⟨ k ⟩ σ <: a /⟨ k ⟩ τ
+    Nf⇉-⋯-/⟨⟩≃ (⇉-⊥-f Γ-ctx) σ≃τ⇇Γ =
+      <:-⊥ (⇉-⊥-f (/⟨⟩≃-ctx Γ-ctx (/⟨⟩≃-valid₁ σ≃τ⇇Γ)))
+    Nf⇉-⋯-/⟨⟩≃ (⇉-⊤-f Γ-ctx) σ≃τ⇇Γ =
+      <:-⊤ (⇉-⊤-f (/⟨⟩≃-ctx Γ-ctx (/⟨⟩≃-valid₂ σ≃τ⇇Γ)))
+    Nf⇉-⋯-/⟨⟩≃ (⇉-∀-f k-kd a⇉a⋯a) σ≃τ⇇Γ =
+      let σ⇇Γ       = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ       = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          τ≃σ⇇Γ     = /⟨⟩≃-sym  σ≃τ⇇Γ
+          k/τ≅k/τ   = kd-/⟨⟩≃-≅ k-kd τ⇇Γ
+          k/σ≅k/σ   = kd-/⟨⟩≃-≅ k-kd σ⇇Γ
+          k/τ≅k/σ   = kd-/⟨⟩≃-≅ k-kd τ≃σ⇇Γ
+          σ≃τ⇇j/τ∷Γ = ≃-H↑ k/τ≅k/σ k/τ≅k/τ σ≃τ⇇Γ
+      in <:-∀ (≅⇒<∷ k/τ≅k/σ) (Nf⇉-⋯-/⟨⟩≃ a⇉a⋯a σ≃τ⇇j/τ∷Γ)
+              (⇉-∀-f (kd-/⟨⟩ k-kd σ⇇Γ)
+                     (Nf⇉-/⟨⟩ a⇉a⋯a (⇇-H↑ k/σ≅k/σ σ⇇Γ)))
+    Nf⇉-⋯-/⟨⟩≃ (⇉-→-f a⇉a⋯a b⇉b⋯b) σ≃τ⇇Γ =
+      <:-→ (Nf⇉-⋯-/⟨⟩≃ a⇉a⋯a (/⟨⟩≃-sym σ≃τ⇇Γ)) (Nf⇉-⋯-/⟨⟩≃ b⇉b⋯b σ≃τ⇇Γ)
+    Nf⇉-⋯-/⟨⟩≃ (⇉-s-i a∈b⋯c) σ≃τ⇇Γ = Ne∈-/⟨⟩≃ a∈b⋯c σ≃τ⇇Γ
 
-    Nf⇉-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a j} →
-              Γ ⊢Nf a ⇉ j → Γ ⊢ j kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-              Δ ⊢ a /H ρ <: a /H σ ⇇ j Kind/H ρ
-    Nf⇉-/H≃ a⇉b⋯c (kd-⋯ b⇉b⋯b c⇉c⋯c) ρ≃σ⇇Γ =
-      let ρ⇇Γ   = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ   = /H≃-valid₂ ρ≃σ⇇Γ
-          σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
-      in <:-⇇ (Nf⇉⇒Nf⇇ (Nf⇉-/H a⇉b⋯c ρ⇇Γ))
-              (⇇-⇑ (Nf⇉-/H a⇉b⋯c σ⇇Γ)
-                   (<∷-⋯ (Nf⇉-⋯-/H≃ b⇉b⋯b ρ≃σ⇇Γ) (Nf⇉-⋯-/H≃ c⇉c⋯c σ≃ρ⇇Γ)))
-              (Nf⇉-⋯-/H≃ a⇉b⋯c ρ≃σ⇇Γ)
-    Nf⇉-/H≃ (⇉-Π-i _ a⇉l) (kd-Π j-kd l-kd) ρ≃σ⇇Γ =
-      let σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
-          ρ⇇Γ   = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ   = /H≃-valid₂ ρ≃σ⇇Γ
-          j/ρ-kd  = kd-/H j-kd ρ⇇Γ
-          j/σ-kd  = kd-/H j-kd σ⇇Γ
-          j/ρ≅j/ρ = kd-/H≃-≅ j-kd ρ⇇Γ
-          j/σ≅j/σ = kd-/H≃-≅ j-kd σ⇇Γ
-          j/ρ≅j/σ = kd-/H≃-≅ j-kd ρ≃σ⇇Γ
-          a/ρ⇉l/ρ = Nf⇉-/H a⇉l (⇇-H↑ (≅-kd j/ρ≅j/ρ) ρ⇇Γ)
-          a/σ⇉l/σ = Nf⇉-/H a⇉l (⇇-H↑ (≅-kd j/σ≅j/σ) σ⇇Γ)
-          a/ρ<:a/σ⇇l/ρ = Nf⇉-/H≃ a⇉l l-kd (≃-H↑ (≅-kd j/ρ≅j/ρ) (≅-kd j/ρ≅j/σ)
-                                                ρ≃σ⇇Γ)
-          Πjl/σ<∷Πjl/ρ = kd-/H≃-<∷ (kd-Π j-kd l-kd) σ≃ρ⇇Γ
-          Λja/ρ⇇Πjl/ρ = Nf⇉⇒Nf⇇ (⇉-Π-i j/ρ-kd a/ρ⇉l/ρ)
-          Λja/σ⇇Πjl/ρ = ⇇-⇑ (⇉-Π-i j/σ-kd a/σ⇉l/σ) Πjl/σ<∷Πjl/ρ
-      in <:-λ a/ρ<:a/σ⇇l/ρ Λja/ρ⇇Πjl/ρ Λja/σ⇇Πjl/ρ
+    Nf⇉-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a j} →
+               Γ ⊢Nf a ⇉ j → Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+               Δ ⊢ a /⟨ k ⟩ σ <: a /⟨ k ⟩ τ ⇇ j Kind/⟨ k ⟩ σ
+    Nf⇉-/⟨⟩≃ a⇉b⋯c (kd-⋯ b⇉b⋯b c⇉c⋯c) σ≃τ⇇Γ =
+      let σ⇇Γ   = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ   = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          τ≃σ⇇Γ = /⟨⟩≃-sym σ≃τ⇇Γ
+      in <:-⇇ (Nf⇉⇒Nf⇇ (Nf⇉-/⟨⟩ a⇉b⋯c σ⇇Γ))
+              (⇇-⇑ (Nf⇉-/⟨⟩ a⇉b⋯c τ⇇Γ)
+                   (<∷-⋯ (Nf⇉-⋯-/⟨⟩≃ b⇉b⋯b σ≃τ⇇Γ) (Nf⇉-⋯-/⟨⟩≃ c⇉c⋯c τ≃σ⇇Γ)))
+              (Nf⇉-⋯-/⟨⟩≃ a⇉b⋯c σ≃τ⇇Γ)
+    Nf⇉-/⟨⟩≃ (⇉-Π-i _ a⇉l) (kd-Π j-kd l-kd) σ≃τ⇇Γ =
+      let τ≃σ⇇Γ = /⟨⟩≃-sym σ≃τ⇇Γ
+          σ⇇Γ   = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ   = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          j/σ-kd  = kd-/⟨⟩ j-kd σ⇇Γ
+          j/τ-kd  = kd-/⟨⟩ j-kd τ⇇Γ
+          j/σ≅j/σ = kd-/⟨⟩≃-≅ j-kd σ⇇Γ
+          j/τ≅j/τ = kd-/⟨⟩≃-≅ j-kd τ⇇Γ
+          j/σ≅j/τ = kd-/⟨⟩≃-≅ j-kd σ≃τ⇇Γ
+          a/σ⇉l/σ = Nf⇉-/⟨⟩ a⇉l (⇇-H↑ j/σ≅j/σ σ⇇Γ)
+          a/τ⇉l/τ = Nf⇉-/⟨⟩ a⇉l (⇇-H↑ j/τ≅j/τ τ⇇Γ)
+          a/σ<:a/τ⇇l/σ = Nf⇉-/⟨⟩≃ a⇉l l-kd (≃-H↑ j/σ≅j/σ j/σ≅j/τ σ≃τ⇇Γ)
+          Πjl/τ<∷Πjl/σ = kd-/⟨⟩≃-<∷ (kd-Π j-kd l-kd) τ≃σ⇇Γ
+          Λja/σ⇇Πjl/σ = Nf⇉⇒Nf⇇ (⇉-Π-i j/σ-kd a/σ⇉l/σ)
+          Λja/τ⇇Πjl/σ = ⇇-⇑ (⇉-Π-i j/τ-kd a/τ⇉l/τ) Πjl/τ<∷Πjl/σ
+      in <:-λ a/σ<:a/τ⇇l/σ Λja/σ⇇Πjl/σ Λja/τ⇇Πjl/σ
 
     -- Equal hereditary substitutions map proper neutrals to subtypes.
-    Ne∈-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a b c} →
-              Γ ⊢Ne a ∈ b ⋯ c → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a /H ρ <: a /H σ
-    Ne∈-/H≃ {ρ = ρ} (∈-∙ {x} x∈j j⇉as⇉k) ρ≃σ⇇Γ with hit? ρ x
-    Ne∈-/H≃ (∈-∙ x∈j j⇉as⇉l) ρ≃σ⇇Γ | yes ρ-hit =
-      let σ-hit = /H≃-Hit ρ≃σ⇇Γ ρ-hit
-          x/ρ≃x/σ⇇j/ρ , ⌊j/ρ⌋≡k , j-kd = Var⇇-Hit-/H≃ ρ-hit x∈j ρ≃σ⇇Γ
-      in subst₂ (_ ⊢_<:_)
-                (sym (ne-/H-Hit _ ρ-hit)) (sym (ne-/H-Hit _ σ-hit))
-                (≃⇒<:-⋯ (≃-∙∙ x/ρ≃x/σ⇇j/ρ
-                              (Sp⇉-/H≃ (kd-kds j-kd) j⇉as⇉l ρ≃σ⇇Γ) ⌊j/ρ⌋≡k))
-    Ne∈-/H≃ (∈-∙ x∈j j⇉as⇉l) ρ≃σ⇇Γ | no y ρ-miss =
-      let σ-miss = /H≃-Miss ρ≃σ⇇Γ ρ-miss
-          y∈j/ρ , j-kds = Var⇇-Miss-/H y ρ-miss x∈j (/H≃-valid₁ ρ≃σ⇇Γ)
-      in subst₂ (_ ⊢_<:_)
-                (sym (ne-/H-Miss _ y ρ-miss)) (sym (ne-/H-Miss _ y σ-miss))
-                (<:-∙ y∈j/ρ (Sp⇉-/H≃ (kd-kds j-kds) j⇉as⇉l ρ≃σ⇇Γ))
+    Ne∈-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a b c} →
+               Γ ⊢Ne a ∈ b ⋯ c → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+               Δ ⊢ a /⟨ k ⟩ σ <: a /⟨ k ⟩ τ
+    Ne∈-/⟨⟩≃ (∈-∙ {x} x∈j j⇉as⇉b⋯c) σ≃τ⇇Γ =
+      let j-kds = kd-kds (Var∈-valid x∈j)
+      in Var∈-/⟨⟩≃-⇑-?∙∙ x∈j σ≃τ⇇Γ ≤-refl (Sp⇉-/⟨⟩≃ j-kds j⇉as⇉b⋯c σ≃τ⇇Γ)
 
-    Var⇇-Hit-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {x j} → Hit ρ x →
-                   Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                   Δ ⊢ var∙ x /H ρ ≃ var∙ x /H σ ⇇ j Kind/H ρ ×
-                     ⌊ j Kind/H ρ ⌋≡ k × Γ ⊢ j kd
-    Var⇇-Hit-/H≃ refl (⇉-var _ Γ-ctx Γ[x]≡kd-j)
-                (≃-hsub {_} {_} {n} E≅Γ₂[a] E≅Γ₂[b] a≃b⇇k ⌊k⌋≡l) =
-      let a⇇k , b⇇k = ≃-valid    a≃b⇇k
-          k-kd      = ≃-valid-kd a≃b⇇k
-          Δ-ctx     = ctx-/H≃ Γ-ctx (⇇-hsub E≅Γ₂[a] a⇇k k-kd ⌊k⌋≡l)
-          a≃b⇇j/ρ , ⌊j/ρ⌋≡k = Var∈-Hit-/H≃ Δ-ctx Γ[x]≡kd-j E≅Γ₂[a] a≃b⇇k ⌊k⌋≡l
-          j-kd = Var∈-valid (⇉-var (raise n zero) Γ-ctx Γ[x]≡kd-j)
-      in a≃b⇇j/ρ , ⌊j/ρ⌋≡k , j-kd
-    Var⇇-Hit-/H≃ hit (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) ρ≃σ⇇Γ =
-      let x/ρ≃x/ρ⇇j₁/ρ , ⌊j₁/ρ⌋≡k , _ = Var⇇-Hit-/H≃ hit x∈j₁ ρ≃σ⇇Γ
-          j₁/ρ<:j₂/ρ = <∷-/H≃ j₁<∷j₂ (/H≃-valid₁ ρ≃σ⇇Γ)
-          j₂/ρ-kd = kd-/H j₂-kd (/H≃-valid₁ ρ≃σ⇇Γ)
-      in ≃-⇑ x/ρ≃x/ρ⇇j₁/ρ j₁/ρ<:j₂/ρ j₂/ρ-kd ,
-         ⌊⌋≡-trans (sym (<∷-⌊⌋ j₁/ρ<:j₂/ρ)) ⌊j₁/ρ⌋≡k ,
-         j₂-kd
+    Var∈-/⟨⟩≃-⇑-?∙∙ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {x j l as bs b c} →
+                      Γ ⊢Var x ∈ j → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+                      Δ ⊢ kd j Asc/⟨ k ⟩ σ ≤ kd l → Δ ⊢ l ⇉∙ as ≃ bs ⇉ b ⋯ c →
+                      Δ ⊢ lookupSV σ x ?∙∙⟨ k ⟩ as <: lookupSV τ x ?∙∙⟨ k ⟩ bs
+    Var∈-/⟨⟩≃-⇑-?∙∙ (⇉-var x _ Γ[x]≡kd-j) σ≃τ⇇Γ j/σ≤l l⇉as≃bs⇉b⋯c =
+      ?≃-⇑-?∙∙ (subst (_ ⊢?⟨ _ ⟩ _ ≃ _ ⇇_) (cong (_Asc/⟨ _ ⟩ _) Γ[x]≡kd-j)
+                      (lookup-/⟨⟩≃ σ≃τ⇇Γ x))
+               j/σ≤l l⇉as≃bs⇉b⋯c
+    Var∈-/⟨⟩≃-⇑-?∙∙ (⇇-⇑ x∈j₁ j₁<∷j₂ j₂-kd) σ≃τ⇇Γ j₂/σ≤l l⇉as≃bs⇉b⋯c =
+      let σ⇇Γ       = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          j₁/σ≤j₂/σ = ≤-<∷ (<∷-/⟨⟩≃ j₁<∷j₂ σ⇇Γ) (kd-/⟨⟩ j₂-kd σ⇇Γ)
+      in Var∈-/⟨⟩≃-⇑-?∙∙ x∈j₁ σ≃τ⇇Γ (≤-trans j₁/σ≤j₂/σ j₂/σ≤l) l⇉as≃bs⇉b⋯c
 
     -- Equal hereditary substitutions map spines to spine identities.
-    Sp⇉-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {as j₁ j₂} →
-              ⌊ Γ ⌋Ctx ⊢ j₁ kds → Γ ⊢ j₁ ⇉∙ as ⇉ j₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-              Δ ⊢ j₁ Kind/H ρ ⇉∙ as //H ρ ≃ as //H σ ⇉ j₂ Kind/H ρ
-    Sp⇉-/H≃ _ ⇉-[] ρ⇇Γ = ≃-[]
-    Sp⇉-/H≃ {k} (kds-Π j₁-kds j₂-kds)
-            (⇉-∷ {a} {_} {j₁} {j₂} a⇇j₁ j₁-kd j₂[a]⇉as⇉j₃) ρ⇇Γ =
-      ≃-∷ (Nf⇇-/H≃-≃ a⇇j₁ j₁-kd ρ⇇Γ)
-          (subst (_ ⊢_⇉∙ _ ≃ _ ⇉ _) j₂[a]/ρ≡j₂/ρ[a/ρ]
-                 (Sp⇉-/H≃ (kds-/H j₂-kds (∈-hsub [] a∈⌊j₁⌋)) j₂[a]⇉as⇉j₃ ρ⇇Γ))
+    Sp⇉-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {as j₁ j₂} →
+               ⌊ Γ ⌋Ctx ⊢ j₁ kds → Γ ⊢ j₁ ⇉∙ as ⇉ j₂ → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+               Δ ⊢ j₁ Kind/⟨ k ⟩ σ ⇉∙ as //⟨ k ⟩ σ ≃
+                                      as //⟨ k ⟩ τ ⇉ j₂ Kind/⟨ k ⟩ σ
+    Sp⇉-/⟨⟩≃ _ ⇉-[] σ⇇Γ = ≃-[]
+    Sp⇉-/⟨⟩≃ {k} (kds-Π j₁-kds j₂-kds)
+             (⇉-∷ {a} {_} {j₁} {j₂} a⇇j₁ j₁-kd j₂[a]⇉as⇉j₃) σ⇇Γ =
+      ≃-∷ (Nf⇇-/⟨⟩≃-≃ a⇇j₁ j₁-kd σ⇇Γ)
+          (subst (_ ⊢_⇉∙ _ ≃ _ ⇉ _) j₂[a]/σ≡j₂/σ[a/σ]
+                 (Sp⇉-/⟨⟩≃ (kds-/⟨⟩ j₂-kds (∈-hsub a∈⌊j₁⌋)) j₂[a]⇉as⇉j₃ σ⇇Γ))
       where
         a∈⌊j₁⌋ = Nf⇇-Nf∈ a⇇j₁
 
-        j₂[a]/ρ≡j₂/ρ[a/ρ] = begin
-            j₂ Kind[ a ∈ ⌊ j₁ ⌋ ] Kind/H _
-          ≡⟨ kds-[]-/H-↑⋆ [] j₂-kds a∈⌊j₁⌋ (/H⇇-/H∈ (/H≃-valid₁ ρ⇇Γ)) ⟩
-            j₂ Kind/H _ H↑ Kind/H 0 ← (a /H _) ∈ ⌊ j₁ ⌋
-          ≡⟨ cong (_ Kind[ a /H _ ∈_]) (sym (⌊⌋-Kind/H j₁)) ⟩
-            (j₂ Kind/H _ H↑) Kind[ a /H _ ∈ ⌊ j₁ Kind/H _ ⌋ ]
+        j₂[a]/σ≡j₂/σ[a/σ] = begin
+            j₂ Kind[ a ∈ ⌊ j₁ ⌋ ] Kind/⟨ k ⟩ _
+          ≡⟨ kds-[]-/⟨⟩-↑⋆ [] j₂-kds a∈⌊j₁⌋ (/⟨⟩⇇-/⟨⟩∈ (/⟨⟩≃-valid₁ σ⇇Γ)) ⟩
+            j₂ Kind/⟨ k ⟩ _ ↑ Kind/⟨ ⌊ j₁ ⌋ ⟩ sub (a /⟨ k ⟩ _)
+          ≡⟨ cong (_ Kind[ a /⟨ k ⟩ _ ∈_]) (sym (⌊⌋-Kind/⟨⟩ j₁)) ⟩
+            (j₂ Kind/⟨ k ⟩ _ ↑) Kind[ a /⟨ k ⟩ _ ∈ ⌊ j₁ Kind/⟨ k ⟩ _ ⌋ ]
           ∎
 
     -- Equal hereditary substitutions map checked normal forms to
     -- subtypes.
-    Nf⇇-/H≃-<: : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a j} →
-                 Γ ⊢Nf a ⇇ j → Γ ⊢ j kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                 Δ ⊢ a /H ρ <: a /H σ ⇇ j Kind/H ρ
-    Nf⇇-/H≃-<: (⇇-⇑ a⇉b₁⋯c₁ (<∷-⋯ b₂<:b₁ c₁<:c₂)) _ ρ≃σ⇇Γ =
-      let ρ⇇Γ   = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ   = /H≃-valid₂ ρ≃σ⇇Γ
-          σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
-      in <:-⇇ (⇇-⇑ (Nf⇉-/H a⇉b₁⋯c₁ ρ⇇Γ) (<∷-/H≃ (<∷-⋯ b₂<:b₁ c₁<:c₂) ρ⇇Γ))
-              (⇇-⇑ (Nf⇉-/H a⇉b₁⋯c₁ σ⇇Γ) (<∷-/H≃ (<∷-⋯ b₂<:b₁ c₁<:c₂) σ≃ρ⇇Γ))
-              (Nf⇉-⋯-/H≃ a⇉b₁⋯c₁ ρ≃σ⇇Γ)
-    Nf⇇-/H≃-<: (⇇-⇑ a⇉Πj₁l₁ (<∷-Π j₂<∷j₁ l₁<∷l₂ Πj₁l₁-kd)) Πj₂k₂-kd ρ≃σ⇇Γ =
-      let ρ⇇Γ = /H≃-valid₁ ρ≃σ⇇Γ
-          Πj₁l₁/ρ<∷Πj₂l₂/ρ = <∷-/H≃ (<∷-Π j₂<∷j₁ l₁<∷l₂ Πj₁l₁-kd) ρ⇇Γ
-          Πj₂l₂/ρ-kd       = kd-/H Πj₂k₂-kd ρ⇇Γ
-      in <:⇇-⇑ (Nf⇉-/H≃ a⇉Πj₁l₁ Πj₁l₁-kd ρ≃σ⇇Γ) Πj₁l₁/ρ<∷Πj₂l₂/ρ Πj₂l₂/ρ-kd
+    Nf⇇-/⟨⟩≃-<: : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a j} →
+                  Γ ⊢Nf a ⇇ j → Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+                  Δ ⊢ a /⟨ k ⟩ σ <: a /⟨ k ⟩ τ ⇇ j Kind/⟨ k ⟩ σ
+    Nf⇇-/⟨⟩≃-<: (⇇-⇑ a⇉b₁⋯c₁ (<∷-⋯ b₂<:b₁ c₁<:c₂)) _ σ≃τ⇇Γ =
+      let σ⇇Γ   = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ   = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          τ≃σ⇇Γ = /⟨⟩≃-sym σ≃τ⇇Γ
+      in <:-⇇ (⇇-⇑ (Nf⇉-/⟨⟩ a⇉b₁⋯c₁ σ⇇Γ) (<∷-/⟨⟩≃ (<∷-⋯ b₂<:b₁ c₁<:c₂) σ⇇Γ))
+              (⇇-⇑ (Nf⇉-/⟨⟩ a⇉b₁⋯c₁ τ⇇Γ) (<∷-/⟨⟩≃ (<∷-⋯ b₂<:b₁ c₁<:c₂) τ≃σ⇇Γ))
+              (Nf⇉-⋯-/⟨⟩≃ a⇉b₁⋯c₁ σ≃τ⇇Γ)
+    Nf⇇-/⟨⟩≃-<: (⇇-⇑ a⇉Πj₁l₁ (<∷-Π j₂<∷j₁ l₁<∷l₂ Πj₁l₁-kd)) Πj₂k₂-kd σ≃τ⇇Γ =
+      let σ⇇Γ = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          Πj₁l₁/σ<∷Πj₂l₂/σ = <∷-/⟨⟩≃ (<∷-Π j₂<∷j₁ l₁<∷l₂ Πj₁l₁-kd) σ⇇Γ
+          Πj₂l₂/σ-kd       = kd-/⟨⟩ Πj₂k₂-kd σ⇇Γ
+      in <:⇇-⇑ (Nf⇉-/⟨⟩≃ a⇉Πj₁l₁ Πj₁l₁-kd σ≃τ⇇Γ) Πj₁l₁/σ<∷Πj₂l₂/σ Πj₂l₂/σ-kd
 
     -- Equal hereditary substitutions map checked normal forms to type
     -- identities.
-    Nf⇇-/H≃-≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a k} →
-                Γ ⊢Nf a ⇇ k → Γ ⊢ k kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                Δ ⊢ a /H ρ ≃ a /H σ ⇇ k Kind/H ρ
-    Nf⇇-/H≃-≃ a⇇k k-kd ρ≃σ⇇Γ =
-      let σ≃ρ⇇Γ  = /H≃-sym ρ≃σ⇇Γ
-          k/ρ-kd = kd-/H k-kd (/H≃-valid₁ ρ≃σ⇇Γ)
-      in <:-antisym k/ρ-kd (Nf⇇-/H≃-<: a⇇k k-kd ρ≃σ⇇Γ)
-                    (<:⇇-⇑ (Nf⇇-/H≃-<: a⇇k k-kd σ≃ρ⇇Γ)
-                    (kd-/H≃-<∷ k-kd σ≃ρ⇇Γ) k/ρ-kd)
+    Nf⇇-/⟨⟩≃-≃ : ∀ {m n Γ k Δ} {σ τ : SVSub m n} {a j} →
+                 Γ ⊢Nf a ⇇ j → Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+                 Δ ⊢ a /⟨ k ⟩ σ ≃ a /⟨ k ⟩ τ ⇇ j Kind/⟨ k ⟩ σ
+    Nf⇇-/⟨⟩≃-≃ a⇇k k-kd σ≃τ⇇Γ =
+      let τ≃σ⇇Γ  = /⟨⟩≃-sym σ≃τ⇇Γ
+          k/σ-kd = kd-/⟨⟩ k-kd (/⟨⟩≃-valid₁ σ≃τ⇇Γ)
+      in <:-antisym k/σ-kd (Nf⇇-/⟨⟩≃-<: a⇇k k-kd σ≃τ⇇Γ)
+                    (<:⇇-⇑ (Nf⇇-/⟨⟩≃-<: a⇇k k-kd τ≃σ⇇Γ)
+                    (kd-/⟨⟩≃-<∷ k-kd τ≃σ⇇Γ) k/σ-kd)
 
     -- Equal hereditary substitutions preserve subkinding.
-    <∷-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {j₁ j₂} →
-             Γ ⊢ j₁ <∷ j₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ j₁ Kind/H ρ <∷ j₂ Kind/H σ
-    <∷-/H≃ (<∷-⋯ a₂<:a₁ b₁<:b₂) ρ≃σ⇇Γ =
-      <∷-⋯ (<:-/H≃ a₂<:a₁ (/H≃-sym ρ≃σ⇇Γ)) (<:-/H≃ b₁<:b₂ ρ≃σ⇇Γ)
-    <∷-/H≃ (<∷-Π j₂<∷j₁ k₁<∷k₂ Πj₁k₁-kd) ρ≃σ⇇Γ =
-      let σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
-          σ≃σ⇇Γ = /H≃-valid₂ ρ≃σ⇇Γ
-      in <∷-Π (<∷-/H≃ j₂<∷j₁ (/H≃-sym ρ≃σ⇇Γ))
-              (<∷-/H≃ k₁<∷k₂ (≃-H↑ (<∷-/H≃-wf k₁<∷k₂ σ≃ρ⇇Γ)
-                             (<∷-/H≃-wf k₁<∷k₂ σ≃σ⇇Γ) ρ≃σ⇇Γ))
-              (kd-/H Πj₁k₁-kd (/H≃-valid₁ ρ≃σ⇇Γ))
+    <∷-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {j₁ j₂} →
+              Γ ⊢ j₁ <∷ j₂ → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+              Δ ⊢ j₁ Kind/⟨ k ⟩ σ <∷ j₂ Kind/⟨ k ⟩ τ
+    <∷-/⟨⟩≃ (<∷-⋯ a₂<:a₁ b₁<:b₂) σ≃τ⇇Γ =
+      <∷-⋯ (<:-/⟨⟩≃ a₂<:a₁ (/⟨⟩≃-sym σ≃τ⇇Γ)) (<:-/⟨⟩≃ b₁<:b₂ σ≃τ⇇Γ)
+    <∷-/⟨⟩≃ (<∷-Π j₂<∷j₁ k₁<∷k₂ Πj₁k₁-kd) σ≃τ⇇Γ =
+      let τ≃σ⇇Γ = /⟨⟩≃-sym σ≃τ⇇Γ
+          τ≃τ⇇Γ = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+      in <∷-Π (<∷-/⟨⟩≃ j₂<∷j₁ (/⟨⟩≃-sym σ≃τ⇇Γ))
+              (<∷-/⟨⟩≃ k₁<∷k₂ (≃-H↑ (<∷-/⟨⟩≃-wf k₁<∷k₂ τ≃σ⇇Γ)
+                                    (<∷-/⟨⟩≃-wf k₁<∷k₂ τ≃τ⇇Γ) σ≃τ⇇Γ))
+              (kd-/⟨⟩ Πj₁k₁-kd (/⟨⟩≃-valid₁ σ≃τ⇇Γ))
 
     -- Equal hereditary substitutions preserve subtyping.
 
-    <:-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a₁ a₂} →
-             Γ ⊢ a₁ <: a₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ a₁ /H ρ <: a₂ /H σ
-    <:-/H≃ (<:-trans a<:b b<:c) ρ≃σ⇇Γ =
-      <:-trans (<:-/H≃ a<:b (/H≃-valid₁ ρ≃σ⇇Γ)) (<:-/H≃ b<:c ρ≃σ⇇Γ)
-    <:-/H≃ (<:-⊥ a⇉a⋯a) ρ≃σ⇇Γ = <:-⊥ (Nf⇉-/H a⇉a⋯a (/H≃-valid₂ ρ≃σ⇇Γ))
-    <:-/H≃ (<:-⊤ a⇉a⋯a) ρ≃σ⇇Γ = <:-⊤ (Nf⇉-/H a⇉a⋯a (/H≃-valid₁ ρ≃σ⇇Γ))
-    <:-/H≃ (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) ρ≃σ⇇Γ =
-      let σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
-          σ≃σ⇇Γ = /H≃-valid₂ ρ≃σ⇇Γ
-      in <:-∀ (<∷-/H≃ k₂<∷k₁ σ≃ρ⇇Γ)
-              (<:-/H≃ a₁<:a₂ (≃-H↑ (<:-/H≃-wf a₁<:a₂ σ≃ρ⇇Γ)
-                                   (<:-/H≃-wf a₁<:a₂ σ≃σ⇇Γ) ρ≃σ⇇Γ))
-         (Nf⇉-/H Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁ (/H≃-valid₁ ρ≃σ⇇Γ))
-    <:-/H≃ (<:-→ a₂<:a₁ b₁<:b₂) ρ≃σ⇇Γ =
-      <:-→ (<:-/H≃ a₂<:a₁ (/H≃-sym ρ≃σ⇇Γ)) (<:-/H≃ b₁<:b₂ ρ≃σ⇇Γ)
-    <:-/H≃ {ρ = ρ} (<:-∙ {x} x∈j j⇉as≃bs⇉l) ρ≃σ⇇Γ with hit? ρ x
-    <:-/H≃ (<:-∙ x∈j j⇉as≃bs⇉l) ρ≃σ⇇Γ | yes ρ-hit =
-      let σ-hit = /H≃-Hit ρ≃σ⇇Γ ρ-hit
-          x/ρ≃x/σ⇇j/ρ , ⌊j/ρ⌋≡k , j-kd = Var⇇-Hit-/H≃ ρ-hit x∈j ρ≃σ⇇Γ
-      in subst₂ (_ ⊢_<:_)
-                (sym (ne-/H-Hit _ ρ-hit)) (sym (ne-/H-Hit _ σ-hit))
-                (≃⇒<:-⋯ (≃-∙∙ x/ρ≃x/σ⇇j/ρ
-                              (Sp≃-/H≃ (kd-kds j-kd) j⇉as≃bs⇉l ρ≃σ⇇Γ) ⌊j/ρ⌋≡k))
-    <:-/H≃ (<:-∙ x∈j j⇉as≃bs⇉l) ρ≃σ⇇Γ | no y ρ-miss =
-      let σ-miss = /H≃-Miss ρ≃σ⇇Γ ρ-miss
-          y∈j/ρ , j-kd = Var⇇-Miss-/H y ρ-miss x∈j (/H≃-valid₁ ρ≃σ⇇Γ)
-      in subst₂ (_ ⊢_<:_)
-                (sym (ne-/H-Miss _ y ρ-miss)) (sym (ne-/H-Miss _ y σ-miss))
-                (<:-∙ y∈j/ρ (Sp≃-/H≃ (kd-kds j-kd) j⇉as≃bs⇉l ρ≃σ⇇Γ))
-    <:-/H≃ (<:-⟨| a∈b⋯c) ρ≃σ⇇Γ =
-      let a/ρ⇉b/ρ⋯c/ρ = Ne∈-/H a∈b⋯c (/H≃-valid₁ ρ≃σ⇇Γ)
-      in <:-trans (<:-⟨|-Nf⇇ a/ρ⇉b/ρ⋯c/ρ) (Ne∈-/H≃ a∈b⋯c ρ≃σ⇇Γ)
-    <:-/H≃ (<:-|⟩ a∈b⋯c) ρ≃σ⇇Γ =
-      let a/σ⇉b/σ⋯c/σ = Ne∈-/H a∈b⋯c (/H≃-valid₂ ρ≃σ⇇Γ)
-      in <:-trans (Ne∈-/H≃ a∈b⋯c ρ≃σ⇇Γ) (<:-|⟩-Nf⇇ a/σ⇉b/σ⋯c/σ)
+    <:-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a₁ a₂} →
+              Γ ⊢ a₁ <: a₂ → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+              Δ ⊢ a₁ /⟨ k ⟩ σ <: a₂ /⟨ k ⟩ τ
+    <:-/⟨⟩≃ (<:-trans a<:b b<:c) σ≃τ⇇Γ =
+      <:-trans (<:-/⟨⟩≃ a<:b (/⟨⟩≃-valid₁ σ≃τ⇇Γ)) (<:-/⟨⟩≃ b<:c σ≃τ⇇Γ)
+    <:-/⟨⟩≃ (<:-⊥ a⇉a⋯a) σ≃τ⇇Γ = <:-⊥ (Nf⇉-/⟨⟩ a⇉a⋯a (/⟨⟩≃-valid₂ σ≃τ⇇Γ))
+    <:-/⟨⟩≃ (<:-⊤ a⇉a⋯a) σ≃τ⇇Γ = <:-⊤ (Nf⇉-/⟨⟩ a⇉a⋯a (/⟨⟩≃-valid₁ σ≃τ⇇Γ))
+    <:-/⟨⟩≃ (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) σ≃τ⇇Γ =
+      let τ≃σ⇇Γ = /⟨⟩≃-sym σ≃τ⇇Γ
+          τ≃τ⇇Γ = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+      in <:-∀ (<∷-/⟨⟩≃ k₂<∷k₁ τ≃σ⇇Γ)
+              (<:-/⟨⟩≃ a₁<:a₂ (≃-H↑ (<:-/⟨⟩≃-wf a₁<:a₂ τ≃σ⇇Γ)
+                                    (<:-/⟨⟩≃-wf a₁<:a₂ τ≃τ⇇Γ) σ≃τ⇇Γ))
+         (Nf⇉-/⟨⟩ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁ (/⟨⟩≃-valid₁ σ≃τ⇇Γ))
+    <:-/⟨⟩≃ (<:-→ a₂<:a₁ b₁<:b₂) σ≃τ⇇Γ =
+      <:-→ (<:-/⟨⟩≃ a₂<:a₁ (/⟨⟩≃-sym σ≃τ⇇Γ)) (<:-/⟨⟩≃ b₁<:b₂ σ≃τ⇇Γ)
+    <:-/⟨⟩≃ {σ = σ} (<:-∙ {x} x∈j j⇉as≃bs⇉c⋯d) σ≃τ⇇Γ =
+      let j-kds = kd-kds (Var∈-valid x∈j)
+      in Var∈-/⟨⟩≃-⇑-?∙∙ x∈j σ≃τ⇇Γ ≤-refl (Sp≃-/⟨⟩≃ j-kds j⇉as≃bs⇉c⋯d σ≃τ⇇Γ)
+    <:-/⟨⟩≃ (<:-⟨| a∈b⋯c) σ≃τ⇇Γ =
+      let a/σ⇉b/σ⋯c/σ = Ne∈-/⟨⟩ a∈b⋯c (/⟨⟩≃-valid₁ σ≃τ⇇Γ)
+      in <:-trans (<:-⟨|-Nf⇇ a/σ⇉b/σ⋯c/σ) (Ne∈-/⟨⟩≃ a∈b⋯c σ≃τ⇇Γ)
+    <:-/⟨⟩≃ (<:-|⟩ a∈b⋯c) σ≃τ⇇Γ =
+      let a/τ⇉b/τ⋯c/τ = Ne∈-/⟨⟩ a∈b⋯c (/⟨⟩≃-valid₂ σ≃τ⇇Γ)
+      in <:-trans (Ne∈-/⟨⟩≃ a∈b⋯c σ≃τ⇇Γ) (<:-|⟩-Nf⇇ a/τ⇉b/τ⋯c/τ)
 
-    <:⇇-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a₁ a₂ j} →
-              Γ ⊢ a₁ <: a₂ ⇇ j → Γ ⊢ j kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-              Δ ⊢ a₁ /H ρ <: a₂ /H σ ⇇ j Kind/H ρ
-    <:⇇-/H≃ (<:-⇇ a₁⇇b⋯c a₂⇇b⋯c a₁<:a₂) b⋯c-kd ρ≃σ⇇Γ =
-      let ρ⇇Γ     = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ     = /H≃-valid₂ ρ≃σ⇇Γ
-          σ≃ρ⇇Γ   = /H≃-sym ρ≃σ⇇Γ
-      in <:-⇇ (Nf⇇-/H a₁⇇b⋯c ρ⇇Γ)
-              (Nf⇇-⇑ (Nf⇇-/H a₂⇇b⋯c σ⇇Γ) (kd-/H≃-<∷ b⋯c-kd σ≃ρ⇇Γ))
-              (<:-/H≃ a₁<:a₂ ρ≃σ⇇Γ)
-    <:⇇-/H≃ (<:-λ a₁<:a₂⇇l Λj₁a₁⇇Πjl Λj₂a₂⇇Πjl) (kd-Π j-kd l-kd) ρ≃σ⇇Γ =
-      let ρ⇇Γ     = /H≃-valid₁ ρ≃σ⇇Γ
-          σ⇇Γ     = /H≃-valid₂ ρ≃σ⇇Γ
-          σ≃ρ⇇Γ   = /H≃-sym ρ≃σ⇇Γ
-          j/ρ≅j/ρ = kd-/H≃-≅ j-kd ρ⇇Γ
-          j/ρ≅j/σ = kd-/H≃-≅ j-kd ρ≃σ⇇Γ
-      in <:-λ (<:⇇-/H≃ a₁<:a₂⇇l l-kd (≃-H↑ (≅-kd j/ρ≅j/ρ) (≅-kd j/ρ≅j/σ) ρ≃σ⇇Γ))
-              (Nf⇇-/H Λj₁a₁⇇Πjl ρ⇇Γ)
-              (Nf⇇-⇑ (Nf⇇-/H Λj₂a₂⇇Πjl σ⇇Γ) (kd-/H≃-<∷ (kd-Π j-kd l-kd) σ≃ρ⇇Γ))
+    <:⇇-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a₁ a₂ j} →
+               Γ ⊢ a₁ <: a₂ ⇇ j → Γ ⊢ j kd → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+               Δ ⊢ a₁ /⟨ k ⟩ σ <: a₂ /⟨ k ⟩ τ ⇇ j Kind/⟨ k ⟩ σ
+    <:⇇-/⟨⟩≃ (<:-⇇ a₁⇇b⋯c a₂⇇b⋯c a₁<:a₂) b⋯c-kd σ≃τ⇇Γ =
+      let σ⇇Γ     = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ     = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          τ≃σ⇇Γ   = /⟨⟩≃-sym σ≃τ⇇Γ
+      in <:-⇇ (Nf⇇-/⟨⟩ a₁⇇b⋯c σ⇇Γ)
+              (Nf⇇-⇑ (Nf⇇-/⟨⟩ a₂⇇b⋯c τ⇇Γ) (kd-/⟨⟩≃-<∷ b⋯c-kd τ≃σ⇇Γ))
+              (<:-/⟨⟩≃ a₁<:a₂ σ≃τ⇇Γ)
+    <:⇇-/⟨⟩≃ (<:-λ a₁<:a₂⇇l Λj₁a₁⇇Πjl Λj₂a₂⇇Πjl) (kd-Π j-kd l-kd) σ≃τ⇇Γ =
+      let σ⇇Γ     = /⟨⟩≃-valid₁ σ≃τ⇇Γ
+          τ⇇Γ     = /⟨⟩≃-valid₂ σ≃τ⇇Γ
+          τ≃σ⇇Γ   = /⟨⟩≃-sym σ≃τ⇇Γ
+          j/σ≅j/σ = kd-/⟨⟩≃-≅ j-kd σ⇇Γ
+          j/σ≅j/τ = kd-/⟨⟩≃-≅ j-kd σ≃τ⇇Γ
+      in <:-λ (<:⇇-/⟨⟩≃ a₁<:a₂⇇l l-kd (≃-H↑ j/σ≅j/σ j/σ≅j/τ σ≃τ⇇Γ))
+              (Nf⇇-/⟨⟩ Λj₁a₁⇇Πjl σ⇇Γ)
+              (Nf⇇-⇑ (Nf⇇-/⟨⟩ Λj₂a₂⇇Πjl τ⇇Γ) (kd-/⟨⟩≃-<∷ (kd-Π j-kd l-kd) τ≃σ⇇Γ))
 
     -- Equal hereditary substitutions preserve spine equality.
-    Sp≃-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {as₁ as₂ j₁ j₂} →
-              ⌊ Γ ⌋Ctx ⊢ j₁ kds → Γ ⊢ j₁ ⇉∙ as₁ ≃ as₂ ⇉ j₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-              Δ ⊢ j₁ Kind/H ρ ⇉∙ as₁ //H ρ ≃ as₂ //H σ ⇉ j₂ Kind/H ρ
-    Sp≃-/H≃ _ ≃-[] ρ≃σ⇇Γ = ≃-[]
-    Sp≃-/H≃ {k} (kds-Π j₁-kds j₂-kds)
-            (≃-∷ {a} {j = j₁} {j₂} a≃b as≃bs) ρ≃σ⇇Γ =
+    Sp≃-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {as₁ as₂ j₁ j₂} →
+               ⌊ Γ ⌋Ctx ⊢ j₁ kds →
+               Γ ⊢ j₁ ⇉∙ as₁ ≃ as₂ ⇉ j₂ → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+               Δ ⊢ j₁ Kind/⟨ k ⟩ σ ⇉∙ as₁ //⟨ k ⟩ σ ≃
+                                      as₂ //⟨ k ⟩ τ ⇉ j₂ Kind/⟨ k ⟩ σ
+    Sp≃-/⟨⟩≃ _ ≃-[] σ≃τ⇇Γ = ≃-[]
+    Sp≃-/⟨⟩≃ {k} (kds-Π j₁-kds j₂-kds)
+             (≃-∷ {a} {j = j₁} {j₂} a≃b as≃bs) σ≃τ⇇Γ =
       let a∈⌊j₁⌋            = Nf⇇-Nf∈ (proj₁ (≃-valid a≃b))
-          j₂[a]/ρ≡j₂/ρ[a/ρ] = begin
-              j₂ Kind[ a ∈ ⌊ j₁ ⌋ ] Kind/H _
-            ≡⟨ kds-[]-/H-↑⋆ [] j₂-kds a∈⌊j₁⌋ (/H⇇-/H∈ (/H≃-valid₁ ρ≃σ⇇Γ)) ⟩
-              j₂ Kind/H _ H↑ Kind/H 0 ← (a /H _) ∈ ⌊ j₁ ⌋
-            ≡⟨ cong (_ Kind[ a /H _ ∈_]) (sym (⌊⌋-Kind/H j₁)) ⟩
-              (j₂ Kind/H _ H↑) Kind[ a /H _ ∈ ⌊ j₁ Kind/H _ ⌋ ]
+          j₂[a]/σ≡j₂/σ[a/σ] = begin
+              j₂ Kind[ a ∈ ⌊ j₁ ⌋ ] Kind/⟨ k ⟩ _
+            ≡⟨ kds-[]-/⟨⟩-↑⋆ [] j₂-kds a∈⌊j₁⌋ (/⟨⟩⇇-/⟨⟩∈ (/⟨⟩≃-valid₁ σ≃τ⇇Γ)) ⟩
+              j₂ Kind/⟨ k ⟩ _ ↑ Kind/⟨ ⌊ j₁ ⌋ ⟩ sub (a /⟨ k ⟩ _)
+            ≡⟨ cong (_ Kind[ a /⟨ k ⟩ _ ∈_]) (sym (⌊⌋-Kind/⟨⟩ j₁)) ⟩
+              (j₂ Kind/⟨ k ⟩ _ ↑) Kind[ a /⟨ k ⟩ _ ∈ ⌊ j₁ Kind/⟨ k ⟩ _ ⌋ ]
             ∎
-      in ≃-∷ (≃-/H≃ a≃b ρ≃σ⇇Γ)
-             (subst (_ ⊢_⇉∙ _ ≃ _ ⇉ _) j₂[a]/ρ≡j₂/ρ[a/ρ]
-                    (Sp≃-/H≃ (kds-/H j₂-kds (∈-hsub [] a∈⌊j₁⌋)) as≃bs ρ≃σ⇇Γ))
+      in ≃-∷ (≃-/⟨⟩≃ a≃b σ≃τ⇇Γ)
+             (subst (_ ⊢_⇉∙ _ ≃ _ ⇉ _) j₂[a]/σ≡j₂/σ[a/σ]
+                    (Sp≃-/⟨⟩≃ (kds-/⟨⟩ j₂-kds (∈-hsub a∈⌊j₁⌋)) as≃bs σ≃τ⇇Γ))
 
     -- Equal hereditary substitutions preserve type equality.
-    ≃-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {a₁ a₂ j} →
-            Γ ⊢ a₁ ≃ a₂ ⇇ j → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-            Δ ⊢ a₁ /H ρ ≃ a₂ /H σ ⇇ j Kind/H ρ
-    ≃-/H≃ (<:-antisym k-kd a<:b⇇k b<:a⇇k) ρ≃σ⇇Γ =
-      let σ≃ρ⇇Γ = /H≃-sym ρ≃σ⇇Γ
-          k/ρ-kd = kd-/H k-kd (/H≃-valid₁ ρ≃σ⇇Γ)
-      in <:-antisym k/ρ-kd (<:⇇-/H≃ a<:b⇇k k-kd ρ≃σ⇇Γ)
-                    (<:⇇-⇑ (<:⇇-/H≃ b<:a⇇k k-kd σ≃ρ⇇Γ)
-                           (kd-/H≃-<∷ k-kd σ≃ρ⇇Γ) k/ρ-kd)
+    ≃-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {a₁ a₂ j} →
+             Γ ⊢ a₁ ≃ a₂ ⇇ j → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+             Δ ⊢ a₁ /⟨ k ⟩ σ ≃ a₂ /⟨ k ⟩ τ ⇇ j Kind/⟨ k ⟩ σ
+    ≃-/⟨⟩≃ (<:-antisym k-kd a<:b⇇k b<:a⇇k) σ≃τ⇇Γ =
+      let τ≃σ⇇Γ = /⟨⟩≃-sym σ≃τ⇇Γ
+          k/σ-kd = kd-/⟨⟩ k-kd (/⟨⟩≃-valid₁ σ≃τ⇇Γ)
+      in <:-antisym k/σ-kd (<:⇇-/⟨⟩≃ a<:b⇇k k-kd σ≃τ⇇Γ)
+                    (<:⇇-⇑ (<:⇇-/⟨⟩≃ b<:a⇇k k-kd τ≃σ⇇Γ)
+                           (kd-/⟨⟩≃-<∷ k-kd τ≃σ⇇Γ) k/σ-kd)
 
     -- Applications in canonical kind checking are admissible.
+
+    ?⇇-⇑-?∙∙ : ∀ {k n} {Γ : Ctx n} {r a j as b c} →
+               Γ ⊢?⟨ k ⟩ r ⇇ a → Γ ⊢ a ≤ kd j →
+               Γ ⊢ j ⇉∙ as ⇉ b ⋯ c → Γ ⊢Nf r ?∙∙⟨ k ⟩ as ⇇ b ⋯ c
+    ?⇇-⇑-?∙∙ (≃-hit a≃a⇇j ⌊j⌋≡k) j≤l l⇉as⇉b⋯c =
+      Nf⇇-∙∙ (Nf⇇-⇑-≤ (proj₁ (≃-valid a≃a⇇j)) j≤l) l⇉as⇉b⋯c
+             (⌊⌋≡-trans (sym (≤-⌊⌋ j≤l)) ⌊j⌋≡k)
+    ?⇇-⇑-?∙∙ (≃-miss y Γ-ctx Γ[y]≡a₁ a₁≤a₂) a₂≤l l⇉as⇉b⋯c =
+      Nf⇇-ne (∈-∙ (Var∈-⇑-≤ y Γ-ctx Γ[y]≡a₁ (≤-trans a₁≤a₂ a₂≤l)) l⇉as⇉b⋯c)
 
     Nf⇇-∙∙ : ∀ {n} {Γ : Ctx n} {a as j₁ j₂ k} →
              Γ ⊢Nf a ⇇ j₁ → Γ ⊢ j₁ ⇉∙ as ⇉ j₂ → ⌊ j₁ ⌋≡ k →
@@ -678,7 +591,7 @@ module TrackSimpleKindsSubst where
     Nf⇇-∙∙ a⇇j₁ ⇉-[] ⌊j₁⌋≡k = a⇇j₁
     Nf⇇-∙∙ a⇇Πj₁j₂ (⇉-∷ b⇇j₁ j₁-kd j₂[b]⇉as⇉j₃) (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) =
       Nf⇇-∙∙ (Nf⇇-Π-e a⇇Πj₁j₂ b⇇j₁ j₁-kd (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂))
-             j₂[b]⇉as⇉j₃ (⌊⌋≡-/H ⌊j₂⌋≡k₂)
+             j₂[b]⇉as⇉j₃ (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
 
     Nf⇇-Π-e : ∀ {n} {Γ : Ctx n} {a b j₁ j₂ k} →
               Γ ⊢Nf a ⇇ Π j₁ j₂ → Γ ⊢Nf b ⇇ j₁ → Γ ⊢ j₁ kd →
@@ -687,13 +600,23 @@ module TrackSimpleKindsSubst where
             (⇇-⇑ (⇉-Π-i j₁-kd a⇉l₁)
             (<∷-Π {j₁} {j₂} {l₁} {l₂} j₂<∷j₁ l₁<∷l₂ Πj₁l₁-kd))
             b⇇j₂ j₂-kd (is-⇒ {_} {_} {k₁} ⌊j₂⌋≡k₁ ⌊l₂⌋≡k₂) =
-      let ρ⇇j₂∷Γ = ⇇-hsub [] b⇇j₂ j₂-kd ⌊j₂⌋≡k₁
-      in ⇇-⇑ (Nf⇉-/H (⇓-Nf⇉ [] j₂-kd j₂<∷j₁ a⇉l₁) ρ⇇j₂∷Γ)
-             (subst (λ k → Γ ⊢ l₁ Kind/H _ <∷ l₂ Kind/H 0 ← b ∈ k)
+      let σ⇇j₂∷Γ = ⇇-hsub b⇇j₂ j₂-kd ⌊j₂⌋≡k₁
+      in ⇇-⇑ (Nf⇉-/⟨⟩ (⇓-Nf⇉ j₂-kd j₂<∷j₁ a⇉l₁) σ⇇j₂∷Γ)
+             (subst (λ k → Γ ⊢ l₁ Kind[ b ∈ k₁ ] <∷ l₂ Kind[ b ∈ k ])
                     (sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₂⌋≡k₁))
-                    (<∷-/H≃ l₁<∷l₂ ρ⇇j₂∷Γ))
+                    (<∷-/⟨⟩≃ l₁<∷l₂ σ⇇j₂∷Γ))
 
     -- Applications in checked type equality are admissible.
+
+    ?≃-⇑-?∙∙ : ∀ {k n} {Γ : Ctx n} {r₁ r₂ a j as bs c d} →
+               Γ ⊢?⟨ k ⟩ r₁ ≃ r₂ ⇇ a → Γ ⊢ a ≤ kd j →
+               Γ ⊢ j ⇉∙ as ≃ bs ⇉ c ⋯ d →
+               Γ ⊢ r₁ ?∙∙⟨ k ⟩ as <: r₂ ?∙∙⟨ k ⟩ bs
+    ?≃-⇑-?∙∙ (≃-hit a≃b⇇j ⌊j⌋≡k) j≤l l⇉as≃bs⇉c⋯d =
+      ≃⇒<:-⋯ (≃-∙∙ (≃-⇑-≤ a≃b⇇j j≤l) l⇉as≃bs⇉c⋯d
+                   (⌊⌋≡-trans (sym (≤-⌊⌋ j≤l)) ⌊j⌋≡k))
+    ?≃-⇑-?∙∙ (≃-miss y Γ-ctx Γ[y]≡a₁ a₁≤a₂) a₂≤l l⇉as≃bs⇉c⋯d =
+      <:-∙ (Var∈-⇑-≤ y Γ-ctx Γ[y]≡a₁ (≤-trans a₁≤a₂ a₂≤l)) l⇉as≃bs⇉c⋯d
 
     ≃-∙∙ : ∀ {n} {Γ : Ctx n} {a b as bs j₁ j₂ k} →
            Γ ⊢ a ≃ b ⇇ j₁ → Γ ⊢ j₁ ⇉∙ as ≃ bs ⇉ j₂ → ⌊ j₁ ⌋≡ k →
@@ -701,7 +624,7 @@ module TrackSimpleKindsSubst where
     ≃-∙∙ a≃b⇇j₁ ≃-[] ⌊j₁⌋≡k = a≃b⇇j₁
     ≃-∙∙ a≃b⇇Πj₁j₂ (≃-∷ c≃d⇇j₁ j₂[b]⇉cs≃ds⇉j₃) (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) =
       ≃-∙∙ (≃-Π-e a≃b⇇Πj₁j₂ c≃d⇇j₁ (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂))
-           j₂[b]⇉cs≃ds⇉j₃ (⌊⌋≡-/H ⌊j₂⌋≡k₂)
+           j₂[b]⇉cs≃ds⇉j₃ (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
 
     ≃-Π-e : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ j₁ j₂ k} →
             Γ ⊢ a₁ ≃ a₂ ⇇ Π j₁ j₂ → Γ ⊢ b₁ ≃ b₂ ⇇ j₁ → ⌊ Π j₁ j₂ ⌋≡ k →
@@ -714,78 +637,79 @@ module TrackSimpleKindsSubst where
         let ⌊Πj₁j₂⌋≡k     = is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂
             k₁≡⌊j₁⌋       = sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡k₁)
             b₁⇇j₁ , b₂⇇j₁ = ≃-valid b₁≃b₂⇇j₁
-            ρ≃σ⇇j₁∷Γ      = ≃-hsub [] [] b₁≃b₂⇇j₁ ⌊j₁⌋≡k₁
-            σ≃ρ⇇j₁∷Γ      = /H≃-sym ρ≃σ⇇j₁∷Γ
-            ρ⇇j₁∷Γ        = /H≃-valid₁ ρ≃σ⇇j₁∷Γ
+            σ≃τ⇇j₁∷Γ      = ≃-hsub b₁≃b₂⇇j₁ ⌊j₁⌋≡k₁
+            τ≃σ⇇j₁∷Γ      = /⟨⟩≃-sym σ≃τ⇇j₁∷Γ
+            σ⇇j₁∷Γ        = /⟨⟩≃-valid₁ σ≃τ⇇j₁∷Γ
         in <:-antisym (subst (λ k → _ ⊢ _ Kind[ _ ∈ k ] kd)
                              (sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡k₁))
-                             (kd-/H j₂-kd (/H≃-valid₁ ρ≃σ⇇j₁∷Γ)))
+                             (kd-/⟨⟩ j₂-kd (/⟨⟩≃-valid₁ σ≃τ⇇j₁∷Γ)))
                       (subst (λ k → _ ⊢ _ <: _ ⇇ _ Kind[ _ ∈ k ]) k₁≡⌊j₁⌋
-                             (<:⇇-/H≃ a₁<:a₂⇇j₂ j₂-kd ρ≃σ⇇j₁∷Γ))
-                      (<:⇇-⇑ (<:⇇-/H≃ a₂<:a₁⇇j₂ j₂-kd σ≃ρ⇇j₁∷Γ)
+                             (<:⇇-/⟨⟩≃ a₁<:a₂⇇j₂ j₂-kd σ≃τ⇇j₁∷Γ))
+                      (<:⇇-⇑ (<:⇇-/⟨⟩≃ a₂<:a₁⇇j₂ j₂-kd τ≃σ⇇j₁∷Γ)
                              (subst (λ k → Γ ⊢ _ <∷ _ Kind[ _ ∈ k ]) k₁≡⌊j₁⌋
-                                    (kd-/H≃-<∷ j₂-kd σ≃ρ⇇j₁∷Γ))
+                                    (kd-/⟨⟩≃-<∷ j₂-kd τ≃σ⇇j₁∷Γ))
                              (subst (λ k → Γ ⊢ _ Kind[ _ ∈ k ] kd) k₁≡⌊j₁⌋
-                                    (kd-/H j₂-kd ρ⇇j₁∷Γ)))
+                                    (kd-/⟨⟩ j₂-kd σ⇇j₁∷Γ)))
 
     -- Helpers (to satisfy the termination checker).
     --
     -- These are simply (manual) expansions of the form
     --
-    --   XX-/H≃-wf x ρ≃σ⇇Γ  =  wf-/H≃ (wf-∷₁ (XX-ctx x)) ρ≃σ⇇Γ
+    --   XX-/⟨⟩≃-wf x σ≃τ⇇Γ  =  kd-/⟨⟩≃-≅ (wf-kd-inv (wf-∷₁ (XX-ctx x))) σ≃τ⇇Γ
     --
     -- to ensure the above definitions remain structurally recursive
     -- in the various derivations.
 
-    kd-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j k} →
-                kd j ∷ Γ ⊢ k kd → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    kd-/H≃-wf (kd-⋯ a⇉a⋯a _) ρ≃σ⇇Γ = Nf⇉-/H≃-wf a⇉a⋯a ρ≃σ⇇Γ
-    kd-/H≃-wf (kd-Π j-kd _)  ρ≃σ⇇Γ = kd-/H≃-wf j-kd ρ≃σ⇇Γ
+    kd-/⟨⟩≃-wf : ∀ {m n Γ l Δ} {σ τ : SVSub m n} {j k} →
+                 kd j ∷ Γ ⊢ k kd → Δ ⊢/⟨ l ⟩ σ ≃ τ ⇇ Γ →
+                 Δ ⊢ j Kind/⟨ l ⟩ σ ≅ j Kind/⟨ l ⟩ τ
+    kd-/⟨⟩≃-wf (kd-⋯ a⇉a⋯a _) σ≃τ⇇Γ = Nf⇉-/⟨⟩≃-wf a⇉a⋯a σ≃τ⇇Γ
+    kd-/⟨⟩≃-wf (kd-Π j-kd _)  σ≃τ⇇Γ = kd-/⟨⟩≃-wf j-kd σ≃τ⇇Γ
 
-    Nf⇉-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j a k} →
-                 kd j ∷ Γ ⊢Nf a ⇉ k → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                 Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    Nf⇉-/H≃-wf (⇉-⊥-f (j-wf ∷ Γ-ctx)) ρ≃σ⇇Γ = wf-/H≃ j-wf ρ≃σ⇇Γ
-    Nf⇉-/H≃-wf (⇉-⊤-f (j-wf ∷ Γ-ctx)) ρ≃σ⇇Γ = wf-/H≃ j-wf ρ≃σ⇇Γ
-    Nf⇉-/H≃-wf (⇉-∀-f k-kd _)         ρ≃σ⇇Γ = kd-/H≃-wf k-kd ρ≃σ⇇Γ
-    Nf⇉-/H≃-wf (⇉-→-f a⇉a⋯a _)        ρ≃σ⇇Γ = Nf⇉-/H≃-wf a⇉a⋯a ρ≃σ⇇Γ
-    Nf⇉-/H≃-wf (⇉-Π-i j-kd _)         ρ≃σ⇇Γ = kd-/H≃-wf j-kd ρ≃σ⇇Γ
-    Nf⇉-/H≃-wf (⇉-s-i a∈b⋯c)          ρ≃σ⇇Γ = Ne∈-/H≃-wf a∈b⋯c ρ≃σ⇇Γ
+    Nf⇉-/⟨⟩≃-wf : ∀ {m n Γ l Δ} {σ τ : SVSub m n} {j a k} →
+                  kd j ∷ Γ ⊢Nf a ⇉ k → Δ ⊢/⟨ l ⟩ σ ≃ τ ⇇ Γ →
+                  Δ ⊢ j Kind/⟨ l ⟩ σ ≅ j Kind/⟨ l ⟩ τ
+    Nf⇉-/⟨⟩≃-wf (⇉-⊥-f (wf-kd j-kd ∷ Γ-ctx)) σ≃τ⇇Γ = kd-/⟨⟩≃-≅ j-kd σ≃τ⇇Γ
+    Nf⇉-/⟨⟩≃-wf (⇉-⊤-f (wf-kd j-kd ∷ Γ-ctx)) σ≃τ⇇Γ = kd-/⟨⟩≃-≅ j-kd σ≃τ⇇Γ
+    Nf⇉-/⟨⟩≃-wf (⇉-∀-f k-kd _)               σ≃τ⇇Γ = kd-/⟨⟩≃-wf k-kd σ≃τ⇇Γ
+    Nf⇉-/⟨⟩≃-wf (⇉-→-f a⇉a⋯a _)              σ≃τ⇇Γ = Nf⇉-/⟨⟩≃-wf a⇉a⋯a σ≃τ⇇Γ
+    Nf⇉-/⟨⟩≃-wf (⇉-Π-i j-kd _)               σ≃τ⇇Γ = kd-/⟨⟩≃-wf j-kd σ≃τ⇇Γ
+    Nf⇉-/⟨⟩≃-wf (⇉-s-i a∈b⋯c)                σ≃τ⇇Γ = Ne∈-/⟨⟩≃-wf a∈b⋯c σ≃τ⇇Γ
 
-    Ne∈-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j a k} →
-                 kd j ∷ Γ ⊢Ne a ∈ k → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                 Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    Ne∈-/H≃-wf (∈-∙ x∈k _) ρ≃σ⇇Γ = Var∈-/H≃-wf x∈k ρ≃σ⇇Γ
+    Ne∈-/⟨⟩≃-wf : ∀ {m n Γ l Δ} {σ τ : SVSub m n} {j a k} →
+                  kd j ∷ Γ ⊢Ne a ∈ k → Δ ⊢/⟨ l ⟩ σ ≃ τ ⇇ Γ →
+                  Δ ⊢ j Kind/⟨ l ⟩ σ ≅ j Kind/⟨ l ⟩ τ
+    Ne∈-/⟨⟩≃-wf (∈-∙ x∈k _) σ≃τ⇇Γ = Var∈-/⟨⟩≃-wf x∈k σ≃τ⇇Γ
 
-    Var∈-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j a k} →
-                  kd j ∷ Γ ⊢Var a ∈ k → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                  Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    Var∈-/H≃-wf (⇉-var x (j-wf ∷ Γ-ctx) _) ρ≃σ⇇Γ = wf-/H≃ j-wf ρ≃σ⇇Γ
-    Var∈-/H≃-wf (⇇-⇑ x∈k _ _)              ρ≃σ⇇Γ = Var∈-/H≃-wf x∈k ρ≃σ⇇Γ
+    Var∈-/⟨⟩≃-wf : ∀ {m n Γ l Δ} {σ τ : SVSub m n} {j a k} →
+                   kd j ∷ Γ ⊢Var a ∈ k → Δ ⊢/⟨ l ⟩ σ ≃ τ ⇇ Γ →
+                   Δ ⊢ j Kind/⟨ l ⟩ σ ≅ j Kind/⟨ l ⟩ τ
+    Var∈-/⟨⟩≃-wf (⇉-var x (wf-kd j-kd ∷ Γ-ctx) _) σ≃τ⇇Γ = kd-/⟨⟩≃-≅ j-kd σ≃τ⇇Γ
+    Var∈-/⟨⟩≃-wf (⇇-⇑ x∈k _ _)                    σ≃τ⇇Γ = Var∈-/⟨⟩≃-wf x∈k σ≃τ⇇Γ
 
-    <∷-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j k₁ k₂} →
-                kd j ∷ Γ ⊢ k₁ <∷ k₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    <∷-/H≃-wf (<∷-⋯ a₂<:a₁ _)   ρ≃σ⇇Γ = <:-/H≃-wf a₂<:a₁ ρ≃σ⇇Γ
-    <∷-/H≃-wf (<∷-Π j₁<∷j₂ _ _) ρ≃σ⇇Γ = <∷-/H≃-wf j₁<∷j₂ ρ≃σ⇇Γ
+    <∷-/⟨⟩≃-wf : ∀ {m n Γ l Δ} {σ τ : SVSub m n} {j k₁ k₂} →
+                 kd j ∷ Γ ⊢ k₁ <∷ k₂ → Δ ⊢/⟨ l ⟩ σ ≃ τ ⇇ Γ →
+                 Δ ⊢ j Kind/⟨ l ⟩ σ ≅ j Kind/⟨ l ⟩ τ
+    <∷-/⟨⟩≃-wf (<∷-⋯ a₂<:a₁ _)   σ≃τ⇇Γ = <:-/⟨⟩≃-wf a₂<:a₁ σ≃τ⇇Γ
+    <∷-/⟨⟩≃-wf (<∷-Π j₁<∷j₂ _ _) σ≃τ⇇Γ = <∷-/⟨⟩≃-wf j₁<∷j₂ σ≃τ⇇Γ
 
-    <:-/H≃-wf : ∀ {l m n Γ Δ} {ρ σ : HSub l m n} {j a₁ a₂} →
-                kd j ∷ Γ ⊢ a₁ <: a₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ →
-                Δ ⊢ kd (j Kind/H ρ) ≅ kd (j Kind/H σ) wf
-    <:-/H≃-wf (<:-trans a<:b _) ρ≃σ⇇Γ = <:-/H≃-wf a<:b ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-⊥ a⇉a⋯a)      ρ≃σ⇇Γ = Nf⇉-/H≃-wf a⇉a⋯a ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-⊤ a⇉a⋯a)      ρ≃σ⇇Γ = Nf⇉-/H≃-wf a⇉a⋯a ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-∀ k₂<∷k₁ _ _) ρ≃σ⇇Γ = <∷-/H≃-wf k₂<∷k₁ ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-→ a₂<:a₁ _)   ρ≃σ⇇Γ = <:-/H≃-wf a₂<:a₁ ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-∙ x∈j _)      ρ≃σ⇇Γ = Var∈-/H≃-wf x∈j ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-⟨| a∈b⋯c)     ρ≃σ⇇Γ = Ne∈-/H≃-wf a∈b⋯c ρ≃σ⇇Γ
-    <:-/H≃-wf (<:-|⟩ a∈b⋯c)     ρ≃σ⇇Γ = Ne∈-/H≃-wf a∈b⋯c ρ≃σ⇇Γ
+    <:-/⟨⟩≃-wf : ∀ {m n Γ l Δ} {σ τ : SVSub m n} {j a₁ a₂} →
+                kd j ∷ Γ ⊢ a₁ <: a₂ → Δ ⊢/⟨ l ⟩ σ ≃ τ ⇇ Γ →
+                Δ ⊢ j Kind/⟨ l ⟩ σ ≅ j Kind/⟨ l ⟩ τ
+    <:-/⟨⟩≃-wf (<:-trans a<:b _) σ≃τ⇇Γ = <:-/⟨⟩≃-wf a<:b σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-⊥ a⇉a⋯a)      σ≃τ⇇Γ = Nf⇉-/⟨⟩≃-wf a⇉a⋯a σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-⊤ a⇉a⋯a)      σ≃τ⇇Γ = Nf⇉-/⟨⟩≃-wf a⇉a⋯a σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-∀ k₂<∷k₁ _ _) σ≃τ⇇Γ = <∷-/⟨⟩≃-wf k₂<∷k₁ σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-→ a₂<:a₁ _)   σ≃τ⇇Γ = <:-/⟨⟩≃-wf a₂<:a₁ σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-∙ x∈j _)      σ≃τ⇇Γ = Var∈-/⟨⟩≃-wf x∈j σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-⟨| a∈b⋯c)     σ≃τ⇇Γ = Ne∈-/⟨⟩≃-wf a∈b⋯c σ≃τ⇇Γ
+    <:-/⟨⟩≃-wf (<:-|⟩ a∈b⋯c)     σ≃τ⇇Γ = Ne∈-/⟨⟩≃-wf a∈b⋯c σ≃τ⇇Γ
 
   -- Equal hereditary substitutions preserve kind equality.
-  ≅-/H≃ : ∀ {k m n Γ Δ} {ρ σ : HSub k m n} {k₁ k₂} →
-          Γ ⊢ k₁ ≅ k₂ → Δ ⊢/H ρ ≃ σ ⇇ Γ → Δ ⊢ k₁ Kind/H ρ ≅ k₂ Kind/H σ
-  ≅-/H≃ (<∷-antisym j-kd k-kd j<∷k k<∷j) ρ≃σ⇇Γ =
-    <∷-antisym (kd-/H j-kd (/H≃-valid₁ ρ≃σ⇇Γ))
-               (kd-/H k-kd (/H≃-valid₂ ρ≃σ⇇Γ))
-               (<∷-/H≃ j<∷k ρ≃σ⇇Γ) (<∷-/H≃ k<∷j (/H≃-sym ρ≃σ⇇Γ))
+  ≅-/⟨⟩≃ : ∀ {k m n Γ Δ} {σ τ : SVSub m n} {k₁ k₂} →
+           Γ ⊢ k₁ ≅ k₂ → Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ →
+           Δ ⊢ k₁ Kind/⟨ k ⟩ σ ≅ k₂ Kind/⟨ k ⟩ τ
+  ≅-/⟨⟩≃ (<∷-antisym j-kd k-kd j<∷k k<∷j) σ≃τ⇇Γ =
+    <∷-antisym (kd-/⟨⟩ j-kd (/⟨⟩≃-valid₁ σ≃τ⇇Γ))
+               (kd-/⟨⟩ k-kd (/⟨⟩≃-valid₂ σ≃τ⇇Γ))
+               (<∷-/⟨⟩≃ j<∷k σ≃τ⇇Γ) (<∷-/⟨⟩≃ k<∷j (/⟨⟩≃-sym σ≃τ⇇Γ))

@@ -2,6 +2,8 @@
 -- Simple kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Simple where
 
 open import Data.Fin using (Fin; zero; suc)
@@ -14,12 +16,13 @@ open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (∃; _,_; _×_)
 open import Data.Unit using (tt)
 open import Data.Vec as Vec using ([]; _∷_)
-import Data.Vec.Properties as VecProp
+import Data.Vec.Properties as VecProps
 open import Function using (_∘_)
 open import Relation.Binary.PropositionalEquality as PropEq using (refl; _≡_)
 open import Relation.Nullary.Negation
 
 open import FOmegaInt.Syntax
+open import FOmegaInt.Syntax.SingleVariableSubstitution
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 
@@ -37,8 +40,8 @@ module Kinding where
   infix 4 _⊢Var_∈_ _⊢_kds _⊢Nf_∈_ _⊢Ne_∈_ _⊢_∋∙_∈_ _⊢_wfs
 
   -- Simple kinding of variables.
-  data _⊢Var_∈_ {n} (Γ : Ctx n) : Head n → SKind → Set where
-    ∈-var : ∀ {k} x → lookup x Γ ≡ kd k → Γ ⊢Var var x ∈ k
+  data _⊢Var_∈_ {n} (Γ : Ctx n) : Fin n → SKind → Set where
+    ∈-var : ∀ {k} x → lookup x Γ ≡ kd k → Γ ⊢Var x ∈ k
 
   mutual
 
@@ -62,7 +65,7 @@ module Kinding where
 
     -- Simple kinding of neutral types.
     data _⊢Ne_∈_ {n} (Γ : Ctx n) : Elim n → SKind → Set where
-      ∈-∙ : ∀ {x j k} {as : Spine n} → Γ ⊢Var var x ∈ j →
+      ∈-∙ : ∀ {x j k} {as : Spine n} → Γ ⊢Var x ∈ j →
             Γ ⊢ j ∋∙ as ∈ k → Γ ⊢Ne var x ∙ as ∈ k
 
     -- Simple spine kinding.
@@ -138,70 +141,70 @@ module KindedRenaming where
 
   open TypedVarSubst typedVarSubst public
     hiding (∈-weaken; ∈-var) renaming (_⊢Var_∈_ to _⊢Var′_∈_)
-  open TypedSub typedSub using (_,_) renaming (lookup to ∈-lookup)
+  open TypedSub typedSub using () renaming (lookup to ∈-lookup)
 
   open Substitution hiding (subst; _/Var_) renaming (_Elim/Var_ to _/Var_)
-  open RenamingCommutes using (Kind[∈⌊⌋]-/)
+  open RenamingCommutes using (Kind[∈⌊⌋]-/Var)
   open PropEq
   open ≡-Reasoning
 
   -- A helper.
-  ∈-↑′ : ∀ {m n} {Δ : Ctx n} {Γ : Ctx m} {k σ} →
-         Δ ⊢/Var σ ∈ Γ →
-         kd ⌊ k Kind′/Var σ ⌋ ∷ Δ ⊢/Var σ VarSubst.↑ ∈ kd ⌊ k ⌋ ∷ Γ
-  ∈-↑′ {Δ = Δ} {_} {k} σ∈Γ =
-    subst (λ j → kd j ∷ Δ ⊢/Var _ ∈ _) (sym (⌊⌋-Kind′/Var k)) (∈-↑ tt σ∈Γ)
+  ∈-↑′ : ∀ {m n} {Δ : Ctx n} {Γ : Ctx m} {k ρ} →
+         Δ ⊢/Var ρ ∈ Γ →
+         kd ⌊ k Kind′/Var ρ ⌋ ∷ Δ ⊢/Var ρ VarSubst.↑ ∈ kd ⌊ k ⌋ ∷ Γ
+  ∈-↑′ {Δ = Δ} {_} {k} ρ∈Γ =
+    subst (λ j → kd j ∷ Δ ⊢/Var _ ∈ _) (sym (⌊⌋-Kind′/Var k)) (∈-↑ tt ρ∈Γ)
 
   -- Convert between well-kindedness judgments for variables.
   Var∈′-Var∈ : ∀ {n} {Γ : Ctx n} {x a k} → a ≡ kd k →
-               Γ ⊢Var′ x ∈ a → Γ ⊢Var var x ∈ k
+               Γ ⊢Var′ x ∈ a → Γ ⊢Var x ∈ k
   Var∈′-Var∈ Γ[x]≡kd-k (var x Γ-ctx) = ∈-var x Γ[x]≡kd-k
 
   -- Renamings preserve synthesized kinds of variables.
-  Var∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k σ} →
-              Γ ⊢Var a ∈ k → Δ ⊢/Var σ ∈ Γ → Δ ⊢Var a Head/Var σ ∈ k
-  Var∈-/Var (∈-var x Γ[x]≡kd-k) σ∈Γ = Var∈′-Var∈ Γ[x]≡kd-k (∈-lookup x σ∈Γ)
+  Var∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {x k ρ} →
+              Γ ⊢Var x ∈ k → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Var Vec.lookup ρ x ∈ k
+  Var∈-/Var (∈-var x Γ[x]≡kd-k) ρ∈Γ = Var∈′-Var∈ Γ[x]≡kd-k (∈-lookup x ρ∈Γ)
 
   mutual
 
     -- Renamings preserve well-formedness of kinds.
-    kds-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {k σ} →
-               Γ ⊢ k kds → Δ ⊢/Var σ ∈ Γ → Δ ⊢ k Kind′/Var σ kds
-    kds-/Var (kds-⋯ a∈★ b∈★) σ∈Γ = kds-⋯ (Nf∈-/Var a∈★ σ∈Γ) (Nf∈-/Var b∈★ σ∈Γ)
-    kds-/Var (kds-Π j-kds  k-kds) σ∈Γ =
-      kds-Π (kds-/Var j-kds σ∈Γ) (kds-/Var k-kds (∈-↑′ σ∈Γ))
+    kds-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {k ρ} →
+               Γ ⊢ k kds → Δ ⊢/Var ρ ∈ Γ → Δ ⊢ k Kind′/Var ρ kds
+    kds-/Var (kds-⋯ a∈★ b∈★) ρ∈Γ = kds-⋯ (Nf∈-/Var a∈★ ρ∈Γ) (Nf∈-/Var b∈★ ρ∈Γ)
+    kds-/Var (kds-Π j-kds  k-kds) ρ∈Γ =
+      kds-Π (kds-/Var j-kds ρ∈Γ) (kds-/Var k-kds (∈-↑′ ρ∈Γ))
 
     -- Renamings preserve synthesized kinds of normal types.
-    Nf∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k σ} →
-               Γ ⊢Nf a ∈ k → Δ ⊢/Var σ ∈ Γ → Δ ⊢Nf a /Var σ ∈ k
-    Nf∈-/Var ∈-⊥-f              σ∈Γ = ∈-⊥-f
-    Nf∈-/Var ∈-⊤-f              σ∈Γ = ∈-⊤-f
-    Nf∈-/Var (∈-∀-f k-kds a∈★)  σ∈Γ =
-      ∈-∀-f (kds-/Var k-kds σ∈Γ) (Nf∈-/Var a∈★ (∈-↑′ σ∈Γ))
-    Nf∈-/Var (∈-→-f a∈★ b∈★)    σ∈Γ =
-      ∈-→-f (Nf∈-/Var a∈★ σ∈Γ) (Nf∈-/Var b∈★ σ∈Γ)
-    Nf∈-/Var (∈-Π-i {j} {a} {k} j-kds a∈k) σ∈Γ =
+    Nf∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k ρ} →
+               Γ ⊢Nf a ∈ k → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Nf a /Var ρ ∈ k
+    Nf∈-/Var ∈-⊥-f              ρ∈Γ = ∈-⊥-f
+    Nf∈-/Var ∈-⊤-f              ρ∈Γ = ∈-⊤-f
+    Nf∈-/Var (∈-∀-f k-kds a∈★)  ρ∈Γ =
+      ∈-∀-f (kds-/Var k-kds ρ∈Γ) (Nf∈-/Var a∈★ (∈-↑′ ρ∈Γ))
+    Nf∈-/Var (∈-→-f a∈★ b∈★)    ρ∈Γ =
+      ∈-→-f (Nf∈-/Var a∈★ ρ∈Γ) (Nf∈-/Var b∈★ ρ∈Γ)
+    Nf∈-/Var (∈-Π-i {j} {a} {k} j-kds a∈k) ρ∈Γ =
       subst (λ l → _ ⊢Nf Λ∙ j a /Var _ ∈ l ⇒ k) (⌊⌋-Kind′/Var j)
-            (∈-Π-i (kds-/Var j-kds σ∈Γ) (Nf∈-/Var a∈k (∈-↑′ σ∈Γ)))
-    Nf∈-/Var (∈-ne a∈★)         σ∈Γ = ∈-ne (Ne∈-/Var a∈★ σ∈Γ)
+            (∈-Π-i (kds-/Var j-kds ρ∈Γ) (Nf∈-/Var a∈k (∈-↑′ ρ∈Γ)))
+    Nf∈-/Var (∈-ne a∈★)         ρ∈Γ = ∈-ne (Ne∈-/Var a∈★ ρ∈Γ)
 
     -- Renamings preserve synthesized kinds of neutral types.
-    Ne∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k σ} →
-               Γ ⊢Ne a ∈ k → Δ ⊢/Var σ ∈ Γ → Δ ⊢Ne a /Var σ ∈ k
-    Ne∈-/Var (∈-∙ x∈j k∈as∈l) σ∈Γ =
-      ∈-∙ (Var∈-/Var x∈j σ∈Γ) (Sp∈-/Var k∈as∈l σ∈Γ)
+    Ne∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k ρ} →
+               Γ ⊢Ne a ∈ k → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Ne a /Var ρ ∈ k
+    Ne∈-/Var (∈-∙ x∈j k∈as∈l) ρ∈Γ =
+      ∈-∙ (Var∈-/Var x∈j ρ∈Γ) (Sp∈-/Var k∈as∈l ρ∈Γ)
 
-    Sp∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {as j k σ} →
-               Γ ⊢ j ∋∙ as ∈ k → Δ ⊢/Var σ ∈ Γ → Δ ⊢ j ∋∙ as //Var σ  ∈ k
-    Sp∈-/Var ∈-[]                σ∈Γ = ∈-[]
-    Sp∈-/Var (∈-∷ a∈j k[a]∈as∈l) σ∈Γ =
-      ∈-∷ (Nf∈-/Var a∈j σ∈Γ) (Sp∈-/Var k[a]∈as∈l σ∈Γ)
+    Sp∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {as j k ρ} →
+               Γ ⊢ j ∋∙ as ∈ k → Δ ⊢/Var ρ ∈ Γ → Δ ⊢ j ∋∙ as //Var ρ  ∈ k
+    Sp∈-/Var ∈-[]                ρ∈Γ = ∈-[]
+    Sp∈-/Var (∈-∷ a∈j k[a]∈as∈l) ρ∈Γ =
+      ∈-∷ (Nf∈-/Var a∈j ρ∈Γ) (Sp∈-/Var k[a]∈as∈l ρ∈Γ)
 
   -- Renamings preserve well-formedness of ascriptions.
-  wfs-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a σ} →
-             Γ ⊢ a wfs → Δ ⊢/Var σ ∈ Γ → Δ ⊢ a ElimAsc/Var σ wfs
-  wfs-/Var (wfs-kd k-kds) σ∈Γ = wfs-kd (kds-/Var k-kds σ∈Γ)
-  wfs-/Var (wfs-tp a∈★)   σ∈Γ = wfs-tp (Nf∈-/Var a∈★ σ∈Γ)
+  wfs-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a ρ} →
+             Γ ⊢ a wfs → Δ ⊢/Var ρ ∈ Γ → Δ ⊢ a ElimAsc/Var ρ wfs
+  wfs-/Var (wfs-kd k-kds) ρ∈Γ = wfs-kd (kds-/Var k-kds ρ∈Γ)
+  wfs-/Var (wfs-tp a∈★)   ρ∈Γ = wfs-tp (Nf∈-/Var a∈★ ρ∈Γ)
 
   -- Weakening preserves simple well-formedness of kinds.
 
@@ -261,173 +264,156 @@ module WfsCtxOps where
 
 module KindedHereditarySubstitution where
   open Data.Fin         using (zero; raise; lift)
-  open Substitution     hiding (subst)
-  open KindedRenaming   using (Nf∈-weaken⋆)
-  open RenamingCommutes using (wk-/H-↑⋆; /-wk-↑⋆-hsub-vanishes)
+  open Substitution     hiding (subst; sub; _↑; _↑⋆_)
+  open KindedRenaming   using (_⊢/Var_∈_; Nf∈-/Var; Nf∈-weaken⋆; ∈-wk; ∈-↑⋆)
+  open RenamingCommutes using (wk-/⟨⟩-↑⋆; /Var-wk-↑⋆-hsub-vanishes)
   open PropEq
   open ≡-Reasoning
+  private module V = VarSubst
 
-  infix 4 _⊢/H_∈_
+  infix 4 _⊢/⟨_⟩_∈_ _⊢?⟨_⟩_∈_
 
-  -- Well-kinded suspended hereditary substitions.
-  data _⊢/H_∈_ : ∀ {k m n} (Δ : Ctx n) (ρ : HSub k m n) (Γ : Ctx m) → Set where
-    ∈-hsub : ∀ {k m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ : Ctx m} {a} →
-             Γ₁ ⊢Nf a ∈ k →
-             re-idx Γ₂ ′++ Γ₁ ⊢/H (n ← a ∈ k) ∈ Γ₂ ′++ kd k ∷ Γ₁
+  -- Simply well-kinded hereditary substitions and lookup results.
 
-  -- Lift a kinded hereditary substitution over an additional variable.
-  ∈-H↑ : ∀ {k m n Δ Γ} {ρ : HSub k m n} {a} →
-         Δ ⊢/H ρ ∈ Γ → a ∷ Δ ⊢/H ρ H↑ ∈ a ∷ Γ
-  ∈-H↑ (∈-hsub Γ a∈j) = ∈-hsub (_ ∷ Γ) a∈j
+  data _⊢/⟨_⟩_∈_ : ∀ {m n} → Ctx n → SKind → SVSub m n → Ctx m → Set where
+    ∈-hsub : ∀ {n} {Γ : Ctx n} {k a} →
+             Γ ⊢Nf a ∈ k → Γ ⊢/⟨ k ⟩ sub a ∈ kd k ∷ Γ
+    ∈-H↑   : ∀ {m n Δ k Γ} {σ : SVSub m n} {a} →
+             Δ ⊢/⟨ k ⟩ σ ∈ Γ → a ∷ Δ ⊢/⟨ k ⟩ σ ↑ ∈ a ∷ Γ
 
-  ∈-H↑′ : ∀ {k m n Δ Γ} {ρ : HSub k m n} {j} →
-          Δ ⊢/H ρ ∈ Γ → kd ⌊ j Kind/H ρ ⌋ ∷ Δ ⊢/H ρ H↑ ∈ kd ⌊ j ⌋ ∷ Γ
-  ∈-H↑′ ρ∈Γ =
-    subst (λ k → kd k ∷ _ ⊢/H _ H↑ ∈ kd _ ∷ _) (sym (⌊⌋-Kind/H _)) (∈-H↑ ρ∈Γ)
+  data _⊢?⟨_⟩_∈_ {n} (Γ : Ctx n) (k : SKind) : SVRes n → SAsc n → Set where
+    ∈-hit  : ∀ {a}   → Γ ⊢Nf a ∈ k    → Γ ⊢?⟨ k ⟩ hit a ∈ kd k
+    ∈-miss : ∀ y {a} → lookup y Γ ≡ a → Γ ⊢?⟨ k ⟩ miss y ∈ a
+
+  -- A variant of `∈-H↑' that applies `σ' in the target context
+
+  ∈-H↑′ : ∀ {m n Δ k Γ} {σ : SVSub m n} {j} →
+          Δ ⊢/⟨ k ⟩ σ ∈ Γ →
+          kd ⌊ j Kind/⟨ k ⟩ σ ⌋ ∷ Δ ⊢/⟨ k ⟩ σ ↑ ∈ kd ⌊ j ⌋ ∷ Γ
+  ∈-H↑′ σ∈Γ =
+    subst (λ k → kd k ∷ _ ⊢/⟨ _ ⟩ _ ↑ ∈ kd _ ∷ _)
+          (sym (⌊⌋-Kind/⟨⟩ _)) (∈-H↑ σ∈Γ)
 
   -- Lift a kinded hereditary substitution over multiple additional
   -- variables.
-  ∈-H↑⋆ : ∀ {k m n i} (E : CtxExt′ m i) {Δ Γ} {ρ : HSub k m n} →
-          Δ ⊢/H ρ ∈ Γ → re-idx E ′++ Δ ⊢/H ρ H↑⋆ i ∈ E ′++ Γ
-  ∈-H↑⋆ []      ρ∈Γ = ρ∈Γ
-  ∈-H↑⋆ (a ∷ E) ρ∈Γ = ∈-H↑ (∈-H↑⋆ E ρ∈Γ)
 
-  -- TODO: explain.
-  Var∈-Hit : ∀ {k m n Γ Δ} {ρ : HSub k m n} {x j} →
-             Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ∈ Γ → Hit ρ x → j ≡ k
-  Var∈-Hit (∈-var {j} _ Γ[x]≡kd-j) (∈-hsub {k} {_} {n} Γ₂ {Γ₁} a∈k) refl =
-    kd-inj′ (begin
-        kd j
-      ≡⟨ sym Γ[x]≡kd-j ⟩
-        lookup (raise n zero) (Γ₂ ′++ kd k ∷ Γ₁)
-      ≡⟨ lookup-weaken⋆′ n zero [] Γ₂ (kd k ∷ Γ₁) ⟩
-        weakenSAsc⋆ n (kd k)
-      ≡⟨ weakenSAsc⋆-id n ⟩
-        kd k
-      ∎)
+  ∈-H↑⋆ : ∀ {m n i} (E : CtxExt′ m i) {Δ k Γ} {σ : SVSub m n} →
+          Δ ⊢/⟨ k ⟩ σ ∈ Γ → re-idx E ′++ Δ ⊢/⟨ k ⟩ σ ↑⋆ i ∈ E ′++ Γ
+  ∈-H↑⋆ []      σ∈Γ = σ∈Γ
+  ∈-H↑⋆ (a ∷ E) σ∈Γ = ∈-H↑ (∈-H↑⋆ E σ∈Γ)
+
+  -- Renamings preserve well-kinded SV results.
+
+  ?∈-/Var : ∀ {m n Γ k Δ r a} {ρ : Sub Fin m n} →
+            Γ ⊢?⟨ k ⟩ r ∈ a → Δ ⊢/Var ρ ∈ Γ → Δ ⊢?⟨ k ⟩ r ?/Var ρ ∈ a
+  ?∈-/Var                 (∈-hit a∈k)     ρ∈Γ = ∈-hit (Nf∈-/Var a∈k ρ∈Γ)
+  ?∈-/Var {Γ = Γ} {k} {Δ} (∈-miss y refl) ρ∈Γ = helper refl (TS.lookup y ρ∈Γ)
+    where
+      module TS = TypedSub KindedRenaming.typedSub
+      module TV = TypedVarSubst KindedRenaming.typedVarSubst
+
+      helper : ∀ {x a} → a ≡ lookup y Γ → Δ TV.⊢Var x ∈ a →
+               Δ ⊢?⟨ k ⟩ miss x ∈ lookup y Γ
+      helper Δ[x]≡Γ[y] (TV.var x _) = ∈-miss x Δ[x]≡Γ[y]
+
+  ?∈-weaken : ∀ {n} {Γ : Ctx n} {k r a b} →
+              Γ ⊢?⟨ k ⟩ r ∈ a → (b ∷ Γ) ⊢?⟨ k ⟩ weakenSVRes r ∈ a
+  ?∈-weaken r∈a = ?∈-/Var r∈a (KindedRenaming.∈-wk tt)
+
+  -- Look up a variable in a well-kinded hereditary substitution.
+
+  lookup-/⟨⟩∈ : ∀ {m n Δ k Γ} {σ : SVSub m n} →
+                Δ ⊢/⟨ k ⟩ σ ∈ Γ → (x : Fin m) →
+                Δ ⊢?⟨ k ⟩ lookupSV σ x ∈ lookup x Γ
+  lookup-/⟨⟩∈                (∈-hsub a∈k) zero    = ∈-hit a∈k
+  lookup-/⟨⟩∈ {Γ = kd k ∷ Γ} (∈-hsub a∈k) (suc x) =
+    ∈-miss x (cong (λ Γ → Vec.lookup Γ x) (sym (VecProps.map-id (toVec Γ))))
+  lookup-/⟨⟩∈ (∈-H↑                     σ∈Γ) zero    = ∈-miss zero refl
+  lookup-/⟨⟩∈ (∈-H↑ {Δ = Δ} {_} {Γ} {σ} σ∈Γ) (suc x) =
+    ?∈-weaken (subst (λ as → Δ ⊢?⟨ _ ⟩ lookupSV σ x ∈ Vec.lookup as x)
+                     (sym (VecProps.map-id (toVec Γ))) (lookup-/⟨⟩∈ σ∈Γ x))
 
   -- Lookup a hit in a well-kinded hereditary substitution.
   --
   -- NOTE. Since `j ≡ k', we could have formulated this lemma
-  -- differently.  In particular, given the premise `lookup x Γ ≡ kd
-  -- j', it would have been more intuitive for the kinding judgment in
-  -- the conclusion to use the simple kind `j' rather than `k'
-  -- (mirroring the structure of the variable rule).  However, it is
-  -- important that the simple kind `k' of the normal type returned by
-  -- this function is syntactically equal to the kind annotation of
-  -- the hereditary substitution `n ← a ∈ k' because it serves as the
-  -- termination measure for the (hereditary) substitution lemmas
-  -- below.
-  Var∈-Hit-/H : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ : Ctx m} {a j k} →
-                let Γ = Γ₂ ′++ kd k ∷ Γ₁
-                    Δ = re-idx Γ₂ ′++ Γ₁
-                    ρ = n ← a ∈ k
-                    x = raise n zero
-                in lookup x Γ ≡ kd j → Γ₁ ⊢Nf a ∈ k →
-                   Δ ⊢Nf ⌜ Vec.lookup (sub ⌞ a ⌟ ↑⋆ n) x ⌝ ∈ k × j ≡ k
-  Var∈-Hit-/H {_} {n} Γ₂ {Γ₁} {a} {j} {k} Γ[x]≡kd-j a∈k =
-    subst (re-idx Γ₂ ′++ Γ₁ ⊢Nf_∈ _) (begin
-          weakenElim⋆ n a
-        ≡⟨ sym (Elim/-wk⋆ n) ⟩
-          a Elim/ wk⋆ n
-        ≡⟨ cong (_Elim/ wk⋆ n) (sym (⌜⌝∘⌞⌟-id a)) ⟩
-          ⌜ ⌞ a ⌟ ⌝ Elim/ wk⋆ n
-        ≡⟨ sym (⌜⌝-/ ⌞ a ⌟) ⟩
-          ⌜ ⌞ a ⌟ / wk⋆ n ⌝
-        ≡⟨ cong ⌜_⌝ (sym (ExtLemmas₄.raise-/-↑⋆ lemmas₄ n zero)) ⟩
-          ⌜ Vec.lookup (sub ⌞ a ⌟ ↑⋆ n) (raise n zero) ⌝
-        ∎)
-      (Nf∈-weaken⋆ (re-idx Γ₂) a∈k) ,
-      (Var∈-Hit (∈-var (raise n zero) Γ[x]≡kd-j) (∈-hsub Γ₂ a∈k) refl)
+  -- differently.  In particular, given the premise `Γ ⊢Var x ∈ j', it
+  -- would have been more intuitive for the kinding judgment in the
+  -- conclusion to use the simple kind `j' rather than `k' (preserving
+  -- the kind of the variable, as usual for substitution lemmas).
+  -- However, it is important that the simple kind `k' of the normal
+  -- type returned by this function is syntactically equal to the kind
+  -- annotation of the hereditary substitution `Δ ⊢/⟨ k ⟩ σ ∈ Γ'
+  -- because it serves as the termination measure for the (hereditary)
+  -- substitution lemmas below.
 
-  -- TODO: Could this be refactored to replace the above?
-  Var∈-Hit-/H′ : ∀ {k m n Γ Δ} {ρ : HSub k m n} {x j} →
-                 Γ ⊢Var var x ∈ j → Δ ⊢/H ρ ∈ Γ → Hit ρ x →
-                 Δ ⊢Nf var∙ x /H ρ ∈ k × j ≡ k
-  Var∈-Hit-/H′ (∈-var {j} _ Γ[x]≡kd-j) (∈-hsub {k} {_} {n} Γ₂ {Γ₁} a∈k) refl =
-    let x/ρ∈k , j≡k = Var∈-Hit-/H Γ₂ Γ[x]≡kd-j a∈k
-    in subst (_ ⊢Nf_∈ _) (sym (var∙-/H-/ (n ← _ ∈ k) ((raise n zero)))) x/ρ∈k ,
-       j≡k
+  lookup-/⟨⟩∈-Hit : ∀ {m n Δ k} {σ : SVSub m n} {Γ x j a} →
+                    Δ ⊢/⟨ k ⟩ σ ∈ Γ → Γ ⊢Var x ∈ j → Hit σ x a →
+                    Δ ⊢Nf a ∈ k × j ≡ k
+  lookup-/⟨⟩∈-Hit σ∈Γ (∈-var {j} x Γ[x]≡kd-j) hitP =
+    let a∈k , Γ[x]≡kd-k = helper (lookup-Hit hitP) (lookup-/⟨⟩∈ σ∈Γ x)
+    in  a∈k , kd-inj′ (trans (sym Γ[x]≡kd-j) Γ[x]≡kd-k)
+    where
+      helper : ∀ {n} {Δ : Ctx n} {r a b k} →
+               r ≡ hit a → Δ ⊢?⟨ k ⟩ r ∈ b → Δ ⊢Nf a ∈ k × b ≡ kd k
+      helper refl (∈-hit a∈k) = a∈k , refl
 
-  -- Lookup a miss in a well-kinded hereditary substitution.
-  Var∈-Miss-/H : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ : Ctx m} {x j k} →
-                 let Γ = Γ₂ ′++ kd k ∷ Γ₁
-                     Δ = re-idx Γ₂ ′++ Γ₁
-                 in lookup (lift n suc x) Γ ≡ kd j → Δ ⊢Var var x ∈ j
-  Var∈-Miss-/H {m} {n} Γ₂ {Γ₁} {x} {j} {k} Γ[x]≡kd-j =
-    ∈-var x (begin
-        lookup x ((re-idx Γ₂) ′++ Γ₁)
-      ≡⟨ lookup-′++ x [] (re-idx Γ₂) Γ₁ ⟩
-        extLookup′ x (toVec Γ₁) (re-idx Γ₂)
-      ≡⟨ lookup′-lift x (kd k) (toVec Γ₁) (re-idx Γ₂) ⟩
-        extLookup′ (lift n suc x) (kd k ∷ toVec Γ₁) (re-idx Γ₂)
-      ≡⟨ cong (λ ts → extLookup′ (lift n suc x) ts (re-idx {m = m} Γ₂)) (begin
-            kd k ∷ toVec Γ₁
-          ≡⟨ sym (map-id (kd k ∷ toVec Γ₁)) ⟩
-            Vec.map Function.id (kd k ∷ toVec Γ₁)
-          ≡⟨ map-∘ Function.id Function.id (kd k ∷ toVec Γ₁) ⟩
-            Vec.map Function.id (toVec (kd k ∷ Γ₁))
-          ∎) ⟩
-        extLookup′ (lift n suc x) (Vec.map Function.id (toVec (kd k ∷ Γ₁)))
-                   (re-idx Γ₂)
-      ≡⟨ lookup′-map′ (lift n suc x) (λ _ k → k) (toVec (kd k ∷ Γ₁)) Γ₂
-                      (λ _ → refl) ⟩
-        extLookup′ (lift n suc x) (toVec (kd k ∷ Γ₁)) Γ₂
-      ≡⟨ (sym (lookup-′++ (lift n suc x) [] Γ₂ (kd k ∷ Γ₁))) ⟩
-        lookup (lift n suc x) (Γ₂ ′++ kd k ∷ Γ₁)
-      ≡⟨ Γ[x]≡kd-j ⟩
-        kd j
-      ∎)
-    where open VecProp using (map-id; map-∘)
+  lookup-/⟨⟩∈-Miss : ∀ {m n Δ k} {σ : SVSub m n} {Γ x y j} →
+                     Δ ⊢/⟨ k ⟩ σ ∈ Γ → Γ ⊢Var x ∈ j → Miss σ x y →
+                     lookup y Δ ≡ lookup x Γ
+  lookup-/⟨⟩∈-Miss σ∈Γ (∈-var {j} x Γ[x]≡kd-j) missP =
+    helper (lookup-Miss missP) (lookup-/⟨⟩∈ σ∈Γ x)
+    where
+      helper : ∀ {n} {Δ : Ctx n} {r y b k} →
+               r ≡ miss y → Δ ⊢?⟨ k ⟩ r ∈ b → lookup y Δ ≡ b
+      helper refl (∈-miss y Δ[y]≡b) = Δ[y]≡b
 
   open KindSimpLemmas simpLemmasKind′
 
   -- TODO: explain why this terminates.
   mutual
 
-    -- Hereditary substitutions preserve simple well-formedness of kinds.
-    kds-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {j} →
-             Γ ⊢ j kds → Δ ⊢/H ρ ∈ Γ → Δ ⊢ j Kind/H ρ kds
-    kds-/H (kds-⋯ a∈★ b∈★)     ρ∈Γ = kds-⋯ (Nf∈-/H a∈★ ρ∈Γ) (Nf∈-/H b∈★ ρ∈Γ)
-    kds-/H (kds-Π j-kds k-kds) ρ∈Γ =
-      kds-Π (kds-/H j-kds ρ∈Γ) (kds-/H k-kds (∈-H↑′ ρ∈Γ))
+    -- Hereditary substitutions preserve simple well-formedness and
+    -- kinding (of kinds, normal types and spines).
 
-    -- Hereditary substitutions preserve simple kinding of normal types.
-    Nf∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a j} →
-             Γ ⊢Nf a ∈ j → Δ ⊢/H ρ ∈ Γ → Δ ⊢Nf a /H ρ ∈ j
-    Nf∈-/H ∈-⊥-f             ρ∈Γ = ∈-⊥-f
-    Nf∈-/H ∈-⊤-f             ρ∈Γ = ∈-⊤-f
-    Nf∈-/H (∈-∀-f k-kds a∈★) ρ∈Γ =
-      ∈-∀-f (kds-/H k-kds ρ∈Γ) (Nf∈-/H a∈★ (∈-H↑′ ρ∈Γ))
-    Nf∈-/H (∈-→-f a∈★ b∈★)   ρ∈Γ =
-      ∈-→-f (Nf∈-/H a∈★ ρ∈Γ) (Nf∈-/H b∈★ ρ∈Γ)
-    Nf∈-/H (∈-Π-i {j} {a} {k} j-kds a∈k) ρ∈Γ =
-      subst (λ l → _ ⊢Nf Λ∙ j a /H _ ∈ l ⇒ k) (⌊⌋-Kind/H j)
-            (∈-Π-i (kds-/H j-kds ρ∈Γ) (Nf∈-/H a∈k (∈-H↑′ ρ∈Γ)))
-    Nf∈-/H (∈-ne a∈★)        ρ∈Γ = Ne∈-/H a∈★ ρ∈Γ
+    kds-/⟨⟩ : ∀ {m n Γ k Δ} {σ : SVSub m n} {j} →
+              Γ ⊢ j kds → Δ ⊢/⟨ k ⟩ σ ∈ Γ → Δ ⊢ j Kind/⟨ k ⟩ σ kds
+    kds-/⟨⟩ (kds-⋯ a∈★ b∈★)     σ∈Γ = kds-⋯ (Nf∈-/⟨⟩ a∈★ σ∈Γ) (Nf∈-/⟨⟩ b∈★ σ∈Γ)
+    kds-/⟨⟩ (kds-Π j-kds k-kds) σ∈Γ =
+      kds-Π (kds-/⟨⟩ j-kds σ∈Γ) (kds-/⟨⟩ k-kds (∈-H↑′ σ∈Γ))
+
+    Nf∈-/⟨⟩ : ∀ {m n Γ k Δ} {σ : SVSub m n} {a j} →
+              Γ ⊢Nf a ∈ j → Δ ⊢/⟨ k ⟩ σ ∈ Γ → Δ ⊢Nf a /⟨ k ⟩ σ ∈ j
+    Nf∈-/⟨⟩ ∈-⊥-f             σ∈Γ = ∈-⊥-f
+    Nf∈-/⟨⟩ ∈-⊤-f             σ∈Γ = ∈-⊤-f
+    Nf∈-/⟨⟩ (∈-∀-f k-kds a∈★) σ∈Γ =
+      ∈-∀-f (kds-/⟨⟩ k-kds σ∈Γ) (Nf∈-/⟨⟩ a∈★ (∈-H↑′ σ∈Γ))
+    Nf∈-/⟨⟩ (∈-→-f a∈★ b∈★)   σ∈Γ =
+      ∈-→-f (Nf∈-/⟨⟩ a∈★ σ∈Γ) (Nf∈-/⟨⟩ b∈★ σ∈Γ)
+    Nf∈-/⟨⟩ (∈-Π-i {j} {a} {k} j-kds a∈k) σ∈Γ =
+      subst (λ l → _ ⊢Nf Λ∙ j a /⟨ _ ⟩ _ ∈ l ⇒ k) (⌊⌋-Kind/⟨⟩ j)
+            (∈-Π-i (kds-/⟨⟩ j-kds σ∈Γ) (Nf∈-/⟨⟩ a∈k (∈-H↑′ σ∈Γ)))
+    Nf∈-/⟨⟩ (∈-ne a∈★)        σ∈Γ = Ne∈-/⟨⟩ a∈★ σ∈Γ
+
+    Sp∈-/⟨⟩ : ∀ {m n Γ k Δ} {σ : SVSub m n} {as j₁ j₂} →
+              Γ ⊢ j₁ ∋∙ as ∈ j₂ → Δ ⊢/⟨ k ⟩ σ ∈ Γ → Δ ⊢ j₁ ∋∙ as //⟨ k ⟩ σ ∈ j₂
+    Sp∈-/⟨⟩ ∈-[]                   σ∈Γ = ∈-[]
+    Sp∈-/⟨⟩ (∈-∷ a∈j₁ j₂[a]∈as∈j₃) σ∈Γ =
+      ∈-∷ (Nf∈-/⟨⟩ a∈j₁ σ∈Γ) (Sp∈-/⟨⟩ j₂[a]∈as∈j₃ σ∈Γ)
 
     -- Hereditary substitutions preserve simple kinds of neutral
     -- types (but not neutrality itself).
-    Ne∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {a} →
-             Γ ⊢Ne a ∈ ★ → Δ ⊢/H ρ ∈ Γ → Δ ⊢Nf a /H ρ ∈ ★
-    Ne∈-/H (∈-∙ (∈-var x Γ[x]≡kd-j) j∈as∈l)
-           (∈-hsub {_} {_} {n} Γ₂ a∈k) with compare n x
-    Ne∈-/H (∈-∙ {_} {_} {_} {as} (∈-var _ Γ[x]≡kd-j) j∋as∈l) (∈-hsub Γ₂ a∈k)
-      | yes refl =
-      let a/ρ∈k , j≡k = Var∈-Hit-/H Γ₂ Γ[x]≡kd-j a∈k
-          k∋as∈l      = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈l
-      in Nf∈-∙∙ a/ρ∈k (Sp∈-/H k∋as∈l (∈-hsub Γ₂ a∈k))
-    Ne∈-/H (∈-∙ (∈-var _ Γ[x]≡kd-j) j∋as∈l) (∈-hsub Γ₂ a∈k) | no y refl =
-      ∈-ne (∈-∙ (Var∈-Miss-/H Γ₂ Γ[x]≡kd-j) (Sp∈-/H j∋as∈l (∈-hsub Γ₂ a∈k)))
-
-    -- Hereditary substitutions preserve simple kinding of spines.
-    Sp∈-/H : ∀ {k m n Γ Δ} {ρ : HSub k m n} {as j₁ j₂} →
-             Γ ⊢ j₁ ∋∙ as ∈ j₂ → Δ ⊢/H ρ ∈ Γ → Δ ⊢ j₁ ∋∙ as //H ρ ∈ j₂
-    Sp∈-/H ∈-[]                   ρ∈Γ = ∈-[]
-    Sp∈-/H (∈-∷ a∈j₁ j₂[a]∈as∈j₃) ρ∈Γ =
-      ∈-∷ (Nf∈-/H a∈j₁ ρ∈Γ) (Sp∈-/H j₂[a]∈as∈j₃ ρ∈Γ)
+    Ne∈-/⟨⟩ : ∀ {m n Γ k Δ} {σ : SVSub m n} {a} →
+              Γ ⊢Ne a ∈ ★ → Δ ⊢/⟨ k ⟩ σ ∈ Γ → Δ ⊢Nf a /⟨ k ⟩ σ ∈ ★
+    Ne∈-/⟨⟩ (∈-∙ (∈-var x Γ[x]≡kd-j) j∈as∈l) σ∈Γ =
+      ?⟨⟩∈-?∙∙ (subst (_ ⊢?⟨ _ ⟩ _ ∈_) Γ[x]≡kd-j (lookup-/⟨⟩∈ σ∈Γ x))
+               (Sp∈-/⟨⟩ j∈as∈l σ∈Γ)
 
     -- Applications in simple kinding are admissible.
+
+    ?⟨⟩∈-?∙∙ : ∀ {n} {Γ : Ctx n} {r as k j} →
+               Γ ⊢?⟨ k ⟩ r ∈ kd j → Γ ⊢ j ∋∙ as ∈ ★ → Γ ⊢Nf r ?∙∙⟨ k ⟩ as ∈ ★
+    ?⟨⟩∈-?∙∙ (∈-hit a∈j)          j∋as∈★ = Nf∈-∙∙ a∈j j∋as∈★
+    ?⟨⟩∈-?∙∙ (∈-miss y Γ[y]≡kd-j) j∋as∈★ = ∈-ne (∈-∙ (∈-var y Γ[y]≡kd-j) j∋as∈★)
 
     Nf∈-∙∙ : ∀ {n} {Γ : Ctx n} {a as j k} →
              Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ as ∈ k → Γ ⊢Nf a ∙∙⟨ j ⟩ as ∈ k
@@ -436,7 +422,7 @@ module KindedHereditarySubstitution where
 
     Nf∈-Π-e : ∀ {n} {Γ : Ctx n} {a b j k} →
               Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Γ ⊢Nf a ⌜·⌝⟨ j ⇒ k ⟩ b ∈ k
-    Nf∈-Π-e (∈-Π-i j-kds a∈k) b∈⌊j⌋ = Nf∈-/H a∈k (∈-hsub [] b∈⌊j⌋)
+    Nf∈-Π-e (∈-Π-i j-kds a∈k) b∈⌊j⌋ = Nf∈-/⟨⟩ a∈k (∈-hsub b∈⌊j⌋)
 
   -- Concatenation of simply well-formed spines results in application.
   Nf∈-++-∙∙⟨⟩ : ∀ {n} {Γ : Ctx n} {a bs cs j k l} →
@@ -449,199 +435,186 @@ module KindedHereditarySubstitution where
   -- Another admissible kinding rule for applications.
   Nf∈-Π-e′ : ∀ {n} {Γ : Ctx n} {a b j k} →
              Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Γ ⊢Nf a ↓⌜·⌝ b ∈ k
-  Nf∈-Π-e′ (∈-Π-i j-kds a∈k) b∈⌊j⌋ = Nf∈-/H a∈k (∈-hsub [] b∈⌊j⌋)
+  Nf∈-Π-e′ (∈-Π-i j-kds a∈k) b∈⌊j⌋ = Nf∈-/⟨⟩ a∈k (∈-hsub b∈⌊j⌋)
 
   mutual
 
     -- Simply well-kinded hereditary substitutions in simply
-    -- well-formed kinds commute.
-    kds-[]-/H-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
-                   {j b k l} {ρ : HSub l m n} →
-                   E ′++ kd k ∷ Γ ⊢ j kds → Γ ⊢Nf b ∈ k → Δ ⊢/H ρ ∈ Γ →
-                   j Kind/H (i ← b ∈ k) Kind/H ρ H↑⋆ i ≡
-                     j Kind/H (ρ H↑) H↑⋆ i Kind/H (i ← b /H ρ ∈ k)
-    kds-[]-/H-↑⋆ E (kds-⋯ a∈★ b∈★)     c∈k ρ∈Γ =
-      cong₂ _⋯_ (Nf∈-[]-/H-↑⋆ E a∈★ c∈k ρ∈Γ) (Nf∈-[]-/H-↑⋆ E b∈★ c∈k ρ∈Γ)
-    kds-[]-/H-↑⋆ E (kds-Π j-kds k-kds) b∈k ρ∈Γ =
-      cong₂ Π (kds-[]-/H-↑⋆ E j-kds b∈k ρ∈Γ)
-              (kds-[]-/H-↑⋆ (_ ∷ E) k-kds b∈k ρ∈Γ)
+    -- well-formed kinds and simply well-kinded types commute.
+    --
+    -- NOTE: this is a variant of the `sub-commutes' lemma from
+    -- Data.Fin.Substitution.Lemmas adapted to hereditary
+    -- substitutions.
 
-    -- Simply well-kinded hereditary substitutions in simply
-    -- well-kinded types commute.
+    kds-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+                    {j b k l} {σ : SVSub m n} →
+                    E ′++ kd k ∷ Γ ⊢ j kds → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    j Kind/⟨ k ⟩ (sub b ↑⋆ i) Kind/⟨ l ⟩ σ ↑⋆ i ≡
+                      j Kind/⟨ l ⟩ (σ ↑) ↑⋆ i Kind/⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
+    kds-[]-/⟨⟩-↑⋆ E (kds-⋯ a∈★ b∈★)     c∈k σ∈Γ =
+      cong₂ _⋯_ (Nf∈-[]-/⟨⟩-↑⋆ E a∈★ c∈k σ∈Γ) (Nf∈-[]-/⟨⟩-↑⋆ E b∈★ c∈k σ∈Γ)
+    kds-[]-/⟨⟩-↑⋆ E (kds-Π j-kds k-kds) b∈k σ∈Γ =
+      cong₂ Π (kds-[]-/⟨⟩-↑⋆ E j-kds b∈k σ∈Γ)
+              (kds-[]-/⟨⟩-↑⋆ (_ ∷ E) k-kds b∈k σ∈Γ)
 
-    Nf∈-[]-/H-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
-                   {a b j k l} {ρ : HSub l m n} →
-                   E ′++ kd k ∷ Γ ⊢Nf a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/H ρ ∈ Γ →
-                   a /H (i ← b ∈ k) /H ρ H↑⋆ i ≡
-                     a /H (ρ H↑) H↑⋆ i /H (i ← b /H ρ ∈ k)
-    Nf∈-[]-/H-↑⋆ E ∈-⊥-f b∈k ρ∈Γ = refl
-    Nf∈-[]-/H-↑⋆ E ∈-⊤-f b∈k ρ∈Γ = refl
-    Nf∈-[]-/H-↑⋆ E (∈-∀-f k-kds a∈★) b∈k ρ∈Γ =
-      cong (_∙ []) (cong₂ Π (kds-[]-/H-↑⋆ E k-kds b∈k ρ∈Γ)
-                            (Nf∈-[]-/H-↑⋆ (_ ∷ E) a∈★ b∈k ρ∈Γ))
-    Nf∈-[]-/H-↑⋆ E (∈-→-f a∈★ b∈★)   c∈k ρ∈Γ =
-      cong (_∙ []) (cong₂ _⇒_ (Nf∈-[]-/H-↑⋆ E a∈★ c∈k ρ∈Γ)
-                              (Nf∈-[]-/H-↑⋆ E b∈★ c∈k ρ∈Γ))
-    Nf∈-[]-/H-↑⋆ E (∈-Π-i j-kds a∈l) b∈k ρ∈Γ =
-      cong (_∙ []) (cong₂ Λ (kds-[]-/H-↑⋆ E j-kds b∈k ρ∈Γ)
-                            (Nf∈-[]-/H-↑⋆ (_ ∷ E) a∈l b∈k ρ∈Γ))
-    Nf∈-[]-/H-↑⋆ E (∈-ne a∈★)        b∈k ρ∈Γ = Ne∈-[]-/H-↑⋆ E a∈★ b∈k ρ∈Γ
+    Nf∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+                    {a b j k l} {σ : SVSub m n} →
+                    E ′++ kd k ∷ Γ ⊢Nf a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    a /⟨ k ⟩ (sub b ↑⋆ i) /⟨ l ⟩ σ ↑⋆ i ≡
+                      a /⟨ l ⟩ (σ ↑) ↑⋆ i /⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
+    Nf∈-[]-/⟨⟩-↑⋆ E ∈-⊥-f b∈k σ∈Γ = refl
+    Nf∈-[]-/⟨⟩-↑⋆ E ∈-⊤-f b∈k σ∈Γ = refl
+    Nf∈-[]-/⟨⟩-↑⋆ E (∈-∀-f k-kds a∈★) b∈k σ∈Γ =
+      cong (_∙ []) (cong₂ Π (kds-[]-/⟨⟩-↑⋆ E k-kds b∈k σ∈Γ)
+                            (Nf∈-[]-/⟨⟩-↑⋆ (_ ∷ E) a∈★ b∈k σ∈Γ))
+    Nf∈-[]-/⟨⟩-↑⋆ E (∈-→-f a∈★ b∈★)   c∈k σ∈Γ =
+      cong (_∙ []) (cong₂ _⇒_ (Nf∈-[]-/⟨⟩-↑⋆ E a∈★ c∈k σ∈Γ)
+                              (Nf∈-[]-/⟨⟩-↑⋆ E b∈★ c∈k σ∈Γ))
+    Nf∈-[]-/⟨⟩-↑⋆ E (∈-Π-i j-kds a∈l) b∈k σ∈Γ =
+      cong (_∙ []) (cong₂ Λ (kds-[]-/⟨⟩-↑⋆ E j-kds b∈k σ∈Γ)
+                            (Nf∈-[]-/⟨⟩-↑⋆ (_ ∷ E) a∈l b∈k σ∈Γ))
+    Nf∈-[]-/⟨⟩-↑⋆ E (∈-ne a∈★)        b∈k σ∈Γ = Ne∈-[]-/⟨⟩-↑⋆ E a∈★ b∈k σ∈Γ
 
-    Ne∈-[]-/H-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
-                   {a b j k l} {ρ : HSub l m n} →
-                   E ′++ kd k ∷ Γ ⊢Ne a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/H ρ ∈ Γ →
-                   a /H (i ← b ∈ k) /H ρ H↑⋆ i ≡
-                     a /H (ρ H↑) H↑⋆ i /H (i ← b /H ρ ∈ k)
-    Ne∈-[]-/H-↑⋆ {i} E (∈-∙ (∈-var x _) j∋as∈l) b∈k ρ∈Γ with compare i x
-    Ne∈-[]-/H-↑⋆ {i} E {b = b} {_} {k} {_} {ρ}
-                 (∈-∙ {as = as} (∈-var _ Γ[x]≡kd-j) j∋as∈l) b∈k ρ∈Γ
-      | yes refl = begin
-        ⌜ var (raise i zero) / sub ⌞ b ⌟ ↑⋆ i ⌝ ∙∙⟨ k ⟩
-          (as //H i ← b ∈ k) /H ρ H↑⋆ i
-      ≡⟨ helper i E (raise i zero) as b k ρ refl Γ[x]≡kd-j j∋as∈l b∈k ρ∈Γ ⟩
-        var (raise i zero) ∙ (as //H (ρ H↑) H↑⋆ i) /H (i ← b /H ρ ∈ k)
-      ≡⟨ cong (_/H (i ← b /H ρ ∈ k))
-              (sym (ne-/H-↑⋆-Miss i zero zero (↑-zero-Miss ρ))) ⟩
-        var (raise i zero) ∙ as /H (ρ H↑) H↑⋆ i /H (i ← b /H ρ ∈ k)
-      ∎
-      where
-        open ExtLemmas₄ lemmas₄ using (raise-/-↑⋆)
-
-        helper : ∀ i {m n} (E : CtxExt′ (suc m) i) {Γ Δ}
-                 x as b k {j₁ j₂ l} (ρ : HSub l m n) → raise i zero ≡ x →
-                 lookup (raise i zero) (E ′++ kd k ∷ Γ) ≡ kd j₁ →
-                 E ′++ kd k ∷ Γ ⊢ j₁ ∋∙ as ∈ j₂ → Γ ⊢Nf b ∈ k → Δ ⊢/H ρ ∈ Γ →
-                 ⌜ var (raise i zero) / sub ⌞ b ⌟ ↑⋆ i ⌝ ∙∙⟨ k ⟩
-                   (as //H i ← b ∈ k) /H ρ H↑⋆ i ≡
-                     (var x ∙ (as //H (ρ H↑) H↑⋆ i) /H (i ← b /H ρ ∈ k))
-        helper i E x  as b k ρ hyp Γ[i]≡kd-j j∋as∈l b∈k ρ∈Γ with compare i x
-        helper i E ._ as b k ρ hyp Γ[i]≡kd-j j∋as∈l b∈k ρ∈Γ | yes refl =
-          let b/ρ∈k , j≡k = Var∈-Hit-/H E Γ[i]≡kd-j b∈k
-              k∋as∈l      = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈l
-              ρ↑⋆i∈E++Γ   = ∈-H↑⋆ (re-idx E) ρ∈Γ
-          in begin
-            ⌜ var (raise i zero) / sub ⌞ b ⌟ ↑⋆ i ⌝ ∙∙⟨ k ⟩ (as //H i ← b ∈ k)
-              /H ρ H↑⋆ i
-          ≡⟨ Nf∈-∙∙-/H b/ρ∈k (Sp∈-/H k∋as∈l (∈-hsub E b∈k)) ρ↑⋆i∈E++Γ ⟩
-            (⌜ var (raise i zero) / sub ⌞ b ⌟ ↑⋆ i ⌝ /H ρ H↑⋆ i) ∙∙⟨ k ⟩
-              (as //H (i ← b ∈ k) //H ρ H↑⋆ i)
-          ≡⟨ cong₂ (_∙∙⟨ k ⟩_) (begin
-                 ⌜ var (raise i zero) / sub ⌞ b ⌟ ↑⋆ i ⌝ /H ρ H↑⋆ i
-               ≡⟨ cong ((_/H ρ H↑⋆ i) ∘ ⌜_⌝) (raise-/-↑⋆ i zero) ⟩
-                 ⌜ ⌞ b ⌟ / wk⋆ i ⌝ /H ρ H↑⋆ i
-               ≡⟨ cong (_/H ρ H↑⋆ i) (⌜⌝-/ ⌞ b ⌟) ⟩
-                 ⌜ ⌞ b ⌟ ⌝ Elim/ wk⋆ i /H ρ H↑⋆ i
-               ≡⟨ wk⋆-/H-↑⋆ i ⌜ ⌞ b ⌟ ⌝ ⟩
-                 ⌜ ⌞ b ⌟ ⌝ /H ρ Elim/ wk⋆ i
-               ≡⟨ cong ((_Elim/ wk⋆ i) ∘ (_/H ρ)) (⌜⌝∘⌞⌟-id b) ⟩
-                 b /H ρ Elim/ wk⋆ i
-               ≡⟨ cong (_Elim/ wk⋆ i) (sym (⌜⌝∘⌞⌟-id (b /H ρ))) ⟩
-                 ⌜ ⌞ b /H ρ ⌟ ⌝ Elim/ wk⋆ i
-               ≡⟨ sym (⌜⌝-/ ⌞ b /H ρ ⌟) ⟩
-                 ⌜ ⌞ b /H ρ ⌟ / wk⋆ i ⌝
-               ≡⟨ cong ⌜_⌝ (sym (raise-/-↑⋆ i zero)) ⟩
-                 ⌜ var (raise i zero) / sub ⌞ b /H ρ ⌟ ↑⋆ i ⌝
-               ∎) (Sp∈-[]-/H-↑⋆ E j∋as∈l b∈k ρ∈Γ) ⟩
-            ⌜ var (raise i zero) / sub ⌞ b /H ρ ⌟ ↑⋆ i ⌝ ∙∙⟨ k ⟩
-              (as //H (ρ H↑) H↑⋆ i //H i ← b /H ρ ∈ k)
-          ∎
-        helper i E ._ as b k ρ hyp Γ[x]≡kd-j₁ j₁∋as∈j₂ b∈k ρ∈Γ | no z refl =
-          contradiction hyp (yes-≠-no i z)
-    Ne∈-[]-/H-↑⋆ {i} E {ρ = ρ} (∈-∙ (∈-var _ Γ[x]≡kd-j) j∋as∈l) b∈k ρ∈Γ
-      | no y refl with hit? (ρ H↑⋆ i) y
-    Ne∈-[]-/H-↑⋆ {i} E {b = b} {_} {k₁} {k₂} {ρ}
-                 (∈-∙ {as = as} (∈-var _ Γ[x]≡kd-j) j∋as∈l) b∈k₁ ρ∈Γ
-      | no y refl | yes hit =
-      let module V = VarSubst
-          ρ∈E++k∷Γ      = ∈-H↑⋆ E (∈-H↑ ρ∈Γ)
-          lift-hit      = lift-↑⋆-Hit ρ i y hit
-          y/ρ↑⋆∈k , j≡k = Var∈-Hit-/H′ (∈-var _ Γ[x]≡kd-j) ρ∈E++k∷Γ lift-hit
-          k∋as∈l        = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈l
+    Ne∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+                    {a b j k l} {σ : SVSub m n} →
+                    E ′++ kd k ∷ Γ ⊢Ne a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    a /⟨ k ⟩ (sub b ↑⋆ i) /⟨ l ⟩ σ ↑⋆ i ≡
+                      a /⟨ l ⟩ (σ ↑) ↑⋆ i /⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
+    Ne∈-[]-/⟨⟩-↑⋆ {i} E {b = b} (∈-∙ (∈-var x _) j∋as∈l) b∈k σ∈Γ
+      with hit? (sub b ↑⋆ i) x
+    Ne∈-[]-/⟨⟩-↑⋆ {i} E {_} {_} {var x ∙ as} {b} {_} {k} {l} {σ}
+                  (∈-∙ (∈-var x Γ[x]=kd-j) j∋as∈l) b∈k σ∈Γ
+      | hit a hitP =
+      let σ₁′ = sub b ↑⋆ i
+          σ₂′ = sub (b /⟨ l ⟩ σ) ↑⋆ i
+          as₁ = as //⟨ k ⟩ σ₁′
+          as₂ = as //⟨ l ⟩ ((σ ↑) ↑⋆ i)
+          [b/i]∈E++k∷Γ = ∈-H↑⋆ E (∈-hsub b∈k)
+          _ , j≡k   = lookup-/⟨⟩∈-Hit [b/i]∈E++k∷Γ (∈-var x Γ[x]=kd-j) hitP
+          k∋as∈l    = subst (_ ⊢_∋∙ as ∈ _) j≡k j∋as∈l
+          σ↑⋆i∈E++Γ = ∈-H↑⋆ (re-idx E) σ∈Γ
       in begin
-        var y ∙ (as //H (i ← b ∈ k₁)) /H ρ H↑⋆ i
-      ≡⟨ ne-/H-Hit y hit ⟩
-        (var∙ y /H ρ H↑⋆ i) ∙∙⟨ k₂ ⟩ (as //H i ← b ∈ k₁ //H ρ H↑⋆ i)
-      ≡⟨ cong₂ (_∙∙⟨ k₂ ⟩_) (begin
-            var∙ y /H ρ H↑⋆ i
-          ≡⟨ cong (_/H ρ H↑⋆ i) (sym (ne-no-/H i y))  ⟩
-            var∙ (lift i suc y) /H i ← b ∈ k₁ /H ρ H↑⋆ i
-          ≡⟨ cong (λ z → var∙ z /H i ← b ∈ k₁ /H ρ H↑⋆ i)
-                  (sym (VarLemmas.lookup-wk-↑⋆ i y)) ⟩
-            var∙ y Elim/Var V.wk V.↑⋆ i /H i ← b ∈ k₁ /H ρ H↑⋆ i
-          ≡⟨ cong (_/H ρ H↑⋆ i) (/-wk-↑⋆-hsub-vanishes i (var∙ y)) ⟩
-            var∙ y /H ρ H↑⋆ i
-          ≡⟨ sym (/-wk-↑⋆-hsub-vanishes i (var∙ y /H ρ H↑⋆ i)) ⟩
-            var∙ y /H ρ H↑⋆ i Elim/Var V.wk V.↑⋆ i /H i ← b /H ρ ∈ k₁
-          ≡⟨ cong (_/H i ← b /H ρ ∈ k₁) (sym (wk-/H-↑⋆ i (var∙ y))) ⟩
-            var∙ y Elim/Var V.wk V.↑⋆ i /H (ρ H↑) H↑⋆ i /H i ← b /H ρ ∈ k₁
-          ≡⟨ cong (λ z → var∙ z /H (ρ H↑) H↑⋆ i /H i ← b /H ρ ∈ k₁)
-                  (VarLemmas.lookup-wk-↑⋆ i y) ⟩
-            var∙ (lift i suc y) /H (ρ H↑) H↑⋆ i /H i ← b /H ρ ∈ k₁
-          ∎) (Sp∈-[]-/H-↑⋆ E j∋as∈l b∈k₁ ρ∈Γ) ⟩
-        (var∙ (lift i suc y) /H (ρ H↑) H↑⋆ i /H i ← b /H ρ ∈ k₁) ∙∙⟨ k₂ ⟩
-          (as //H (ρ H↑) H↑⋆ i //H i ← b /H ρ ∈ k₁)
-      ≡⟨ sym (Nf∈-∙∙-/H y/ρ↑⋆∈k (Sp∈-/H k∋as∈l ρ∈E++k∷Γ)
-                        (∈-hsub (re-idx E) (Nf∈-/H b∈k₁ ρ∈Γ))) ⟩
-        (var∙ (lift i suc y) /H (ρ H↑) H↑⋆ i) ∙∙⟨ k₂ ⟩ (as //H (ρ H↑) H↑⋆ i) /H
-          (i ← b /H ρ ∈ k₁)
-      ≡⟨ cong (_/H (i ← b /H ρ ∈ k₁))
-              (sym (ne-/H-Hit (lift i suc y) (lift-↑⋆-Hit ρ i y hit))) ⟩
-        var (lift i suc y) ∙ as /H (ρ H↑) H↑⋆ i /H (i ← b /H ρ ∈ k₁)
+        lookupSV σ₁′ x ?∙∙⟨ k ⟩ as₁ /⟨ l ⟩ σ ↑⋆ i
+      ≡⟨ cong (λ r → r ?∙∙⟨ k ⟩ as₁ /⟨ l ⟩ _)
+              (trans (lookup-Hit hitP) (cong hit (Hit-sub-↑⋆₂ i hitP))) ⟩
+        weakenElim⋆ i b ∙∙⟨ k ⟩ as₁ /⟨ l ⟩ σ ↑⋆ i
+      ≡⟨ Nf∈-∙∙-/⟨⟩ (Nf∈-weaken⋆ (re-idx E) b∈k)
+                    (Sp∈-/⟨⟩ k∋as∈l [b/i]∈E++k∷Γ) σ↑⋆i∈E++Γ ⟩
+        (weakenElim⋆ i b /⟨ l ⟩ σ ↑⋆ i) ∙∙⟨ k ⟩ (as₁ //⟨ l ⟩ σ ↑⋆ i)
+      ≡⟨ cong₂ (_∙∙⟨ k ⟩_) (sym (weaken⋆-/⟨⟩-↑⋆ i b))
+               (Sp∈-[]-/⟨⟩-↑⋆ E j∋as∈l b∈k σ∈Γ) ⟩
+        weakenElim⋆ i (b /⟨ l ⟩ σ) ∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)
+      ≡˘⟨ cong (_?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)) (lookup-Hit (Hit-sub-↑⋆ i)) ⟩
+        lookupSV σ₂′ (raise i zero) ?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)
+      ≡⟨⟩
+        miss (raise i zero) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+      ≡˘⟨ cong (λ r → r ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′)
+               (lookup-Miss (Miss-↑⋆ i under)) ⟩
+        lookupSV ((σ ↑) ↑⋆ i) (raise i zero) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+      ≡˘⟨ cong (λ y → lookupSV ((σ ↑) ↑⋆ i) y ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′)
+               (Hit-sub-↑⋆₁ i hitP) ⟩
+        lookupSV ((σ ↑) ↑⋆ i) x ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
       ∎
-    Ne∈-[]-/H-↑⋆ {i} E {b = b} {_} {k} {_} {ρ}
-                 (∈-∙ {as = as} (∈-var _ Γ[x]≡kd-j) j∋as∈l) b∈k ρ∈Γ
-      | no y refl | no z miss = begin
-        var y ∙ (as //H (i ← b ∈ k)) /H ρ H↑⋆ i
-      ≡⟨ ne-/H-Miss y z miss ⟩
-        var z ∙ (as //H (i ← b ∈ k) //H ρ H↑⋆ i)
-      ≡⟨ cong (var z ∙_) (Sp∈-[]-/H-↑⋆ E j∋as∈l b∈k ρ∈Γ) ⟩
-        var z ∙ (as //H (ρ H↑) H↑⋆ i //H (i ← b /H ρ ∈ k))
-      ≡⟨ sym (ne-no-/H i z) ⟩
-        var (lift i suc z) ∙ (as //H (ρ H↑) H↑⋆ i) /H (i ← b /H ρ ∈ k)
-      ≡⟨ cong (_/H (i ← b /H ρ ∈ k))
-              (sym (ne-/H-Miss (lift i suc y) (lift i suc z)
-                               (lift-↑⋆-Miss ρ i y z miss))) ⟩
-        var (lift i suc y) ∙ as /H (ρ H↑) H↑⋆ i /H (i ← b /H ρ ∈ k)
+    Ne∈-[]-/⟨⟩-↑⋆ {i} E {_} {_} {var x ∙ as} {b} {_} {k} {l} {σ}
+                  (∈-∙ (∈-var x Γ[x]=kd-j) j∋as∈l) b∈k σ∈Γ
+      | miss y missP-[a/i] with hit? (σ ↑⋆ i) y
+    ... | hit a hitP =
+      let σ₁′ = sub b ↑⋆ i
+          σ₂′ = sub (b /⟨ l ⟩ σ) ↑⋆ i
+          as₁ = as //⟨ k ⟩ σ₁′
+          as₂ = as //⟨ l ⟩ ((σ ↑) ↑⋆ i)
+          hitP-σ↑↑⋆ = Hit-↑-↑⋆ i hitP
+          σ₂′∈E++Γ  = ∈-H↑⋆ (re-idx E) (∈-hsub (Nf∈-/⟨⟩ b∈k σ∈Γ))
+          σ∈E++k∷Γ  = ∈-H↑⋆ E (∈-H↑ σ∈Γ)
+          x≡i+1+y   = Miss-sub-↑⋆′ i y missP-[a/i]
+          i+1+y∈j   = subst (_ ⊢Var_∈ _) x≡i+1+y (∈-var x Γ[x]=kd-j)
+          a∈l , j≡l = lookup-/⟨⟩∈-Hit σ∈E++k∷Γ i+1+y∈j hitP-σ↑↑⋆
+          l∋as₂∈l   = subst (_ ⊢_∋∙ as₂ ∈ _) j≡l (Sp∈-/⟨⟩ j∋as∈l σ∈E++k∷Γ)
+      in begin
+        lookupSV σ₁′ x ?∙∙⟨ k ⟩ as₁ /⟨ l ⟩ σ ↑⋆ i
+      ≡⟨ cong (λ r → r ?∙∙⟨ k ⟩ as₁ /⟨ l ⟩ σ ↑⋆ i) (lookup-Miss missP-[a/i]) ⟩
+        var y ∙ as₁ /⟨ l ⟩ σ ↑⋆ i
+      ≡⟨⟩
+        lookupSV (σ ↑⋆ i) y ?∙∙⟨ l ⟩ (as₁ //⟨ l ⟩ σ ↑⋆ i)
+      ≡⟨ cong₂ (_?∙∙⟨ l ⟩_) (lookup-Hit hitP) (Sp∈-[]-/⟨⟩-↑⋆ E j∋as∈l b∈k σ∈Γ) ⟩
+        a ∙∙⟨ l ⟩ (as₂ //⟨ k ⟩ σ₂′)
+      ≡˘⟨ cong (_∙∙⟨ l ⟩ (as₂ //⟨ k ⟩ σ₂′)) (/Var-wk-↑⋆-hsub-vanishes i a) ⟩
+        (a Elim/Var V.wk V.↑⋆ i /⟨ k ⟩ σ₂′) ∙∙⟨ l ⟩ (as₂ //⟨ k ⟩ σ₂′)
+      ≡˘⟨ Nf∈-∙∙-/⟨⟩ a∈l l∋as₂∈l σ₂′∈E++Γ ⟩
+        (a Elim/Var V.wk V.↑⋆ i) ∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+      ≡˘⟨ cong (λ r → r ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′) (lookup-Hit hitP-σ↑↑⋆) ⟩
+        lookupSV ((σ ↑) ↑⋆ i) (lift i suc y) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+      ≡˘⟨ cong (λ z → lookupSV ((σ ↑) ↑⋆ i) z ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′) x≡i+1+y ⟩
+        lookupSV ((σ ↑) ↑⋆ i) x ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+      ∎
+    ... | miss z missP =
+      let σ₁′ = sub b ↑⋆ i
+          σ₂′ = sub (b /⟨ l ⟩ σ) ↑⋆ i
+          as₁ = as //⟨ k ⟩ σ₁′
+          as₂ = as //⟨ l ⟩ ((σ ↑) ↑⋆ i)
+          missP-σ↑↑⋆ = Miss-↑-↑⋆ i missP
+          x≡i+1+y    = Miss-sub-↑⋆′ i y missP-[a/i]
+      in begin
+        lookupSV σ₁′ x ?∙∙⟨ k ⟩ as₁ /⟨ l ⟩ σ ↑⋆ i
+      ≡⟨ cong (λ r → r ?∙∙⟨ k ⟩ as₁ /⟨ l ⟩ σ ↑⋆ i) (lookup-Miss missP-[a/i]) ⟩
+        var y ∙ as₁ /⟨ l ⟩ σ ↑⋆ i
+      ≡⟨⟩
+        lookupSV (σ ↑⋆ i) y ?∙∙⟨ l ⟩ (as₁ //⟨ l ⟩ σ ↑⋆ i)
+      ≡⟨ cong₂ (_?∙∙⟨ l ⟩_) (lookup-Miss missP)
+               (Sp∈-[]-/⟨⟩-↑⋆ E j∋as∈l b∈k σ∈Γ) ⟩
+        var z ∙ (as₂ //⟨ k ⟩ σ₂′)
+      ≡˘⟨ cong (_?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)) (lookup-Miss (Miss-sub-↑⋆ i z)) ⟩
+        lookupSV σ₂′ (lift i suc z) ?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)
+      ≡⟨⟩
+        var (lift i suc z) ∙ as₂ /⟨ k ⟩ σ₂′
+      ≡˘⟨ cong (λ r → r ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′) (lookup-Miss missP-σ↑↑⋆) ⟩
+        lookupSV ((σ ↑) ↑⋆ i) (lift i suc y) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+      ≡˘⟨ cong (λ z → lookupSV ((σ ↑) ↑⋆ i) z ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′) x≡i+1+y ⟩
+        lookupSV ((σ ↑) ↑⋆ i) x ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
       ∎
 
-    Sp∈-[]-/H-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
-                   {as b j₁ j₂ k l} {ρ : HSub l m n} →
-                   E ′++ kd k ∷ Γ ⊢ j₁ ∋∙ as ∈ j₂ → Γ ⊢Nf b ∈ k → Δ ⊢/H ρ ∈ Γ →
-                   as //H (i ← b ∈ k) //H ρ H↑⋆ i ≡
-                     as //H (ρ H↑) H↑⋆ i //H (i ← b /H ρ ∈ k)
-    Sp∈-[]-/H-↑⋆ E ∈-[]                b∈k ρ∈Γ = refl
-    Sp∈-[]-/H-↑⋆ E (∈-∷ a∈j₁ j₂∋as∈j₃) b∈k ρ∈Γ =
-      cong₂ _∷_ (Nf∈-[]-/H-↑⋆ E a∈j₁ b∈k ρ∈Γ) (Sp∈-[]-/H-↑⋆ E j₂∋as∈j₃ b∈k ρ∈Γ)
+    Sp∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+                    {as b j₁ j₂ k l} {σ : SVSub m n} →
+                    E ′++ kd k ∷ Γ ⊢ j₁ ∋∙ as ∈ j₂ →
+                    Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    as //⟨ k ⟩ (sub b ↑⋆ i) //⟨ l ⟩ σ ↑⋆ i ≡
+                      as //⟨ l ⟩ (σ ↑) ↑⋆ i //⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
+    Sp∈-[]-/⟨⟩-↑⋆ E ∈-[]                b∈k σ∈Γ = refl
+    Sp∈-[]-/⟨⟩-↑⋆ E (∈-∷ a∈j₁ j₂∋as∈j₃) b∈k σ∈Γ =
+      cong₂ _∷_ (Nf∈-[]-/⟨⟩-↑⋆ E a∈j₁ b∈k σ∈Γ) (Sp∈-[]-/⟨⟩-↑⋆ E j₂∋as∈j₃ b∈k σ∈Γ)
 
     -- Reducing applications commute with hereditary substitution.
 
-    Nf∈-∙∙-/H : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a as j k} →
-                Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ as ∈ k → Δ ⊢/H ρ ∈ Γ →
-                a ∙∙⟨ j ⟩ as /H ρ ≡ (a /H ρ) ∙∙⟨ j ⟩ (as //H ρ)
-    Nf∈-∙∙-/H a∈j ∈-[] ρ∈Γ = refl
-    Nf∈-∙∙-/H {ρ = ρ} {a} {b ∷ bs} {j ⇒ k} a∈j⇒k (∈-∷ b∈j k∋bs∈l) ρ∈Γ = begin
-        a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs /H ρ
-      ≡⟨ Nf∈-∙∙-/H (Nf∈-Π-e a∈j⇒k b∈j) k∋bs∈l ρ∈Γ ⟩
-        (a ⌜·⌝⟨ j ⇒ k ⟩ b /H ρ) ∙∙⟨ _ ⟩ (bs //H ρ)
-      ≡⟨ cong (_∙∙⟨ k ⟩ (bs //H ρ)) (Nf∈-Π-e-/H a∈j⇒k b∈j ρ∈Γ) ⟩
-        (a /H ρ) ⌜·⌝⟨ j ⇒ k ⟩ (b /H ρ) ∙∙⟨ k ⟩ (bs //H ρ)
+    Nf∈-∙∙-/⟨⟩ : ∀ {l m n Γ Δ} {σ : SVSub m n} {a as j k} →
+                 Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ as ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                 a ∙∙⟨ j ⟩ as /⟨ l ⟩ σ ≡ (a /⟨ l ⟩ σ) ∙∙⟨ j ⟩ (as //⟨ l ⟩ σ)
+    Nf∈-∙∙-/⟨⟩ a∈j ∈-[] σ∈Γ = refl
+    Nf∈-∙∙-/⟨⟩ {l} {σ = σ} {a} {b ∷ bs} {j ⇒ k} a∈j⇒k (∈-∷ b∈j k∋bs∈l) σ∈Γ =
+      begin
+        a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs /⟨ l ⟩ σ
+      ≡⟨ Nf∈-∙∙-/⟨⟩ (Nf∈-Π-e a∈j⇒k b∈j) k∋bs∈l σ∈Γ ⟩
+        (a ⌜·⌝⟨ j ⇒ k ⟩ b /⟨ l ⟩ σ) ∙∙⟨ _ ⟩ (bs //⟨ l ⟩ σ)
+      ≡⟨ cong (_∙∙⟨ k ⟩ (bs //⟨ l ⟩ σ)) (Nf∈-Π-e-/⟨⟩ a∈j⇒k b∈j σ∈Γ) ⟩
+        (a /⟨ l ⟩ σ) ⌜·⌝⟨ j ⇒ k ⟩ (b /⟨ l ⟩ σ) ∙∙⟨ k ⟩ (bs //⟨ l ⟩ σ)
       ∎
 
-    Nf∈-Π-e-/H : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a b j k} →
-                 Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Δ ⊢/H ρ ∈ Γ →
-                 a ⌜·⌝⟨ j ⇒ k ⟩ b /H ρ ≡ (a /H ρ) ⌜·⌝⟨ j ⇒ k ⟩ (b /H ρ)
-    Nf∈-Π-e-/H (∈-Π-i j-kds a∈k) b∈⌊j⌋ ρ∈Γ = Nf∈-[]-/H-↑⋆ [] a∈k b∈⌊j⌋ ρ∈Γ
+    Nf∈-Π-e-/⟨⟩ : ∀ {l m n Γ Δ} {σ : SVSub m n} {a b j k} →
+                  Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                  a ⌜·⌝⟨ j ⇒ k ⟩ b /⟨ l ⟩ σ ≡
+                    (a /⟨ l ⟩ σ) ⌜·⌝⟨ j ⇒ k ⟩ (b /⟨ l ⟩ σ)
+    Nf∈-Π-e-/⟨⟩ (∈-Π-i j-kds a∈k) b∈⌊j⌋ σ∈Γ = Nf∈-[]-/⟨⟩-↑⋆ [] a∈k b∈⌊j⌋ σ∈Γ
 
   -- Potentially reducing applications commute with hereditary
   -- substitution.
-  Nf∈-Π-e-/H′ : ∀ {l m n Γ Δ} {ρ : HSub l m n} {a b j k} →
-                Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Δ ⊢/H ρ ∈ Γ →
-                a ↓⌜·⌝ b /H ρ ≡ (a /H ρ) ↓⌜·⌝ (b /H ρ)
-  Nf∈-Π-e-/H′ {ρ = ρ} {_} {b} (∈-Π-i {j} {a} j-kds a∈k) b∈⌊j⌋ ρ∈Γ =
+
+  Nf∈-Π-e-/⟨⟩′ : ∀ {l m n Γ Δ} {σ : SVSub m n} {a b j k} →
+                Γ ⊢Nf a ∈ j ⇒ k → Γ ⊢Nf b ∈ j → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                a ↓⌜·⌝ b /⟨ l ⟩ σ ≡ (a /⟨ l ⟩ σ) ↓⌜·⌝ (b /⟨ l ⟩ σ)
+  Nf∈-Π-e-/⟨⟩′ {l} {σ = σ} {_} {b} (∈-Π-i {j} {a} j-kds a∈k) b∈⌊j⌋ σ∈Γ =
     begin
-      (a [ b ∈ ⌊ j ⌋ ]) /H ρ
-    ≡⟨ Nf∈-[]-/H-↑⋆ [] a∈k b∈⌊j⌋ ρ∈Γ ⟩
-      (a /H ρ H↑) [ b /H ρ ∈ ⌊ j ⌋ ]
-    ≡⟨ cong ((a /H ρ H↑) [ b /H ρ ∈_]) (sym (⌊⌋-Kind/H j)) ⟩
-      (a /H ρ H↑) [ b /H ρ ∈ ⌊ j Kind/H ρ ⌋ ]
+      (a [ b ∈ ⌊ j ⌋ ]) /⟨ l ⟩ σ
+    ≡⟨ Nf∈-[]-/⟨⟩-↑⋆ [] a∈k b∈⌊j⌋ σ∈Γ ⟩
+      (a /⟨ l ⟩ σ ↑) [ b /⟨ l ⟩ σ ∈ ⌊ j ⌋ ]
+    ≡⟨ cong ((a /⟨ l ⟩ σ ↑) [ b /⟨ l ⟩ σ ∈_]) (sym (⌊⌋-Kind/⟨⟩ j)) ⟩
+      (a /⟨ l ⟩ σ ↑) [ b /⟨ l ⟩ σ ∈ ⌊ j Kind/⟨ l ⟩ σ ⌋ ]
     ∎

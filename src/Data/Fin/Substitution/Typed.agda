@@ -2,6 +2,8 @@
 -- Well-typed substitutions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module Data.Fin.Substitution.Typed where
 
 open import Data.Fin using (Fin; zero; suc; raise)
@@ -95,6 +97,10 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
            (x : Fin m) → Δ ⊢/ σ ∈ Γ → Δ ⊢ Vec.lookup σ x ∈ C.lookup x Γ / σ
   lookup {_} {_} {Δ} {Γ} x (σ⟨∈⟩Γ⊙σ , _) =
     subst (Δ ⊢ _ ∈_) (lookup-map x _ (C.toVec Γ)) (PW.lookup σ⟨∈⟩Γ⊙σ x)
+
+  -- Context validity of typed substitutions.
+  /∈-wf : ∀ {m n Δ Γ} {σ : Sub Tm m n} → Δ ⊢/ σ ∈ Γ → Δ wf
+  /∈-wf (_ , Δ-wf) = Δ-wf
 
 
 ------------------------------------------------------------------------
@@ -492,121 +498,3 @@ record TypedVarSubst {Tp} (_⊢_wf : Wf Tp) : Set where
 
   open TypedSimple typedSimple public
     hiding (/-wk; id-vanishes; wk-sub-vanishes; wf-wf)
-
-
-------------------------------------------------------------------------
--- Abstract context substitutions (i.e. context conversions)
-
--- Context-replacing substitutions.
-record ContextSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
-  infix 4 _⊢_∈_ _⊢_wf
-
-  field
-    _⊢_∈_ : Typing Tp₂ Tm Tp₁   -- the associated typing
-    _⊢_wf : Wf Tp₂              -- (target) Tp₂-well-formedness
-
-    -- Simple Tm-substitutions (e.g. id).
-    simple : Simple Tm
-
-    -- Weakening of Tp₁-types.
-    weakenOps : Extension Tp₁
-
-  open Simple    simple        using (id)
-  open WeakenOps weakenOps     using (toVec)
-  open WellFormedContext _⊢_wf using (_wf)
-
-  infix  4 _⊢/id-∈_
-  infixr 4 _,_
-
-  -- Context-replacing substitutions.
-  --
-  -- An alternative representation for substitutions that only change
-  -- the context of a well-typed Tm-term, i.e. where the underlying
-  -- untyped substitution is the identity.
-  data _⊢/id-∈_ {n} (Δ : Ctx Tp₂ n) (Γ : Ctx Tp₁ n) : Set where
-    _,_ : Pointwise (λ t a → Δ ⊢ t ∈ a) id (toVec Γ) → Δ wf → Δ ⊢/id-∈ Γ
-
-  -- Project out the first component of a context substitution.
-  proj₁ : ∀ {n} {Γ : Ctx Tp₁ n} {Δ : Ctx Tp₂ n} →
-          Δ ⊢/id-∈ Γ → Pointwise (λ t a → Δ ⊢ t ∈ a) id (toVec Γ)
-  proj₁ (∈-id , _) = ∈-id
-
--- Equivalences between (simple) typed substitutions and their
--- context-replacing counterparts.
-record Equivalence {Tp₁ Tm Tp₂}
-                   (simple : Simple Tm)
-                   (typedSub : TypedSub Tp₁ Tm Tp₂)
-                   : Set where
-
-  open TypedSub typedSub
-  open Simple   simple
-
-  -- The type of context substitutions participating in this
-  -- equivalence.
-  contextSub : ContextSub Tp₁ Tm Tp₂
-  contextSub = record
-    { _⊢_∈_     = _⊢_∈_
-    ; _⊢_wf     = _⊢_wf
-    ; simple    = simple
-    ; weakenOps = weakenOps
-    }
-
-  open ContextSub contextSub hiding (_⊢_∈_)
-
-  -- Types are invariant under the identity substitution.
-  field id-vanishes : ∀ {n} (a : Tp₁ n) → a / id ≡ a
-
-  -- The identity substitution is the right-identity of _⊙_.
-  ⊙-id : ∀ {m n} {σ : Sub Tp₁ m n} → σ ⊙ id ≡ σ
-  ⊙-id {σ = σ} = begin
-    Vec.map (_/ id) σ   ≡⟨ map-cong id-vanishes σ ⟩
-    Vec.map Fun.id  σ   ≡⟨ map-id σ ⟩
-    σ               ∎
-
-  -- There is a context substitution for every typed identity
-  -- substitution.
-  sound : ∀ {n} {Γ : Ctx Tp₁ n} {Δ : Ctx Tp₂ n} → Δ ⊢/id-∈ Γ → Δ ⊢/ id ∈ Γ
-  sound (id∈Γ , Δ-wf) =
-    subst (_⊢_⟨ _⊢_∈_ ⟩_ _ _) (sym ⊙-id) id∈Γ , Δ-wf
-
-  -- There is a context substitution for every typed identity
-  -- substitution.
-  complete : ∀ {n} {Γ : Ctx Tp₁ n} {Δ : Ctx Tp₂ n} → Δ ⊢/ id ∈ Γ → Δ ⊢/id-∈ Γ
-  complete (id∈Γ , Δ-wf) =
-    subst (_⊢_⟨ _⊢_∈_ ⟩_ _ _) ⊙-id id∈Γ , Δ-wf
-
--- Variants of some simple typed substitutions.
-record ContextSimple {Tp Tm}
-                     (simple : Simple Tm)
-                     (typedSub : TypedSub Tp Tm Tp)
-                     : Set where
-
-  field typedSimple : TypedSimple simple typedSub
-
-  open TypedSub typedSub hiding (_⊢_∈_; _⊢_wf)
-  open TypedSimple typedSimple
-  private
-    module U = SimpleExt simple
-    module C = WeakenOps weakenOps
-
-  equivalence : Equivalence simple typedSub
-  equivalence = record { id-vanishes = id-vanishes }
-
-  open Equivalence equivalence public
-  open ContextSub  contextSub  public
-
-  -- Extension.
-  ctx-/∷ : ∀ {n} {Γ : Ctx Tp n} {Δ : Ctx Tp n} {a b} →
-           b ∷ Δ ⊢ U.var zero ∈ C.weaken a → Δ ⊢/id-∈ Γ → b ∷ Δ ⊢/id-∈ a ∷ Γ
-  ctx-/∷ z∈a (∈-id , Δ-wf) =
-    z∈a ∷ PW.map⁺ (∈-weaken (wf-∷₁ b∷Δ-wf)) ∈-id , b∷Δ-wf
-    where b∷Δ-wf = ∈-wf z∈a
-
-  -- Lifting.
-  ctx-↑ : ∀ {n} {Γ : Ctx Tp n} {Δ : Ctx Tp n} → Δ ⊢/id-∈ Γ →
-          ∀ {a} → Δ ⊢ a wf → a ∷ Δ ⊢/id-∈ a ∷ Γ
-  ctx-↑ id∈Γ a-wf = ctx-/∷ (∈-var zero (a-wf ∷ wf-wf a-wf)) id∈Γ
-
-  -- The identity substitution.
-  ctx-id : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢/id-∈ Γ
-  ctx-id Γ-wf = complete (∈-id Γ-wf)

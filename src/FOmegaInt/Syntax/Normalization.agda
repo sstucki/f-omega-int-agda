@@ -2,7 +2,7 @@
 -- Normalization of raw terms in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --exact-split #-}
+{-# OPTIONS --safe --exact-split #-}
 
 module FOmegaInt.Syntax.Normalization where
 
@@ -24,6 +24,7 @@ open import Relation.Binary.PropositionalEquality as P hiding ([_])
 
 open import FOmegaInt.Reduction.Full
 open import FOmegaInt.Syntax
+open import FOmegaInt.Syntax.SingleVariableSubstitution
 open import FOmegaInt.Syntax.HereditarySubstitution
 
 open Syntax
@@ -127,14 +128,14 @@ module SimpHSubstLemmas where
   -- Kind simplification as a relation commutes with hereditary
   -- substitution.
 
-  ⌊⌋≡-/H : ∀ {m n j k l} {ρ : HSub l m n} → ⌊ j ⌋≡ k → ⌊ j Kind/H ρ ⌋≡ k
-  ⌊⌋≡-/H is-★                   = is-★
-  ⌊⌋≡-/H (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) = is-⇒ (⌊⌋≡-/H ⌊j₁⌋≡k₁) (⌊⌋≡-/H ⌊j₂⌋≡k₂)
+  ⌊⌋≡-/⟨⟩ : ∀ {m n j k l} {σ : SVSub m n} → ⌊ j ⌋≡ k → ⌊ j Kind/⟨ l ⟩ σ ⌋≡ k
+  ⌊⌋≡-/⟨⟩ is-★                   = is-★
+  ⌊⌋≡-/⟨⟩ (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) = is-⇒ (⌊⌋≡-/⟨⟩ ⌊j₁⌋≡k₁) (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
 
 open SimpHSubstLemmas
 
 module TrackSimpleKindsEtaExp where
-  open Substitution
+  open Substitution hiding (_↑; sub)
 
   -- NOTE. The definition of the function η-exp in this module is
   -- structurally recursive in the *simple* kind parameter k, but
@@ -250,54 +251,51 @@ module TrackSimpleKindsEtaExp where
   η-exp-/Var (is-⇒ _ _) (ƛ _ _   ∙ _) = refl
   η-exp-/Var (is-⇒ _ _) (_ ⊡ _   ∙ _) = refl
 
+
   -- η-expansion of neutrals commutes with hereditary substitutions
   -- that miss the head of the neutral.
-  η-exp-ne-Miss-/H : ∀ {l m n j k} x y {as} {ρ : HSub l m n}
-                     (hyp : ⌊ j ⌋≡ k) → Miss ρ x y →
-                     η-exp j hyp (var x ∙ as) /H ρ  ≡
-                       η-exp (j Kind/H ρ) (⌊⌋≡-/H hyp) (var y ∙ (as //H ρ))
-  η-exp-ne-Miss-/H x y is-★ miss = ne-/H-Miss x y miss
-  η-exp-ne-Miss-/H x y {as} {ρ} (is-⇒ {j₁} {j₂} ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) miss =
-    cong (Λ∙ (j₁ Kind/H ρ)) (begin
-       η-exp j₂ ⌊j₂⌋≡k₂ ((weakenElim (var x ∙ as)) ⌜·⌝
-         η-exp (weakenKind′ j₁) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero)) /H ρ H↑
-      ≡⟨ cong (λ x → η-exp _ ⌊j₂⌋≡k₂ (var x ∙ weakenSpine as ⌜·⌝ _) /H ρ H↑)
+
+  η-exp-ne-Miss-/⟨⟩ : ∀ {l m n j k} x y {as} {σ : SVSub m n}
+                      (hyp : ⌊ j ⌋≡ k) → Miss σ x y →
+                      η-exp j hyp (var x ∙ as) /⟨ l ⟩ σ  ≡
+                        η-exp (j Kind/⟨ l ⟩ σ) (⌊⌋≡-/⟨⟩ hyp)
+                              (var y ∙ (as //⟨ l ⟩ σ))
+  η-exp-ne-Miss-/⟨⟩ x y is-★ missP = cong (_?∙∙⟨ _ ⟩ _) (lookup-Miss missP)
+  η-exp-ne-Miss-/⟨⟩ {l} x y {as} {σ} (is-⇒ {j₁} {j₂} ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) missP =
+    cong (Λ∙ (j₁ Kind/⟨ l ⟩ σ)) (begin
+       η-exp j₂ ⌊j₂⌋≡k₂ ((weakenElim (var x ∙ as)) ⌜·⌝ ηz) /⟨ l ⟩ σ ↑
+      ≡⟨ cong (λ x → η-exp _ ⌊j₂⌋≡k₂ (var x ∙ weakenSpine as ⌜·⌝ _) /⟨ l ⟩ σ ↑)
               (VarLemmas.lookup-wk x) ⟩
-       η-exp j₂ ⌊j₂⌋≡k₂ (var (suc x) ∙ (weakenSpine as) ⌜·⌝
-         η-exp (weakenKind′ j₁) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero)) /H ρ H↑
-      ≡⟨ η-exp-ne-Miss-/H (suc x) (suc y) ⌊j₂⌋≡k₂ miss-↑ ⟩
-       η-exp (j₂ Kind/H ρ H↑) (⌊⌋≡-/H ⌊j₂⌋≡k₂) (var (suc y) ∙
-         (((weakenSpine as) ∷ʳ
-           η-exp (weakenKind′ j₁) (⌊⌋≡-weaken ⌊j₁⌋≡k₁)
-                    (var∙ zero)) //H ρ H↑))
-      ≡⟨ cong (λ bs → η-exp _ (⌊⌋≡-/H ⌊j₂⌋≡k₂) (var _ ∙ bs))
-              (++-//H (weakenSpine as) (_ ∷ [])) ⟩
-       η-exp (j₂ Kind/H ρ H↑) (⌊⌋≡-/H ⌊j₂⌋≡k₂)
-         (var (suc y) ∙ ((weakenSpine as) //H ρ H↑) ⌜·⌝
-           (η-exp (weakenKind′ j₁) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero) /H ρ H↑))
-      ≡⟨ cong₂ (λ a b → η-exp (j₂ Kind/H ρ H↑) (⌊⌋≡-/H ⌊j₂⌋≡k₂) (a ⌜·⌝ b))
+       η-exp j₂ ⌊j₂⌋≡k₂ (var (suc x) ∙ (weakenSpine as) ⌜·⌝ ηz) /⟨ l ⟩ σ ↑
+      ≡⟨ η-exp-ne-Miss-/⟨⟩ (suc x) (suc y) ⌊j₂⌋≡k₂ (missP ↑) ⟩
+       η-exp (j₂ Kind/⟨ l ⟩ σ ↑) (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂) (var (suc y) ∙
+         (((weakenSpine as) ∷ʳ ηz) //⟨ l ⟩ σ ↑))
+      ≡⟨ cong (λ bs → η-exp _ (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂) (var _ ∙ bs))
+              (++-//⟨⟩ (weakenSpine as) (_ ∷ [])) ⟩
+       η-exp (j₂ Kind/⟨ l ⟩ σ ↑) (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
+         (var (suc y) ∙ ((weakenSpine as) //⟨ l ⟩ σ ↑) ⌜·⌝ (ηz /⟨ l ⟩ σ ↑))
+      ≡⟨ cong₂ (λ a b → η-exp (j₂ Kind/⟨ l ⟩ σ ↑) (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂) (a ⌜·⌝ b))
                (cong₂ (λ x as → var x ∙ as)
-                      (sym (VarLemmas.lookup-wk y)) (wk-//H-↑⋆ 0 as))
-               (η-exp-ne-Miss-/H zero zero (⌊⌋≡-weaken ⌊j₁⌋≡k₁)
-                                 (↑-zero-Miss ρ)) ⟩
-       η-exp (j₂ Kind/H ρ H↑) (⌊⌋≡-/H ⌊j₂⌋≡k₂)
-         (weakenElim (var y ∙ (as //H ρ)) ⌜·⌝
-           η-exp ((weakenKind′ j₁) Kind/H ρ H↑)
-                    (⌊⌋≡-/H (⌊⌋≡-weaken ⌊j₁⌋≡k₁)) (var∙ zero))
-      ≡⟨ cong (λ a → η-exp _ (⌊⌋≡-/H ⌊j₂⌋≡k₂)
-                       (weakenElim (var y ∙ (as //H ρ)) ⌜·⌝ a))
-              (η-exp-⌊⌋≡ (⌊⌋≡-/H (⌊⌋≡-weaken ⌊j₁⌋≡k₁))
-                            (⌊⌋≡-weaken (⌊⌋≡-/H ⌊j₁⌋≡k₁))
-                            (wk-Kind/H-↑⋆ 0 j₁) refl) ⟩
-       η-exp (j₂ Kind/H ρ H↑) (⌊⌋≡-/H ⌊j₂⌋≡k₂)
-         ((weakenElim (var y ∙ (as //H ρ))) ⌜·⌝
-           η-exp (weakenKind′ (j₁ Kind/H ρ)) (⌊⌋≡-weaken (⌊⌋≡-/H ⌊j₁⌋≡k₁))
-                    (var∙ zero))
+                      (sym (VarLemmas.lookup-wk y)) (wk-//⟨⟩-↑⋆ 0 as))
+               (η-exp-ne-Miss-/⟨⟩ zero zero (⌊⌋≡-weaken ⌊j₁⌋≡k₁) under) ⟩
+       η-exp (j₂ Kind/⟨ l ⟩ σ ↑) (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
+         (weakenElim (var y ∙ (as //⟨ l ⟩ σ)) ⌜·⌝
+           η-exp ((weakenKind′ j₁) Kind/⟨ l ⟩ σ ↑)
+                 (⌊⌋≡-/⟨⟩ (⌊⌋≡-weaken ⌊j₁⌋≡k₁)) (var∙ zero))
+      ≡⟨ cong (λ a → η-exp _ (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
+                       (weakenElim (var y ∙ (as //⟨ l ⟩ σ)) ⌜·⌝ a))
+              (η-exp-⌊⌋≡ (⌊⌋≡-/⟨⟩ (⌊⌋≡-weaken ⌊j₁⌋≡k₁))
+                         (⌊⌋≡-weaken (⌊⌋≡-/⟨⟩ ⌊j₁⌋≡k₁))
+                         (wk-Kind/⟨⟩-↑⋆ 0 j₁) refl) ⟩
+       η-exp (j₂ Kind/⟨ l ⟩ σ ↑) (⌊⌋≡-/⟨⟩ ⌊j₂⌋≡k₂)
+         ((weakenElim (var y ∙ (as //⟨ l ⟩ σ))) ⌜·⌝
+           η-exp (weakenKind′ (j₁ Kind/⟨ l ⟩ σ))
+                 (⌊⌋≡-weaken (⌊⌋≡-/⟨⟩ ⌊j₁⌋≡k₁)) (var∙ zero))
       ∎)
       where
         open ≡-Reasoning
         open RenamingCommutes
-        miss-↑ = ↑-Miss ρ miss
+        ηz = η-exp (weakenKind′ j₁) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero)
 
 private module TK = TrackSimpleKindsEtaExp
 
@@ -332,16 +330,16 @@ module _ where
 
   -- η-expansion of neutrals commutes with hereditary substitutions
   -- that miss the head of the neutral.
-  η-exp-ne-Miss-/H : ∀ {l m n} x y as k {ρ : HSub l m n} → Miss ρ x y →
-                     η-exp k (var x ∙ as) /H ρ  ≡
-                       η-exp (k Kind/H ρ) (var y ∙ (as //H ρ))
-  η-exp-ne-Miss-/H x y as k {ρ} miss = begin
-      η-exp k (var x ∙ as) /H ρ
-    ≡⟨ TK.η-exp-ne-Miss-/H x y (⌊⌋-⌊⌋≡ k) miss ⟩
-      TK.η-exp (k Kind/H ρ) (⌊⌋≡-/H (⌊⌋-⌊⌋≡ k)) (var y ∙ (as //H ρ))
-    ≡⟨ TK.η-exp-⌊⌋≡ (⌊⌋≡-/H (⌊⌋-⌊⌋≡ k)) (⌊⌋-⌊⌋≡ (k Kind/H ρ)) refl
-                    (sym (⌊⌋-Kind/H k)) ⟩
-      η-exp (k Kind/H ρ) (var y ∙ (as //H ρ))
+  η-exp-ne-Miss-/⟨⟩ : ∀ {l m n} x y as k {σ : SVSub m n} → Miss σ x y →
+                      η-exp k (var x ∙ as) /⟨ l ⟩ σ  ≡
+                        η-exp (k Kind/⟨ l ⟩ σ) (var y ∙ (as //⟨ l ⟩ σ))
+  η-exp-ne-Miss-/⟨⟩ {l} x y as k {σ} missP = begin
+      η-exp k (var x ∙ as) /⟨ l ⟩ σ
+    ≡⟨ TK.η-exp-ne-Miss-/⟨⟩ x y (⌊⌋-⌊⌋≡ k) missP ⟩
+      TK.η-exp (k Kind/⟨ l ⟩ σ) (⌊⌋≡-/⟨⟩ (⌊⌋-⌊⌋≡ k)) (var y ∙ (as //⟨ l ⟩ σ))
+    ≡⟨ TK.η-exp-⌊⌋≡ (⌊⌋≡-/⟨⟩ (⌊⌋-⌊⌋≡ k)) (⌊⌋-⌊⌋≡ (k Kind/⟨ l ⟩ σ)) refl
+                    (sym (⌊⌋-Kind/⟨⟩ k)) ⟩
+      η-exp (k Kind/⟨ l ⟩ σ) (var y ∙ (as //⟨ l ⟩ σ))
     ∎
 
 
@@ -358,9 +356,9 @@ mutual
   nf : ∀ {n} → Ctx n → Term n → Elim n
   nf Γ (var x) with lookup x Γ
   nf Γ (var x) | kd k = η-exp k (var∙ x)
-  nf Γ (var x) | tp a = var x ∙ []                -- ! a not a kind
-  nf Γ ⊥       = ⊥ ∙ []
-  nf Γ ⊤       = ⊤ ∙ []
+  nf Γ (var x) | tp a = var∙ x                    -- ! a not a kind
+  nf Γ ⊥       = ⊥∙
+  nf Γ ⊤       = ⊤∙
   nf Γ (Π k a) = let k′ = nfKind Γ k in ∀∙ k′ (nf (kd k′ ∷ Γ) a)
   nf Γ (a ⇒ b) = (nf Γ a ⇒ nf Γ b) ∙ []
   nf Γ (Λ k a) = let k′ = nfKind Γ k in Λ∙ k′ (nf (kd k′ ∷ Γ) a)
@@ -411,6 +409,7 @@ nf-++ []      Γ = refl
 nf-++ (a ∷ Δ) Γ = cong₂ _∷_ (cong (λ Δ → nfAsc Δ a) (nf-++ Δ Γ)) (nf-++ Δ Γ)
 
 -- A helper lemma about normalization of variables.
+
 nf-var-kd : ∀ {n} (Γ : Ctx n) {k} x →
             lookup x Γ ≡ kd k → nf Γ (var x) ≡ η-exp k (var∙ x)
 nf-var-kd Γ x Γ[x]≡kd-k with lookup x Γ
@@ -479,7 +478,7 @@ module RenamingCommutesNorm where
     nf-/Var (ƛ a b) ρ∈Γ = cong₂ ƛ∙ (sym (⌜⌝-/Var a)) (sym (⌜⌝-/Var b))
     nf-/Var {m} {_} {Δ} {Γ} {ρ} (a · b) ρ∈Γ = begin
         (nf Γ a ↓⌜·⌝ nf Γ b) Elim/Var ρ
-      ≡⟨ ↓⌜·⌝-/ (nf Γ a) (nf Γ b) ⟩
+      ≡⟨ ↓⌜·⌝-/Var (nf Γ a) (nf Γ b) ⟩
         (nf Γ a Elim/Var ρ) ↓⌜·⌝ (nf Γ b Elim/Var ρ)
       ≡⟨ cong₂ (_↓⌜·⌝_) (nf-/Var a ρ∈Γ) (nf-/Var b ρ∈Γ) ⟩
         nf Δ (a · b /Var ρ)
@@ -527,9 +526,28 @@ module RenamingCommutesNorm where
 open RenamingCommutesNorm
 
 module _ where
-  open Substitution
+  open Substitution hiding (sub; _↑; subst)
   open ≡-Reasoning
   open VecProps using (map-cong; map-∘)
+
+  -- Normalization extended to single-variable substitutions
+
+  nfSVSub : ∀ {m n} → Ctx n → SVSub m n → SVSub m n
+  nfSVSub      Γ  (sub a) = sub (nf Γ (⌞ a ⌟))
+  nfSVSub (_ ∷ Γ) (σ ↑)   = (nfSVSub Γ σ) ↑
+
+  nf-Hit : ∀ {m n} Γ {σ : SVSub m n} {x a} → Hit σ x a →
+           Hit (nfSVSub Γ σ) x (nf Γ ⌞ a ⌟)
+  nf-Hit      Γ        here                  = here
+  nf-Hit (a ∷ Γ) {σ ↑} (_↑ {x = x} {b} hitP) =
+    subst (Hit (nfSVSub Γ σ ↑) (suc x))
+          (trans (nf-weaken a ⌞ b ⌟) (cong (nf _) (sym (⌞⌟-/Var b))))
+          (nf-Hit Γ hitP ↑)
+
+  nf-Miss : ∀ {m n} Γ {σ : SVSub m n} {x y} → Miss σ x y → Miss (nfSVSub Γ σ) x y
+  nf-Miss      Γ  over      = over
+  nf-Miss (a ∷ Γ) under     = under
+  nf-Miss (a ∷ Γ) (missP ↑) = (nf-Miss Γ missP) ↑
 
   -- Normalization commutes conversion from context to vector representation.
   nfCtx-toVec : ∀ {n} (Γ : TermCtx.Ctx n) →

@@ -15,9 +15,11 @@ open import Data.Product as Prod using (_,_)
 open import Data.Vec as Vec using ([]; _∷_)
 import Data.Vec.Properties as VecProp
 open import Function using (flip; _∘_)
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality hiding ([_])
 
 open import FOmegaInt.Syntax
+open import FOmegaInt.Syntax.SingleVariableSubstitution
+  renaming (sub to hsub; _↑ to _H↑)
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 open import FOmegaInt.Syntax.WeakEquality
@@ -121,12 +123,12 @@ mutual
               (trans (sym (nf-weaken (kd nf-j) a)) (cong weakenElim nf-a≡Λlb)) ⟩
         weakenElim (Λ∙ l b) ↓⌜·⌝ η-exp (weakenKind′ nf-j) (var∙ zero)
       ≡⟨⟩
-        b Elim/Var (VarSubst.wk VarSubst.↑) /H
-          0 ← η-exp (weakenKind′ nf-j) (var∙ zero) ∈ ⌊ weakenKind′ l ⌋
+        b Elim/Var (VarSubst.wk VarSubst.↑) /⟨ ⌊ weakenKind′ l ⌋ ⟩
+          hsub (η-exp (weakenKind′ nf-j) (var∙ zero))
       ≈⟨ ≈-[∈] (≈-refl (b Elim/Var (VarSubst.wk VarSubst.↑)))
                (≈-η-exp ⌊nf-j/wk⌋≡⌊l/wk⌋ (≈-var∙ zero)) ⟩
-        b Elim/Var (VarSubst.wk VarSubst.↑) /H
-          0 ← η-exp (weakenKind′ l) (var∙ zero) ∈ ⌊ weakenKind′ l ⌋
+        b Elim/Var (VarSubst.wk VarSubst.↑) /⟨ ⌊ weakenKind′ l ⌋ ⟩
+          hsub (η-exp (weakenKind′ l) (var∙ zero))
       ≈⟨ Nf∈-[]-η-var [] l-kds
                       (subst (λ l → kd l ∷ _ ⊢Nf b ∈ _) (sym ⌊l⌋≡⌊j⌋) b∈⌊k⌋) ⟩
         b
@@ -153,41 +155,36 @@ mutual
       where open ≡-Reasoning
     open ≈-Reasoning
 
--- A helper for constructing well-kinded hereditary substitutions from
--- normalized well-kinded types.
-nf-∈-hsub : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ : Ctx m} {a k} →
-            Γ₁ ⊢Tp a ∈ k →
-            ⌊ nfCtx (Γ₂ E′/ sub a ′++ Γ₁) ⌋Ctx ⊢/H
-              (n ← nf (nfCtx Γ₁) a ∈ ⌊ k ⌋) ∈ ⌊ nfCtx (Γ₂ ′++ kd k ∷ Γ₁) ⌋Ctx
-nf-∈-hsub Γ₂ {Γ₁} {a} {k} a∈k = subst₂ (_⊢/H _ ∈_) (begin
-    S.re-idx ⌊ Γ₂ ⌋CtxExt E.′++ ⌊ nfCtx Γ₁ ⌋Ctx
-  ≡⟨ cong₂ _′++_ (begin
-      S.re-idx ⌊ Γ₂ ⌋CtxExt
-    ≡⟨ sym (map′-∘ (λ _ a → a) (λ _ → ⌊_⌋Asc) Γ₂) ⟩
-      map′ (λ _ → ⌊_⌋Asc) Γ₂
-    ≡⟨ map′-cong (λ a → sym (S.⌊⌋-TermAsc/ a)) Γ₂ ⟩
-      map′ (λ n b → ⌊ b TermAsc/ sub a ↑⋆ n ⌋Asc) Γ₂
-    ≡⟨ map′-∘ (λ _ → ⌊_⌋Asc) (λ n b → b TermAsc/ sub a ↑⋆ n) Γ₂ ⟩
-      ⌊ Γ₂ E′/ sub a ⌋CtxExt
-    ∎) (⌊⌋Ctx-nf Γ₁) ⟩
-    ⌊ Γ₂ E′/ sub a ⌋CtxExt E.′++ ⌊ Γ₁ ⌋Ctx
-  ≡⟨ ′++-map ⌊_⌋Asc (Γ₂ E′/ _) Γ₁ ⟩
-    ⌊ Δ ⌋Ctx
-  ≡⟨ sym (⌊⌋Ctx-nf Δ) ⟩
-    ⌊ nfCtx Δ ⌋Ctx
-  ∎) (begin
-    ⌊ Γ₂ ⌋CtxExt ′++ kd ⌊ k ⌋ E.∷ ⌊ nfCtx Γ₁ ⌋Ctx
-  ≡⟨ cong (λ Γ → ⌊ Γ₂ ⌋CtxExt E.′++ kd ⌊ k ⌋ E.∷ Γ) (⌊⌋Ctx-nf Γ₁) ⟩
-    ⌊ Γ₂ ⌋CtxExt ′++ kd ⌊ k ⌋ E.∷ ⌊ Γ₁ ⌋Ctx
-  ≡⟨ ′++-map ⌊_⌋Asc Γ₂ (kd k ∷ Γ₁) ⟩
-    ⌊ Γ ⌋Ctx
-  ≡⟨ sym (⌊⌋Ctx-nf Γ) ⟩
-    ⌊ nfCtx Γ ⌋Ctx
-  ∎) (∈-hsub ⌊ Γ₂ ⌋CtxExt (nf-Tp∈ a∈k))
+-- Well-kinded hereditary substitions.
+
+infix 4 _⊢/Tp⟨_⟩_∈_
+
+data _⊢/Tp⟨_⟩_∈_ : ∀ {m n} → Ctx n → SKind → SVSub m n → Ctx m → Set where
+  ∈-hsub : ∀ {n} {Γ : Ctx n} {k a} →
+           Γ ⊢Tp a ∈ k → Γ ⊢/Tp⟨ ⌊ k ⌋ ⟩ hsub ⌜ a ⌝ ∈ kd k ∷ Γ
+  ∈-H↑   : ∀ {m n Δ k Γ} {σ : SVSub m n} {a} →
+           Δ ⊢/Tp⟨ k ⟩ σ ∈ Γ → (a TermAsc/ toSub σ) ∷ Δ ⊢/Tp⟨ k ⟩ σ H↑ ∈ a ∷ Γ
+
+-- Normalize and simplify a well-kinded hereditary substitution.
+
+nf-/⟨⟩∈ : ∀ {m n k Δ} {σ : SVSub m n} {Γ} → Δ ⊢/Tp⟨ k ⟩ σ ∈ Γ →
+          ⌊ nfCtx Δ ⌋Ctx ⊢/⟨ k ⟩ nfSVSub (nfCtx Δ) σ ∈ ⌊ nfCtx Γ ⌋Ctx
+nf-/⟨⟩∈ (∈-hsub {Γ = Γ} {k} {a} a∈k) =
+  subst₂ (⌊ nfCtx Γ ⌋Ctx ⊢/⟨ ⌊ k ⌋ ⟩_∈_)
+         (cong (hsub ∘ nf (nfCtx Γ)) (sym (⌞⌟∘⌜⌝-id a)))
+         (cong (λ j → kd j ∷ ⌊ nfCtx Γ ⌋Ctx) (sym (⌊⌋-nf k)))
+         (∈-hsub (nf-Tp∈ a∈k))
+nf-/⟨⟩∈ (∈-H↑ {Δ = Δ} {k} {Γ} {σ} {a} σ∈Γ) =
+  subst (_⊢/⟨ k ⟩ nfSVSub (nfCtx (a/σ ∷ Δ)) (σ H↑) ∈ ⌊ nfCtx (a ∷ Γ) ⌋Ctx)
+        (cong (_∷ ⌊ nfCtx Δ ⌋Ctx) (begin
+          ⌊ nfAsc (nfCtx Γ) a ⌋Asc                     ≡⟨ ⌊⌋Asc-nf a ⟩
+          ⌊ a ⌋Asc                                     ≡˘⟨ S.⌊⌋-TermAsc/ a ⟩
+          ⌊ a TermAsc/ toSub σ ⌋Asc                    ≡˘⟨ ⌊⌋Asc-nf _ ⟩
+          ⌊ nfAsc (nfCtx Δ) (a TermAsc/ toSub σ) ⌋Asc  ∎))
+        (∈-H↑ (nf-/⟨⟩∈ σ∈Γ))
   where
     open ≡-Reasoning
-    Γ = Γ₂ ′++ kd k ∷ Γ₁
-    Δ = Γ₂ E′/ sub a ′++ Γ₁
+    a/σ = a TermAsc/ toSub σ
 
 open ≈-Reasoning
 private module P = ≡-Reasoning
@@ -195,146 +192,105 @@ private module P = ≡-Reasoning
 mutual
 
   -- Substitution (weakly) commutes with normalization.
-  nf-[] : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ a b j k} →
-          let Γ = Γ₂ ′++ kd k ∷ Γ₁
-          in Γ ⊢Tp a ∈ j → Γ₁ ⊢Tp b ∈ k →
-             nf (nfCtx (Γ₂ E′/ sub b ′++ Γ₁)) (a / sub b ↑⋆ n)  ≈
-               nf (nfCtx Γ) a /H n ← nf (nfCtx Γ₁) b ∈ ⌊ k ⌋
-  nf-[] {_} {n} Γ₂ (∈-var x Γ-ctx Γ[x]≡kd-k) b∈k with compare n x
-  nf-[] {_} {n} Γ₂ {Γ₁} {_} {b} {j} {k} (∈-var ._ Γ-ctx Γ[x]≡kd-k) b∈k
-    | yes refl = begin
-      nf (nfCtx Δ) (var x / sub b ↑⋆ n)
-    ≡⟨ cong (nf (nfCtx Δ)) (raise-/-↑⋆ n zero) ⟩
-      nf (nfCtx Δ) (b / wk⋆ n)
-    ≡⟨ cong₂ nf (nf-++ (Γ₂ E′/ sub b) Γ₁) (/-wk⋆ n) ⟩
-      nf (nfCtxExt (nfCtx Γ₁) (Γ₂ E′/ sub b) ′++ nfCtx Γ₁) (weaken⋆ n b)
-    ≡⟨ sym (nf-weaken⋆ (nfCtxExt (nfCtx Γ₁) (Γ₂ E′/ sub b)) b) ⟩
-      weakenElim⋆ n (nf (nfCtx Γ₁) b)
-    ≡⟨ sym (TermLikeLemmas./-wk⋆ termLikeLemmasElim n) ⟩
-      nf (nfCtx Γ₁) b Elim/ wk⋆ n
-    ≡⟨ cong (_Elim/ wk⋆ n) (sym (⌜⌝∘⌞⌟-id (nf (nfCtx Γ₁) b))) ⟩
-      ⌜ ⌞ nf (nfCtx Γ₁) b ⌟ ⌝ Elim/ wk⋆ n
-    ≡⟨ sym (⌜⌝-/ ⌞ nf (nfCtx Γ₁) b ⌟) ⟩
-      ⌜ ⌞ nf (nfCtx Γ₁) b ⌟ / wk⋆ n ⌝
-    ≡⟨ cong ⌜_⌝ (sym (raise-/-↑⋆ n zero)) ⟩
-      ⌜ var x / sub ⌞ nf (nfCtx Γ₁) b ⌟ ↑⋆ n ⌝
-    ≡⟨ sym (ne-yes-/H n) ⟩
-      var∙ x /H n ← nf (nfCtx Γ₁) b ∈ ⌊ k ⌋
-    ≈⟨ ≈-sym (η-exp-var-Hit-/H refl nf-k-kds x∈⌊k⌋ (nf-∈-hsub Γ₂ b∈k)) ⟩
-      η-exp (nfKind (nfCtx Γ) j) (var∙ x) /H n ← nf (nfCtx Γ₁) b ∈ ⌊ k ⌋
-    ≡⟨ cong (_/H n ← nf (nfCtx Γ₁) b ∈ ⌊ k ⌋)
-            (sym (nf-var-kd (nfCtx Γ) x (nfCtx-lookup-kd x Γ Γ[x]≡kd-k))) ⟩
-      nf (nfCtx Γ) (var x) /H n ← nf (nfCtx Γ₁) b ∈ ⌊ k ⌋
+
+  nf-/⟨⟩ : ∀ {m n Δ k Γ} {σ : SVSub m n} {a j} →
+           Γ ⊢Tp a ∈ j → Δ ⊢/Tp⟨ k ⟩ σ ∈ Γ →
+           nf (nfCtx Δ) (a / toSub σ)  ≈
+             nf (nfCtx Γ) a /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
+  nf-/⟨⟩ {Γ = Γ} (∈-var x Γ-ctx Γ[x]≡kd-j) σ∈Γ
+    with E.lookup x (nfCtx Γ) | nfCtx-lookup-kd x Γ Γ[x]≡kd-j
+  nf-/⟨⟩ {Δ = Δ} {k} {Γ} {σ} {_} {j} (∈-var x Γ-ctx Γ[x]≡kd-j) σ∈Γ
+    | kd nf-j | refl with hit? σ x
+  ... | hit a hitP =
+    let open WfsCtxOps using (lookup-kd)
+        nf-Γ-ctxs       = nf-ctx Γ-ctx
+        nf-Γ[x]≡kd-nf-j = nfCtx-lookup-kd x Γ Γ[x]≡kd-j
+        nf-j-kds  = lookup-kd x nf-Γ-ctxs nf-Γ[x]≡kd-nf-j
+        hitP-nf-σ = nf-Hit (nfCtx Δ) hitP
+        x∈⌊j⌋     = ∈-var x (⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j)
+    in begin
+      nf (nfCtx Δ) (Vec.lookup (toSub σ) x)
+    ≡⟨ cong (nf (nfCtx Δ)) (lookup-toSub σ x) ⟩
+      nf (nfCtx Δ) (⌞ toElim (lookupSV σ x) ⌟)
+    ≡⟨ cong (nf (nfCtx Δ) ∘ ⌞_⌟ ∘ toElim) (lookup-Hit hitP) ⟩
+      nf (nfCtx Δ) ⌞ a ⌟
+    ≡˘⟨ cong (_?∙∙⟨ k ⟩ []) (lookup-Hit hitP-nf-σ) ⟩
+      var∙ x /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
+    ≈˘⟨ η-exp-var-Hit-/⟨⟩ hitP-nf-σ nf-j-kds x∈⌊j⌋ (nf-/⟨⟩∈ σ∈Γ) ⟩
+      η-exp (nfKind (nfCtx Γ) j) (var∙ x) /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
     ∎
-    where
-      open WfsCtxOps using (lookup-kd)
-      open ExtLemmas₄ lemmas₄ using (raise-/-↑⋆)
-      x = raise n zero
-      Γ = Γ₂ ′++ kd k ∷ Γ₁
-      Δ = Γ₂ E′/ sub b ′++ Γ₁
-      nf-Γ-ctxs       = nf-ctx Γ-ctx
-      nf-Γ[x]≡kd-nf-k = nfCtx-lookup-kd x Γ Γ[x]≡kd-k
-      nf-k-kds = lookup-kd x nf-Γ-ctxs nf-Γ[x]≡kd-nf-k
-      x∈⌊k⌋    = ∈-var x (⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-k)
-  nf-[] {_} {n} Γ₂ {Γ₁} {_} {b} {j} {k} (∈-var ._ Γ-ctx Γ[x]≡kd-j) b∈k
-    | no y refl = begin
-      nf (nfCtx Δ) (var x / sub b ↑⋆ n)
-    ≡⟨ cong (nf (nfCtx Δ)) (lookup-sub-↑⋆ n y) ⟩
+  ... | miss y missP =
+    let open WfsCtxOps using (lookup-kd)
+        nf-Γ-ctxs       = nf-ctx Γ-ctx
+        nf-Γ[x]≡kd-nf-j = nfCtx-lookup-kd x Γ Γ[x]≡kd-j
+        nf-j-kds   = lookup-kd x nf-Γ-ctxs nf-Γ[x]≡kd-nf-j
+        missP-nf-σ = nf-Miss (nfCtx Δ) missP
+        x∈⌊j⌋      = ∈-var x (⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j)
+    in begin
+      nf (nfCtx Δ) (Vec.lookup (toSub σ) x)
+    ≡⟨ cong (nf (nfCtx Δ)) (lookup-toSub σ x) ⟩
+      nf (nfCtx Δ) ⌞ toElim (lookupSV σ x) ⌟
+    ≡⟨ cong (nf (nfCtx Δ) ∘ ⌞_⌟ ∘ toElim) (lookup-Miss missP) ⟩
       nf (nfCtx Δ) (var y)
-    ≈⟨ ≈-nf (≈Ctx-⌊⌋ (nfCtx-[] Γ₂ Γ-ctx b∈k)) (var y) ⟩
-      nf nf-Δ (var y)
-    ≡⟨ nf-var-kd nf-Δ y (P.begin
-        E.lookup y nf-Δ
-      P.≡⟨ cong (λ l → E.lookup y (nf-Γ₂ E[ nf nf-Γ₁ b ∈ l ] ′++ nf-Γ₁))
-                (sym (⌊⌋-nf k)) ⟩
-        E.lookup y (nf-Γ₂ E[ nf nf-Γ₁ b ∈ ⌊ nfKind nf-Γ₁ k ⌋ ] ′++ nf-Γ₁)
-      P.≡⟨ lookup-E[] nf-Γ₂ (nf nf-Γ₁ b) (nfKind nf-Γ₁ k) y ⟩
-        E.lookup x (nf-Γ₂ ′++ kd (nfKind nf-Γ₁ k) ∷ nf-Γ₁) Asc/H _
-      P.≡⟨ cong₂ (λ Γ l → E.lookup x Γ Asc/H n ← nf nf-Γ₁ b ∈ l)
-                 (sym (nf-++ Γ₂ (kd k ∷ Γ₁))) (⌊⌋-nf k) ⟩
-        E.lookup x (nfCtx Γ) Asc/H ρ
-      P.≡⟨ cong (_Asc/H ρ) (nfCtx-lookup-kd x Γ Γ[x]≡kd-j) ⟩
-        kd ((nfKind (nfCtx Γ) j) Kind/H ρ)
-      P.∎) ⟩
-      η-exp ((nfKind (nfCtx Γ) j) Kind/H ρ) (var∙ y)
-    ≡⟨ sym (η-exp-ne-Miss-/H x y [] (nfKind (nfCtx Γ) j) {ρ} refl)  ⟩
-      η-exp (nfKind (nfCtx Γ) j) (var∙ x) /H ρ
-    ≡⟨ cong (_/H ρ) (sym (nf-var-kd (nfCtx Γ) x
-                                    (nfCtx-lookup-kd x Γ Γ[x]≡kd-j))) ⟩
-      nf (nfCtx Γ) (var x) /H ρ
+    ≈⟨ nf-var-kd-⌊⌋ (nfCtx Δ) y (P.begin
+          ⌊ E.lookup y (nfCtx Δ) ⌋Asc
+        P.≡˘⟨ ⌊⌋Asc-lookup y (nfCtx Δ) ⟩
+          S.lookup y ⌊ nfCtx Δ ⌋Ctx
+        P.≡⟨ lookup-/⟨⟩∈-Miss (nf-/⟨⟩∈ σ∈Γ) x∈⌊j⌋ missP-nf-σ  ⟩
+          S.lookup x ⌊ nfCtx Γ ⌋Ctx
+        P.≡⟨ ⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j ⟩
+          kd ⌊ nfKind (nfCtx Γ) j ⌋
+        P.≡˘⟨ cong kd (⌊⌋-Kind/⟨⟩ (nfKind (nfCtx Γ) j)) ⟩
+          kd ⌊ nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ ⌋
+        P.∎) ⟩
+      η-exp (nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ) (var∙ y) 
+    ≡˘⟨ η-exp-ne-Miss-/⟨⟩ x y [] (nfKind (nfCtx Γ) j) missP-nf-σ ⟩
+      η-exp (nfKind (nfCtx Γ) j) (var∙ x) /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
     ∎
-    where
-      x     = lift n suc y
-      Γ     = Γ₂ ′++ kd k ∷ Γ₁
-      Δ     = Γ₂ E′/ sub b ′++ Γ₁
-      nf-Γ₁ = nfCtx Γ₁
-      ρ     = n ← nf nf-Γ₁ b ∈ ⌊ k ⌋
-      nf-Γ₂ = nfCtxExt (kd (nfKind nf-Γ₁ k) ∷ nf-Γ₁) Γ₂
-      nf-Δ  = nf-Γ₂ E[ nf nf-Γ₁ b ∈ ⌊ k ⌋ ] ′++ nf-Γ₁
-  nf-[] Γ₂ (∈-⊥-f Γ-ctx) b∈k = ≈-refl _
-  nf-[] Γ₂ (∈-⊤-f Γ-ctx) b∈k = ≈-refl _
-  nf-[] Γ₂ (∈-∀-f {j} j-kd a∈*) b∈k =
-    ≈-∀∙ (nfKind-[] Γ₂ j-kd b∈k) (nf-[] (kd j ∷ Γ₂) a∈* b∈k)
-  nf-[] Γ₂ (∈-→-f a∈* b∈*) c∈k =
-    ≈-⇒∙ (nf-[] Γ₂ a∈* c∈k) (nf-[] Γ₂ b∈* c∈k)
-  nf-[] Γ₂ (∈-Π-i {j} j-kd a∈k k-kd) b∈l =
-    ≈-Λ∙ (≋-⌊⌋ (nfKind-[] Γ₂ j-kd b∈l)) (nf-[] (kd j ∷ Γ₂) a∈k b∈l)
-  nf-[] {_} {n} Γ₂ {Γ₁} {_} {c} {_} {l}
-        (∈-Π-e {a} {b} {j} {k} a∈Πjk b∈j _ _) c∈l =
-      begin
-        nf-a[c] ↓⌜·⌝ nf (nfCtx Δ) (b / sub c ↑⋆ n)
-      ≈⟨ ≈-↓⌜·⌝ (nf-[] Γ₂ a∈Πjk c∈l) (nf-[] Γ₂ b∈j c∈l) ⟩
-        nf-a/ρ ↓⌜·⌝ (nf (nfCtx Γ) b /H n ← nf-c ∈ ⌊ l ⌋)
-      ≡⟨ sym (Nf∈-Π-e-/H′ nf-a∈⌊j⌋⇒⌊k⌋ (nf-Tp∈ b∈j) ρ∈⌊Γ⌋) ⟩
-        nf-a ↓⌜·⌝ nf (nfCtx Γ) b /H n ← nf-c ∈ ⌊ l ⌋
-      ∎
-    where
-      Γ       = Γ₂ ′++ kd l ∷ Γ₁
-      Δ       = Γ₂ E′/ sub c ′++ Γ₁
-      nf-c    = nf (nfCtx Γ₁) c
-      nf-a    = nf (nfCtx Γ) a
-      nf-a[c] = nf (nfCtx Δ) (a / sub c ↑⋆ n)
-      nf-a/ρ  = nf-a /H n ← nf-c ∈ ⌊ l ⌋
-      nf-a∈⌊j⌋⇒⌊k⌋ = nf-Tp∈ a∈Πjk
-      ρ∈⌊Γ⌋   = nf-∈-hsub Γ₂ c∈l
-  nf-[] Γ₂ (∈-s-i a∈c⋯d)  b∈k = nf-[] Γ₂ a∈c⋯d b∈k
-  nf-[] Γ₂ (∈-⇑ a∈j j<∷k) b∈l = nf-[] Γ₂ a∈j b∈l
+  nf-/⟨⟩ (∈-var _ _ _) σ∈Γ | tp a | ()
+  nf-/⟨⟩ (∈-⊥-f Γ-ctx) σ∈Γ = ≈-refl _
+  nf-/⟨⟩ (∈-⊤-f Γ-ctx) σ∈Γ = ≈-refl _
+  nf-/⟨⟩ (∈-∀-f {j} j-kd a∈*) σ∈Γ =
+    ≈-∀∙ (nfKind-/⟨⟩ j-kd σ∈Γ) (nf-/⟨⟩ a∈* (∈-H↑ σ∈Γ))
+  nf-/⟨⟩ (∈-→-f a∈* b∈*) σ∈Γ =
+    ≈-⇒∙ (nf-/⟨⟩ a∈* σ∈Γ) (nf-/⟨⟩ b∈* σ∈Γ)
+  nf-/⟨⟩ (∈-Π-i j-kd a∈k k-kd) σ∈Γ =
+    ≈-Λ∙ (≋-⌊⌋ (nfKind-/⟨⟩ j-kd σ∈Γ)) (nf-/⟨⟩ a∈k (∈-H↑ σ∈Γ))
+  nf-/⟨⟩ {Δ = Δ} {k} {Γ} {σ} {a · b} (∈-Π-e a∈Πjk b∈j _ _) σ∈Γ = begin
+      nf (nfCtx Δ) (a / toSub σ) ↓⌜·⌝ nf (nfCtx Δ) (b / toSub σ)
+    ≈⟨ ≈-↓⌜·⌝ (nf-/⟨⟩ a∈Πjk σ∈Γ) (nf-/⟨⟩ b∈j σ∈Γ) ⟩
+      (nf (nfCtx Γ) a /⟨ k ⟩ nfSVSub (nfCtx Δ) σ) ↓⌜·⌝
+        (nf (nfCtx Γ) b /⟨ k ⟩ nfSVSub (nfCtx Δ) σ)
+    ≡⟨ sym (Nf∈-Π-e-/⟨⟩′ (nf-Tp∈ a∈Πjk) (nf-Tp∈ b∈j) (nf-/⟨⟩∈ σ∈Γ)) ⟩
+      nf (nfCtx Γ) a ↓⌜·⌝ nf (nfCtx Γ) b /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
+    ∎
+  nf-/⟨⟩ (∈-s-i a∈c⋯d)  σ∈Γ = nf-/⟨⟩ a∈c⋯d σ∈Γ
+  nf-/⟨⟩ (∈-⇑ a∈j j<∷k) σ∈Γ = nf-/⟨⟩ a∈j σ∈Γ
 
-  nfKind-[] : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ a j k} →
-              let Γ = Γ₂ ′++ kd k ∷ Γ₁
-              in Γ ⊢ j kd → Γ₁ ⊢Tp a ∈ k →
-                 nfKind (nfCtx (Γ₂ E′/ sub a ′++ Γ₁)) (j Kind/ sub a ↑⋆ n)  ≋
-                   nfKind (nfCtx Γ) j Kind/H n ← nf (nfCtx Γ₁) a ∈ ⌊ k ⌋
-  nfKind-[] Γ₂ (kd-⋯ a∈* b∈*) c∈k =
-    ≋-⋯ (nf-[] Γ₂ a∈* c∈k) (nf-[] Γ₂ b∈* c∈k)
-  nfKind-[] Γ₂ (kd-Π {j} j-kd k-kd) a∈l =
-    ≋-Π (nfKind-[] Γ₂ j-kd a∈l) (nfKind-[] (kd j ∷ Γ₂) k-kd a∈l)
+  nfKind-/⟨⟩ : ∀ {m n Δ k Γ} {σ : SVSub m n} {j} →
+               Γ ⊢ j kd → Δ ⊢/Tp⟨ k ⟩ σ ∈ Γ →
+               nfKind (nfCtx Δ) (j Kind/ toSub σ)  ≋
+                 nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ
+  nfKind-/⟨⟩ (kd-⋯ a∈* b∈*)   σ∈Γ = ≋-⋯ (nf-/⟨⟩ a∈* σ∈Γ) (nf-/⟨⟩ b∈* σ∈Γ)
+  nfKind-/⟨⟩ (kd-Π j-kd k-kd) σ∈Γ =
+    ≋-Π (nfKind-/⟨⟩ j-kd σ∈Γ) (nfKind-/⟨⟩ k-kd (∈-H↑ σ∈Γ))
 
-  nfAsc-[] : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ a b k} →
-             let Γ = Γ₂ ′++ kd k ∷ Γ₁
-             in Γ ⊢ a wf → Γ₁ ⊢Tp b ∈ k →
-                nfAsc (nfCtx (Γ₂ E′/ sub b ′++ Γ₁)) (a TermAsc/ sub b ↑⋆ n) ≈Asc
-                  nfAsc (nfCtx Γ) a Asc/H n ← nf (nfCtx Γ₁) b ∈ ⌊ k ⌋
-  nfAsc-[] Γ₂ (wf-kd k-kd) b∈k = ≈-kd (nfKind-[] Γ₂ k-kd b∈k)
-  nfAsc-[] Γ₂ (wf-tp a∈*)  b∈k = ≈-tp (nf-[] Γ₂ a∈* b∈k)
+-- Shorthands.
 
-  nfCtx-[] : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ a k} →
-             let nf-Γ₁ = nfCtx Γ₁
-                 nf-Γ₂ = nfCtxExt (kd (nfKind nf-Γ₁ k) ∷ nf-Γ₁) Γ₂
-             in Γ₂ ′++ kd k ∷ Γ₁ ctx → Γ₁ ⊢Tp a ∈ k →
-                nfCtx (Γ₂ E′/ sub a ′++ Γ₁)  ≈Ctx
-                  nf-Γ₂ E[ nf nf-Γ₁ a ∈ ⌊ k ⌋ ] ′++ nf-Γ₁
-  nfCtx-[]             []                    Γ-ctx            a∈k = ≈Ctx-refl _
-  nfCtx-[] {_} {suc n} (a ∷ Γ₂) {Γ₁} {b} {k} (a-wf D.∷ Γ-ctx) b∈k =
-    ≈-∷ (Asc.begin
-        nfAsc (nfCtx (Γ₂ E′/ sub b ′++ Γ₁)) (a TermAsc/ sub b ↑⋆ n)
-      Asc.≈⟨ nfAsc-[] Γ₂ a-wf b∈k ⟩
-        nfAsc (nfCtx (Γ₂ ′++ kd k ∷ Γ₁)) a Asc/H n ← nf nf-Γ₁ b ∈ ⌊ k ⌋
-      Asc.≡⟨ cong (λ Δ → nfAsc Δ a Asc/H n ← nf nf-Γ₁ b ∈ ⌊ k ⌋)
-              (nf-++ Γ₂ (kd k ∷ Γ₁)) ⟩
-        nfAsc (nfCtxExt (kd nf-k ∷ nf-Γ₁) Γ₂ ′++ kd nf-k ∷ nf-Γ₁) a Asc/H
-              n ← nf nf-Γ₁ b ∈ ⌊ k ⌋
-      Asc.∎) (nfCtx-[] Γ₂ Γ-ctx b∈k)
-    where
-      nf-Γ₁ = nfCtx Γ₁
-      nf-k  = nfKind nf-Γ₁ k
+nf-[] : ∀ {n} {Γ : Ctx n} {k a j b} →
+        kd k ∷ Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ k →
+        nf (nfCtx Γ) (a [ b ])  ≈
+          nf (nfCtx (kd k ∷ Γ)) a [ nf (nfCtx Γ) b ∈ ⌊ k ⌋ ]
+nf-[] {_} {Γ} {k} {a} a∈j b∈k =
+  subst (λ c → nf (nfCtx Γ) (a [ c ]) ≈
+               (nf (nfCtx (kd k ∷ Γ)) a [ nf (nfCtx Γ) c ∈ ⌊ k ⌋ ]))
+        (⌞⌟∘⌜⌝-id _) (nf-/⟨⟩ a∈j (∈-hsub b∈k))
+
+nfKind-[] : ∀ {n} {Γ : Ctx n} {k j b} →
+            kd k ∷ Γ ⊢ j kd → Γ ⊢Tp b ∈ k →
+            nfKind (nfCtx Γ) (j Kind[ b ])  ≋
+              nfKind (nfCtx (kd k ∷ Γ)) j Kind[ nf (nfCtx Γ) b ∈ ⌊ k ⌋ ]
+nfKind-[] {_} {Γ} {k} {j} j-kd b∈k =
+  subst (λ c → nfKind (nfCtx Γ) (j Kind[ c ]) ≋
+               (nfKind (nfCtx (kd k ∷ Γ)) j Kind[ nf (nfCtx Γ) c ∈ ⌊ k ⌋ ]))
+        (⌞⌟∘⌜⌝-id _) (nfKind-/⟨⟩ j-kd (∈-hsub b∈k))

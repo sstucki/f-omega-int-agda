@@ -2,6 +2,12 @@
 -- Propierties of abstract typing contexts
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
+-- FIXME: some lemmas in this file use UIP (aka axiom K) so we cannot
+-- use the --without-K option globally. This use of UIP should not be
+-- necessary!
+
 module Data.Fin.Substitution.Context.Properties where
 
 open import Data.Fin using (Fin; zero; suc; lift; raise)
@@ -22,8 +28,7 @@ open import Data.Fin.Substitution.Context
 
 -- Some reusable lemmas about subst.
 --
--- FIXME: These should probably go into
--- Relation.Binary.PropositionalEquality.
+-- FIXME: These currently use UIP, this should not be necessary!
 
 subst-shift : ∀ {a} {A : Set a} (P Q : A → Set) {x y : A}
               {f g : A → A} (F : ∀ {z} → P (f z) → Q (g z))

@@ -120,7 +120,7 @@ mutual
   sound-Nf⇇ (⇇-⇑ a⇉j j<∷k) = ∈-⇑ (sound-Nf⇉ a⇉j) (sound-<∷ j<∷k)
 
   sound-Var∈ : ∀ {n} {Γ : Ctx n} {x k} →
-               Γ ⊢Var var x ∈ k → ⌞ Γ ⌟Ctx O.⊢Tp var x ∈ ⌞ k ⌟Kd
+               Γ ⊢Var x ∈ k → ⌞ Γ ⌟Ctx O.⊢Tp var x ∈ ⌞ k ⌟Kd
   sound-Var∈ {_} {Γ} (⇉-var {k} x Γ-ctx Γ[x]≡kd-k) =
     ∈-var x (sound-ctx Γ-ctx) (begin
         TermCtx.lookup x ⌞ Γ ⌟Ctx
@@ -280,7 +280,7 @@ private module TK  = TrackSimpleKindsCanonicalEtaExp
             Γ ⊢ k kd → Γ ⊢Ne a ∈ k → Γ ⊢Nf η-exp k a ⇇ k
 η-exp-Ne∈ k-kd a∈k = TK.η-exp-Ne∈ (⌊⌋-⌊⌋≡ _) k-kd a∈k (<∷-refl k-kd)
 
-η-exp-Var∈ : ∀ {n} {Γ : Ctx n} {x k} → Γ ⊢ k kd → Γ ⊢Var var x ∈ k →
+η-exp-Var∈ : ∀ {n} {Γ : Ctx n} {x k} → Γ ⊢ k kd → Γ ⊢Var x ∈ k →
              Γ ⊢Nf η-exp k (var∙ x) ⇇ k
 η-exp-Var∈ k-kd x∈k = η-exp-Ne∈ k-kd (∈-∙ x∈k ⇉-[])
 
@@ -354,7 +354,7 @@ module CompletenessExtended where
           nf-k₁≋k₁′  = ≋-nfKind ⌊nf-j₁∷Γ⌋≡⌊nf-j₂∷Γ⌋ _
           nf-j₂-kd   = proj₁ (<∷-valid nf-j₂<∷j₁)
           nf-k₁′-kd  = proj₁ (<∷-valid nf-k₁′<∷k₂)
-          nf-k₁<∷k₁′ = ≋-<∷ (⇓-kd [] nf-j₂-kd nf-j₂<∷j₁ nf-k₁-kd)
+          nf-k₁<∷k₁′ = ≋-<∷ (⇓-kd nf-j₂-kd nf-j₂<∷j₁ nf-k₁-kd)
                             nf-k₁′-kd nf-k₁≋k₁′
           nf-k₁<∷k₂ = <∷-trans nf-k₁<∷k₁′ nf-k₁′<∷k₂
       in <∷-Π nf-j₂<∷j₁ nf-k₁<∷k₂ (kd-Π nf-j₁-kd nf-k₁-kd)
@@ -388,7 +388,7 @@ module CompletenessExtended where
           nf-a₁≈a₁′    = ≈-nf ⌊nf-k₁∷Γ⌋≡⌊nf-k₂∷Γ⌋ a₁
           nf-k₂-kd     = proj₁ (<∷-valid nf-k₂<∷k₁)
           nf-a₁⇉a₁⋯a₁′ = proj₁ (<:-valid nf-a₁′<:a₂)
-          nf-a₁<:a₁′   = ≈-<: (⇓-Nf⇉ [] nf-k₂-kd nf-k₂<∷k₁ nf-a₁⇉a₁⋯a₁)
+          nf-a₁<:a₁′   = ≈-<: (⇓-Nf⇉ nf-k₂-kd nf-k₂<∷k₁ nf-a₁⇉a₁⋯a₁)
                               nf-a₁⇉a₁⋯a₁′ nf-a₁≈a₁′
           nf-a₁<:a₂ = <:-trans nf-a₁<:a₁′ nf-a₁′<:a₂
       in <:-⋯-* (<:-∀ nf-k₂<∷k₁ nf-a₁<:a₂ (⇉-∀-f nf-k₁-kd nf-a₁⇉a₁⋯a₁))
@@ -408,10 +408,10 @@ module CompletenessExtended where
           nf-a₁≈a₁′     = ≈-nf ⌊nf-j₁∷Γ⌋≡⌊nf-j∷Γ⌋ a₁
           nf-a₂′≈a₂     = ≈-nf ⌊nf-j∷Γ⌋≡⌊nf-j₂∷Γ⌋ a₂
           nf-a₁<:a₁′⇇k  = ≈-<:⇇ k-kd
-                                (⇇-⇑ (⇓-Nf⇉ [] j-kd nf-j<∷j₁ nf-a₁⇉k₁) nf-k₁<∷k)
+                                (⇇-⇑ (⇓-Nf⇉ j-kd nf-j<∷j₁ nf-a₁⇉k₁) nf-k₁<∷k)
                                 nf-a₁′⇇k nf-a₁≈a₁′
           nf-a₂′<:a₂⇇k  = ≈-<:⇇ k-kd nf-a₂′⇇k
-                                (⇇-⇑ (⇓-Nf⇉ [] j-kd nf-j<∷j₂ nf-a₂⇉k₂) nf-k₂<∷k)
+                                (⇇-⇑ (⇓-Nf⇉ j-kd nf-j<∷j₂ nf-a₂⇉k₂) nf-k₂<∷k)
                                 nf-a₂′≈a₂
           nf-a₁<:a₂⇇k   = <:⇇-trans (<:⇇-trans nf-a₁<:a₁′⇇k nf-a₁′<:a₂′⇇k)
                                     nf-a₂′<:a₂⇇k
@@ -483,7 +483,7 @@ module CompletenessExtended where
           nf-j[a]-kd   = complete-kd j[a]-kd
           nf-j[a∈⌊k⌋]-kd   = kd-[] nf-j-kd nf-a⇇k
           nf-j[a∈⌊k⌋]≋j[a] = subst (λ l → nf-j Kind[ nf-a ∈ l ] ≋ _)
-                                   ⌊k⌋≡⌊nf-k⌋ (≋-sym (nfKind-[] [] j-kd a∈k))
+                                   ⌊k⌋≡⌊nf-k⌋ (≋-sym (nfKind-[] j-kd a∈k))
       in ≋-≅ nf-j[a∈⌊k⌋]-kd nf-j[a]-kd nf-j[a∈⌊k⌋]≋j[a]
 
     -- β-reduction of normal forms is admissible in canonical kinding.
@@ -507,7 +507,7 @@ module CompletenessExtended where
           nf-k[b∈⌊j⌋]<∷k[b]    = ≅⇒<∷ (≅-nfKind-[] k-kd b∈j k[b]-kd)
           nf-a[b∈⌊j⌋]⇇k[b]     = Nf⇇-⇑ nf-a[b∈⌊j⌋]⇇k[b∈⌊j⌋] nf-k[b∈⌊j⌋]<∷k[b]
           nf-a[b∈⌊j⌋]≈a[b]     = subst (λ l → nf-a [ nf-b ∈ l ] ≈ _) ⌊j⌋≡⌊nf-j⌋
-                                       (≈-sym (nf-[] [] a∈k b∈j))
+                                       (≈-sym (nf-[] a∈k b∈j))
       in ≈-≃ nf-k[b]-kd nf-a[b∈⌊j⌋]⇇k[b] nf-a[b]⇇k[b] nf-a[b∈⌊j⌋]≈a[b]
 
 -- Completeness of canonical subkinding and subtyping

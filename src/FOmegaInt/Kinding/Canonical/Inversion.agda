@@ -91,7 +91,7 @@ sound-<! (<!-→ a₂<:a₁ b₁<:b₂) = <:-→ a₂<:a₁ b₁<:b₂
   <!-⊤ (proj₁ (<:-valid (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁)))
 <!-trans (<:-∀ k₂<∷k₁ a₁<:a₂ Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁) (<!-∀ k₃<∷k₂ a₂<:a₃ _) =
   <!-∀ (<∷-trans k₃<∷k₂ k₂<∷k₁)
-       (<:-trans (⇓-<: [] k₃-kd k₃<∷k₂ a₁<:a₂) a₂<:a₃) Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁
+       (<:-trans (⇓-<: k₃-kd k₃<∷k₂ a₁<:a₂) a₂<:a₃) Πk₁a₁⇉Πk₁a₁⋯Πk₁a₁
   where k₃-kd = wf-kd-inv (wf-∷₁ (<:-ctx a₂<:a₃))
 <!-trans (<:-→ a₂<:a₁ b₁<:b₂) (<!-⊤ a₂⇒b₂⇉a₂⇒b₂⋯a₂⇒b₂) =
   <!-⊤ (proj₁ (<:-valid (<:-→ a₂<:a₁ b₁<:b₂)))

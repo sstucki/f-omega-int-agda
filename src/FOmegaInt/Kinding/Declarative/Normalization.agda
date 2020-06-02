@@ -37,17 +37,17 @@ open TypedSubstitution
 -- hereditary substitutions in well-formed kinds resp. well-kinded
 -- types are equal (w.r.t. type resp. kind equality).
 
-kd-⌞⌟-[]-≅ : ∀ {n} {Γ : Ctx n} {a j k} →
+kd-⌞⌟-[]-≅ : ∀ {n} {Γ : Ctx n} {j k a} →
              kd ⌞ j ⌟Kd ∷ Γ ⊢ ⌞ k ⌟Kd kd → Γ ⊢Tp ⌞ a ⌟ ∈ ⌞ j ⌟Kd →
              Γ ⊢ ⌞ k ⌟Kd Kind[ ⌞ a ⌟ ] ≅ ⌞ k Kind[ a ∈ ⌊ j ⌋ ] ⌟Kd
-kd-⌞⌟-[]-≅ {_} {_} {a} {j} {k} ⌞k⌟-kd ⌞a⌟∈⌞j⌟ =
-  kd-→β*-≅ (kd-[] ⌞k⌟-kd (∈-tp ⌞a⌟∈⌞j⌟)) (⌞⌟Kd-[]-β 0 a ⌊ j ⌋ k)
+kd-⌞⌟-[]-≅ {k = k} ⌞k⌟-kd ⌞a⌟∈⌞j⌟ =
+  kd-→β*-≅ (kd-[] ⌞k⌟-kd (∈-tp ⌞a⌟∈⌞j⌟)) (⌞⌟Kd-/⟨⟩-β k)
 
-Tp∈-⌞⌟-[]-≃ : ∀ {n} {Γ : Ctx n} {a b j k} →
+Tp∈-⌞⌟-[]-≃ : ∀ {n} {Γ : Ctx n} {j a k b} →
               kd ⌞ j ⌟Kd ∷ Γ ⊢Tp ⌞ a ⌟ ∈ ⌞ k ⌟Kd → Γ ⊢Tp ⌞ b ⌟ ∈ ⌞ j ⌟Kd →
               Γ ⊢ ⌞ a ⌟ [ ⌞ b ⌟ ] ≃ ⌞ a [ b ∈ ⌊ j ⌋ ] ⌟ ∈ ⌞ k ⌟Kd Kind[ ⌞ b ⌟ ]
-Tp∈-⌞⌟-[]-≃ {_} {_} {a} {b} {j} {k} ⌞a⌟∈⌞k⌟ ⌞b⌟∈⌞j⌟ =
-  Tp∈-→β*-≃ (Tp∈-[] ⌞a⌟∈⌞k⌟ (∈-tp ⌞b⌟∈⌞j⌟)) (⌞⌟-[]-β 0 b ⌊ j ⌋ a)
+Tp∈-⌞⌟-[]-≃ {a = a} ⌞a⌟∈⌞k⌟ ⌞b⌟∈⌞j⌟ =
+  Tp∈-→β*-≃ (Tp∈-[] ⌞a⌟∈⌞k⌟ (∈-tp ⌞b⌟∈⌞j⌟)) (⌞⌟-/⟨⟩-β a)
 
 -- Soundness of potentially reducing application: ordinary and
 -- potentially reducing application of well-kinded types are equal

@@ -48,6 +48,7 @@ module README where
 -- Syntax of (untyped) terms along with support for substitutions,
 -- (untyped) hereditary substitutions and normalization.
 open import FOmegaInt.Syntax
+open import FOmegaInt.Syntax.SingleVariableSubstitution
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 

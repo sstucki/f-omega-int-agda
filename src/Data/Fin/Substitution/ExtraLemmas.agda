@@ -2,6 +2,8 @@
 -- Extra lemmas about substitutions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe --without-K #-}
+
 module Data.Fin.Substitution.ExtraLemmas where
 
 open import Data.Fin using (Fin; zero; suc)
@@ -520,7 +522,8 @@ record TermLikeLemmas (T₁ T₂ : ℕ → Set) : Set₁ where
     t / wk / sub _     ≡⟨ wk-sub-vanishes t ⟩
     t                  ∎
 
-  -- A version of /-wk⋆ for T₁s.
+  -- Variants of /-wk⋆ for T₁s.
+
   /-wk⋆ : ∀ {n} k {t : T₁ n} → t / wk⋆ k ≡ weaken⋆ k t
   /-wk⋆ zero    {t} = id-vanishes t
   /-wk⋆ (suc k) {t} = begin
@@ -530,6 +533,14 @@ record TermLikeLemmas (T₁ T₂ : ℕ → Set) : Set₁ where
     weaken (weaken⋆ k t)      ∎
     where
       open TermSubst termSubst using () renaming (weaken to weaken′)
+
+  /Var-wk⋆ : ∀ {n} k {t : T₁ n} →
+             t /Var VarSubst.wk⋆ k ≡ weaken⋆ k t
+  /Var-wk⋆ k {t} = begin
+    t /Var VarSubst.wk⋆ k          ≡⟨ /-liftSub t ⟩
+    t / liftSub (VarSubst.wk⋆ k)   ≡⟨ cong (t /_) (liftSub-wk⋆ k) ⟩
+    t / wk⋆ k                      ≡⟨ /-wk⋆ k ⟩
+    weaken⋆ k t                    ∎
 
   open SimpleExt (TermLemmas.simple termLemmas) public using (_/∷_)
 

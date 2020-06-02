@@ -341,11 +341,11 @@ Tm∈-ctx (∈-⇑ a∈b b<:c)      = Tm∈-ctx a∈b
 
 -- A shorthand for kindings and typings of Ts by kind or type
 -- ascriptions.
-AscTyping : (ℕ → Set) → Set₁
-AscTyping T = Typing TermAsc T TermAsc
+TermAscTyping : (ℕ → Set) → Set₁
+TermAscTyping T = Typing TermAsc T TermAsc
 
--- Substitutions typed by kind and type ascriptions.
-module AscTypedSub {T} (l : Lift T Term) (_⊢T_∈_ : AscTyping T) where
+-- Generic variable substitutions between TermCtx contexts.
+module TermCtxSub {T} (l : Lift T Term) (_⊢T_∈_ : TermAscTyping T) where
 
   typedSub : TypedSub TermAsc T TermAsc
   typedSub = record
@@ -357,20 +357,20 @@ module AscTypedSub {T} (l : Lift T Term) (_⊢T_∈_ : AscTyping T) where
 
   open TypedSub typedSub public hiding (_⊢_∈_)
 
--- Typed liftings from Ts to well-kinded types or well-typed terms.
-LiftToTpOrTm : ∀ {T} → Lift T Term → AscTyping T → Set
-LiftToTpOrTm l _⊢T_∈_ = LiftTyped l typedSub _⊢_∈_
-  where open AscTypedSub l _⊢T_∈_ using (typedSub)
+-- Liftings from well-typed Ts to well-typed/kinded terms/types.
+LiftTo-∈ : ∀ {T} → Lift T Term → TermAscTyping T → Set
+LiftTo-∈ l _⊢T_∈_ = LiftTyped l typedSub _⊢_∈_
+  where open TermCtxSub l _⊢T_∈_ using (typedSub)
 
 -- Application of well-typed substitutions to terms, types, kinds.
-record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
-                     (lt : LiftToTpOrTm l _⊢T_∈_) : Set where
+record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
+                     (lt : LiftTo-∈ l _⊢T_∈_) : Set where
   open LiftTyped lt hiding (weaken-/)
   open Substitution using  (_[_]; _Kind[_]; weaken)
   private
     module A = SubstApp l
     module L = Lift l
-    module S = AscTypedSub l _⊢T_∈_
+    module S = TermCtxSub l _⊢T_∈_
 
   field
     -- Substitutions in kinds and types commute.
@@ -418,8 +418,8 @@ record TypedSubstApp {T} l {_⊢T_∈_ : AscTyping T}
             Γ ⊢Tp a ∈ k → Δ ⊢/ σ ∈ Γ → Δ ⊢Tp a A./ σ ∈ k A.Kind/ σ
     Tp∈-/ (∈-var x Γ-ctx Γ[x]≡kd-k) σ∈Γ =
       liftTp (cong (_/ _) Γ[x]≡kd-k) (S.lookup x σ∈Γ)
-    Tp∈-/ (∈-⊥-f Γ-ctx) (_ , Δ-ctx) = ∈-⊥-f Δ-ctx
-    Tp∈-/ (∈-⊤-f Γ-ctx) (_ , Δ-ctx) = ∈-⊤-f Δ-ctx
+    Tp∈-/ (∈-⊥-f Γ-ctx)    σ∈Γ = ∈-⊥-f (/∈-wf σ∈Γ)
+    Tp∈-/ (∈-⊤-f Γ-ctx)    σ∈Γ = ∈-⊤-f (/∈-wf σ∈Γ)
     Tp∈-/ (∈-∀-f k-kd a∈*) σ∈Γ =
       ∈-∀-f k/σ-kd (Tp∈-/ a∈* (∈-↑ (wf-kd k/σ-kd) σ∈Γ))
       where k/σ-kd = kd-/ k-kd σ∈Γ
@@ -689,10 +689,10 @@ module WfCtxOps where
 
 -- Well-kinded/typed type and term substitutions.
 module TypedSubstitution where
-  open Substitution                        hiding (subst)
-  open SimpleExt     simple                using (extension)
-  open TermSubst     termSubst             using (termLift)
-  open AscTypedSub   termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
+  open Substitution                       hiding (subst)
+  open SimpleExt    simple                using (extension)
+  open TermSubst    termSubst             using (termLift)
+  open TermCtxSub   termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
   open TypedRenaming public
     using ( wf-weaken; kd-weaken; Tp∈-weaken
           ; <∷-weaken; <:-weaken; ∈-weaken; ≤-weaken)

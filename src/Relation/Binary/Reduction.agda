@@ -2,6 +2,8 @@
 -- Generic support for reduction relations.
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe --without-K #-}
+
 module Relation.Binary.Reduction where
 
 open import Data.Fin using (Fin)

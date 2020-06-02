@@ -2,6 +2,8 @@
 -- Syntax of Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Syntax where
 
 open import Algebra using (Monoid)
@@ -1020,7 +1022,6 @@ module Substitution where
     ; _/Var_  to _Elim/Var_
     ; weaken  to weakenElim
     ; weaken⋆ to weakenElim⋆
-    ; /-wk⋆   to Elim/-wk⋆
     )
 
   termLikeLemmasKind′ : TermLikeLemmas (Kind Elim) Term
@@ -1036,7 +1037,6 @@ module Substitution where
     ; _/Var_  to _Kind′/Var_
     ; weaken  to weakenKind′
     ; weaken⋆ to weakenKind′⋆
-    ; /-wk⋆   to Kind′/-wk⋆
     )
 
   termLikeLemmasTermAsc : TermLikeLemmas TermAsc Term
@@ -1280,12 +1280,17 @@ module ContextConversions where
   module ⌊⌋Ctx-Lemmas = ConversionLemmas ElimCtx.weakenOps SimpleCtx.weakenOps
 
   -- Context simplification commutes with context lookup.
+
+  ⌊⌋Asc-lookup : ∀ {n} x (Γ : ElimCtx.Ctx n) →
+                 SimpleCtx.lookup x ⌊ Γ ⌋Ctx ≡ ⌊ ElimCtx.lookup x Γ ⌋Asc
+  ⌊⌋Asc-lookup x Γ =
+    ⌊⌋Ctx-Lemmas.lookup-map x ⌊_⌋Asc [] Γ (λ a → sym (⌊⌋-ElimAsc/Var a))
+
   ⌊⌋-lookup : ∀ {n} x (Γ : ElimCtx.Ctx n) {k} → ElimCtx.lookup x Γ ≡ kd k →
               SimpleCtx.lookup x ⌊ Γ ⌋Ctx ≡ kd ⌊ k ⌋
   ⌊⌋-lookup x Γ {k} Γ[x]≡kd-k = begin
       SimpleCtx.lookup x ⌊ Γ ⌋Ctx
-    ≡⟨ ⌊⌋Ctx-Lemmas.lookup-map x ⌊_⌋Asc [] Γ
-                               (λ a → sym (⌊⌋-ElimAsc/Var a)) ⟩
+    ≡⟨ ⌊⌋Asc-lookup x Γ ⟩
       ⌊ ElimCtx.lookup x Γ ⌋Asc
     ≡⟨ cong ⌊_⌋Asc Γ[x]≡kd-k ⟩
       kd ⌊ k ⌋

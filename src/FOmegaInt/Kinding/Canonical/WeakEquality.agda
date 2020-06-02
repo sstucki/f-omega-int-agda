@@ -40,7 +40,7 @@ mutual
     <∷-⋯ (≈-<: a₂⇉a₂⋯a₂ a₁⇉a₁⋯a₁ (≈-sym a₁≈a₂)) (≈-<: b₁⇉b₁⋯b₁ b₂⇉b₂⋯b₂ b₁≈b₂)
   ≋-<∷ (kd-Π j₁-kd k₁-kd) (kd-Π j₂-kd k₂-kd) (≋-Π j₁≋j₂ k₁≋k₂) =
     let j₂<∷j₁ = ≋-<∷ j₂-kd j₁-kd (≋-sym j₁≋j₂)
-    in <∷-Π j₂<∷j₁ (≋-<∷ (⇓-kd [] j₂-kd j₂<∷j₁ k₁-kd) k₂-kd k₁≋k₂)
+    in <∷-Π j₂<∷j₁ (≋-<∷ (⇓-kd j₂-kd j₂<∷j₁ k₁-kd) k₂-kd k₁≋k₂)
             (kd-Π j₁-kd k₁-kd)
 
   ≈-<: : ∀ {n} {Γ : Ctx n} {a b} →
@@ -52,7 +52,7 @@ mutual
   ≈-<: (⇉-∀-f k₁-kd a₁⇉a₁⋯a₁) (⇉-∀-f k₂-kd a₂⇉a₂⋯a₂)
        (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) ≈-[]) =
     let k₂<∷k₁ = ≋-<∷ k₂-kd k₁-kd (≋-sym k₁≋k₂)
-    in <:-∀ k₂<∷k₁ (≈-<: (⇓-Nf⇉ [] k₂-kd k₂<∷k₁ a₁⇉a₁⋯a₁) a₂⇉a₂⋯a₂ a₁≈a₂)
+    in <:-∀ k₂<∷k₁ (≈-<: (⇓-Nf⇉ k₂-kd k₂<∷k₁ a₁⇉a₁⋯a₁) a₂⇉a₂⋯a₂ a₁≈a₂)
             (⇉-∀-f k₁-kd a₁⇉a₁⋯a₁)
   ≈-<: (⇉-∀-f _ _) (⇉-s-i ()) (≈-∙ (≈-∀ _ _) ≈-[])
   ≈-<: (⇉-→-f a₁⇉a₁⋯a₁ b₁⇉b₁⋯b₁) (⇉-→-f a₂⇉a₂⋯a₂ b₂⇉b₂⋯b₂)
@@ -80,8 +80,8 @@ mutual
         (⇇-⇑ (⇉-Π-i j₁-kd a₁⇉k₁) (<∷-Π j<∷j₁ k₁<∷k Πj₁k₁-kd))
         (⇇-⇑ (⇉-Π-i j₂-kd a₂⇉k₂) (<∷-Π j<∷j₂ k₂<∷k Πj₂k₂-kd))
         (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) ≈-[]) =
-    let a₁⇇k = ⇇-⇑ (⇓-Nf⇉ [] j-kd j<∷j₁ a₁⇉k₁) k₁<∷k
-        a₂⇇k = ⇇-⇑ (⇓-Nf⇉ [] j-kd j<∷j₂ a₂⇉k₂) k₂<∷k
+    let a₁⇇k = ⇇-⇑ (⇓-Nf⇉ j-kd j<∷j₁ a₁⇉k₁) k₁<∷k
+        a₂⇇k = ⇇-⇑ (⇓-Nf⇉ j-kd j<∷j₂ a₂⇉k₂) k₂<∷k
         a₁<:a₂⇇k = ≈-<:⇇ k-kd a₁⇇k a₂⇇k a₁≈a₂
     in <:-λ a₁<:a₂⇇k
             (⇇-⇑ (⇉-Π-i j₁-kd a₁⇉k₁) (<∷-Π j<∷j₁ k₁<∷k Πj₁k₁-kd))
@@ -97,15 +97,13 @@ mutual
           (⇉-∷ a₁⇇j₁ j₁-kd k₁[a₁]⇉bs₁⇉c₁⋯d₁)
           (⇉-∷ a₂⇇j₂ j₂-kd k₂[a₂]⇉bs₂⇉c₂⋯d₂) (≈-∷ a₁≈a₂ bs₁≈bs₂) =
     let a₁⇇j     = Nf⇇-⇑ a₁⇇j₁ j₁<∷j
-        k[a₁]-kd = TK.kd-/H k-kd (⇇-hsub [] a₁⇇j j-kd (⌊⌋-⌊⌋≡ _))
+        k[a₁]-kd = TK.kd-/⟨⟩ k-kd (⇇-hsub a₁⇇j j-kd (⌊⌋-⌊⌋≡ _))
         a₁≃a₂⇇j  = ≈-≃ j-kd a₁⇇j (Nf⇇-⇑ a₂⇇j₂ j₂<∷j) a₁≈a₂
         k[a₁]<∷k₁[a₁] = subst (λ l → _ ⊢ _ Kind[ _ ∈ l ] <∷ _) (<∷-⌊⌋ j₁<∷j)
-                              (TK.<∷-/H≃ k<∷k₁
-                                         (⇇-hsub [] a₁⇇j₁ j₁-kd (⌊⌋-⌊⌋≡ _)))
+                              (TK.<∷-/⟨⟩≃ k<∷k₁ (⇇-hsub a₁⇇j₁ j₁-kd (⌊⌋-⌊⌋≡ _)))
         k[a₂]<∷k₂[a₂] = subst (λ l → _ ⊢ _ Kind[ _ ∈ l ] <∷ _) (<∷-⌊⌋ j₂<∷j)
-                              (TK.<∷-/H≃ k<∷k₂
-                                         (⇇-hsub [] a₂⇇j₂ j₂-kd (⌊⌋-⌊⌋≡ _)))
-        k[a₁]<∷k[a₂]  = TK.kd-/H≃-<∷ k-kd (≃-hsub [] [] a₁≃a₂⇇j (⌊⌋-⌊⌋≡ _))
+                              (TK.<∷-/⟨⟩≃ k<∷k₂ (⇇-hsub a₂⇇j₂ j₂-kd (⌊⌋-⌊⌋≡ _)))
+        k[a₁]<∷k[a₂]  = TK.kd-/⟨⟩≃-<∷ k-kd (≃-hsub a₁≃a₂⇇j (⌊⌋-⌊⌋≡ _))
         k[a₁]<∷k₂[a₂] = <∷-trans k[a₁]<∷k[a₂] k[a₂]<∷k₂[a₂]
         c , d , k[a₁]⇉bs₁≃bs₂⇉c⋯d = ≈Sp-Sp≃ k[a₁]-kd k[a₁]<∷k₁[a₁] k[a₁]<∷k₂[a₂]
                                             k₁[a₁]⇉bs₁⇉c₁⋯d₁ k₂[a₂]⇉bs₂⇉c₂⋯d₂
