@@ -2,6 +2,8 @@
 -- Normalization/simplification of kinding in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Simple.Normalization where
 
 open import Data.Fin using (Fin; zero; suc; raise; lift)

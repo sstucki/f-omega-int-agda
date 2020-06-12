@@ -2,6 +2,8 @@
 -- η-expansion of simply-kinded types in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Simple.EtaExpansion where
 
 open import Data.Fin using (Fin; zero; suc; raise; lift)

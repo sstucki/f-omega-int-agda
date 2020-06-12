@@ -2,6 +2,8 @@
 -- Typing and kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Typing where
 
 open import Data.Fin using (Fin; zero)

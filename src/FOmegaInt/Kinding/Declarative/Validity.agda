@@ -2,6 +2,8 @@
 -- Validity of declarative kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Declarative.Validity where
 
 open import Data.Fin using (zero)

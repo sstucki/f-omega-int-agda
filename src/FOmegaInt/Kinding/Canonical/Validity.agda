@@ -2,6 +2,8 @@
 -- Validity of canonical kinding in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Canonical.Validity where
 
 open import Data.Product using (∃; _,_; _×_; proj₁; proj₂)

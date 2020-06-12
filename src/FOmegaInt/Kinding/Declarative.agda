@@ -2,6 +2,8 @@
 -- A variant of declarative kinding in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Declarative where
 
 open import Data.Fin using (Fin; zero)

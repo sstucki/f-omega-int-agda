@@ -3,6 +3,8 @@
 -- interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Declarative.Equivalence where
 
 open import Data.Product using (proj₁)

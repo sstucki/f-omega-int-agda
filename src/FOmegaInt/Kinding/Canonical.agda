@@ -2,6 +2,8 @@
 -- Canonical kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Canonical where
 
 open import Data.Fin using (Fin; zero; suc)

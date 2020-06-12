@@ -2,6 +2,8 @@
 -- Binary relations lifted to substitutions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module Data.Fin.Substitution.Relation where
 
 open import Data.Fin using (Fin; zero; suc)

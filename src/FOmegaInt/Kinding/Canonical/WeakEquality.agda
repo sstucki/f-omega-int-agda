@@ -2,6 +2,8 @@
 -- Lifting of weak equality to canonical equality
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Canonical.WeakEquality where
 
 open import Data.Product as Prod using (∃; _×_; _,_)

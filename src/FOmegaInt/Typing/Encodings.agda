@@ -3,6 +3,8 @@
 -- Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Typing.Encodings where
 
 open import Data.Fin using (zero)

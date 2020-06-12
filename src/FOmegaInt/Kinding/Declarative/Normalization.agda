@@ -3,6 +3,8 @@
 -- interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Declarative.Normalization where
 
 open import Data.Fin using (zero)

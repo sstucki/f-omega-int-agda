@@ -2,6 +2,8 @@
 -- Canonically kinded hereditary substitutions in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Canonical.HereditarySubstitution where
 
 open import Data.Fin using (Fin; zero; suc; raise; lift)

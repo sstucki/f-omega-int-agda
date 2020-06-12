@@ -2,6 +2,8 @@
 -- Call-by-value (CBV) reduction in Fω with interval kinds.
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Reduction.Cbv where
 
 open import Data.Fin.Substitution

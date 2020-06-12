@@ -2,6 +2,8 @@
 -- Inversion of canonical subtyping in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Canonical.Inversion where
 
 open import Data.Product using (_,_; _×_; proj₁; proj₂)

@@ -2,6 +2,8 @@
 -- Subject reduction for typing in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 -- This module proves a variant of subject reduction (aka the
 -- "preservation" theorem) for term reduction in Fω with interval
 -- kinds.  The subject reduction property proved here is weaker than

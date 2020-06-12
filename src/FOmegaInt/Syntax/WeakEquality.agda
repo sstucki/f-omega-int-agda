@@ -2,6 +2,8 @@
 -- Untyped kind/type/term equality in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Syntax.WeakEquality where
 
 open import Data.Fin using (Fin; zero; suc; raise)

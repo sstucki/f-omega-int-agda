@@ -481,12 +481,10 @@ module _ where
 
   -- NOTE. Unfortunately, we cannot prove that arbitrary untyped
   -- hereditary substitutions commute, because *untyped* hereditary
-  -- substitutions need not commute with reducting applications
-  -- (i.e. the lemmas `∙∙⟨⟩-/H-↑⋆' and `⌜·⌝⟨⟩-/H-↑⋆' do not hold in
-  -- that general case).  We will prove a weaker result, namely that
-  -- well-kinded hereditary substitutions in well-kinded types
-  -- commute, later.  See e.g. `Nf∈-[]-/H-↑⋆` etc. in module
-  -- Kinding.Simple.
+  -- substitutions need not commute with reducting applications in
+  -- general.  We will prove a weaker result, namely that well-kinded
+  -- hereditary substitutions in well-kinded types commute, later.
+  -- See e.g. `Nf∈-[]-/⟨⟩-↑⋆` etc. in module Kinding.Simple.
 
 -- Some commutation lemmas up to βη-equality.
 

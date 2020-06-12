@@ -2,6 +2,8 @@
 -- Well-typed binary relations lifted to substitutions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module Data.Fin.Substitution.TypedRelation where
 
 open import Data.Fin using (Fin; zero; suc)

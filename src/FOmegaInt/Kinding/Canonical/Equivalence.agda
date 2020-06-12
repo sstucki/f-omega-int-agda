@@ -3,6 +3,8 @@
 -- interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Kinding.Canonical.Equivalence where
 
 open import Data.Fin using (zero)

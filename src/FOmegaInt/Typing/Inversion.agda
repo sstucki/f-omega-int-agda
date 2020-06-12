@@ -2,6 +2,8 @@
 -- Inversion of (sub)typing in Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Typing.Inversion where
 
 open import Data.Product using (_,_; proj₁; proj₂; _×_; map)

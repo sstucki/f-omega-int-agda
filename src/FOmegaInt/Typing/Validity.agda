@@ -2,6 +2,8 @@
 -- Validity of declarative typing and kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module FOmegaInt.Typing.Validity where
 
 open import Data.Fin using (Fin; suc; zero)

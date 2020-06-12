@@ -3,6 +3,8 @@
 -- relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --safe #-}
+
 module Relation.Binary.TransReasoning where
 
 open import Level using (suc; _⊔_)
