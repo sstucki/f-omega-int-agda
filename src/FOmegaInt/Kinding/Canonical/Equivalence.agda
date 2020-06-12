@@ -3,7 +3,7 @@
 -- interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Canonical.Equivalence where
 

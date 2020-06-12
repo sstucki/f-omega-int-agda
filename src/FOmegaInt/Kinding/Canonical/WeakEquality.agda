@@ -2,7 +2,7 @@
 -- Lifting of weak equality to canonical equality
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Canonical.WeakEquality where
 
@@ -45,8 +45,8 @@ mutual
     in <∷-Π j₂<∷j₁ (≋-<∷ (⇓-kd j₂-kd j₂<∷j₁ k₁-kd) k₂-kd k₁≋k₂)
             (kd-Π j₁-kd k₁-kd)
 
-  ≈-<: : ∀ {n} {Γ : Ctx n} {a b} →
-         Γ ⊢Nf a ⇉ a ⋯ a → Γ ⊢Nf b ⇉ b ⋯ b → a ≈ b → Γ ⊢ a <: b
+  ≈-<: : ∀ {n} {Γ : Ctx n} {a a₁ a₂ b b₁ b₂} →
+         Γ ⊢Nf a ⇉ a₁ ⋯ a₂ → Γ ⊢Nf b ⇉ b₁ ⋯ b₂ → a ≈ b → Γ ⊢ a <: b
   ≈-<: (⇉-⊥-f Γ-ctx) (⇉-⊥-f _)  (≈-∙ ≈-⊥ ≈-[]) = <:-⊥ (⇉-⊥-f Γ-ctx)
   ≈-<: (⇉-⊥-f _)     (⇉-s-i ()) (≈-∙ ≈-⊥ ≈-[])
   ≈-<: (⇉-⊤-f Γ-ctx) (⇉-⊤-f _)  (≈-∙ ≈-⊤ ≈-[]) = <:-⊤ (⇉-⊤-f Γ-ctx)

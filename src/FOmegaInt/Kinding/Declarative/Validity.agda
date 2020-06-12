@@ -2,7 +2,7 @@
 -- Validity of declarative kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Declarative.Validity where
 

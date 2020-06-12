@@ -2,7 +2,7 @@
 -- Normalization/simplification of kinding in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Simple.Normalization where
 

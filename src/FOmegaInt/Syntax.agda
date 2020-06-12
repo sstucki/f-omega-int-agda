@@ -2,7 +2,7 @@
 -- Syntax of Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Syntax where
 

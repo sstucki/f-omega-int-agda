@@ -2,7 +2,7 @@
 -- Full β-reduction in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Reduction.Full where
 

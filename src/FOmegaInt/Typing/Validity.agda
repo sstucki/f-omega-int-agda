@@ -2,7 +2,7 @@
 -- Validity of declarative typing and kinding of Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Typing.Validity where
 

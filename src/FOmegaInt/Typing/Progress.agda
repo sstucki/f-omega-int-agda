@@ -2,7 +2,7 @@
 -- Progress of CBV reductions in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 -- This module contains a variant of the "progress" theorem for Fω
 -- with interval kinds.  Progress says roughly that well-typed terms

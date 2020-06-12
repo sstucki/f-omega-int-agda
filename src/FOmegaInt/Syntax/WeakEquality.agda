@@ -2,7 +2,7 @@
 -- Untyped kind/type/term equality in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Syntax.WeakEquality where
 

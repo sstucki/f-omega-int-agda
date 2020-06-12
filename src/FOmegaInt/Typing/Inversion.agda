@@ -2,7 +2,7 @@
 -- Inversion of (sub)typing in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Typing.Inversion where
 

@@ -2,7 +2,7 @@
 -- Inversion of canonical subtyping in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Canonical.Inversion where
 

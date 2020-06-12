@@ -2,7 +2,7 @@
 -- η-expansion of simply-kinded types in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Simple.EtaExpansion where
 

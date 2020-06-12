@@ -2,7 +2,7 @@
 -- Canonically kinded hereditary substitutions in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module FOmegaInt.Kinding.Canonical.HereditarySubstitution where
 
@@ -232,12 +232,20 @@ lookup-/⟨⟩≃ (≃-H↑ {k = k} {Γ} {σ} {_} {_} {l} j≅l/σ _ σ≃τ⇇�
 /⟨⟩≃-sym (≃-H↑ a≅b/σ a≅b/τ σ≃τ∈Γ) = ≃-H↑ a≅b/τ a≅b/σ (/⟨⟩≃-sym σ≃τ∈Γ)
 
 -- Simplification of kinded substitutions.
+--
+-- NOTE. The second substitution τ is ignored by the simplification.
+-- It is tempting to rephrase the lemma in terms of _⊢/⟨_⟩_⇇_ instead
+-- of _⊢/⟨_⟩_≃_⇇_ but that introduces extra constraints for the Agda
+-- pattern matcher that require UIP (aka axiom K) to resolve.  Since
+-- this assumption is unnecessary, we prove the more general version
+-- instead. (See the Agda documentation about the --without-K option
+-- for more info).
 
-/⟨⟩⇇-/⟨⟩∈ : ∀ {k m n Δ Γ} {σ : SVSub m n} →
-            Δ ⊢/⟨ k ⟩ σ ⇇ Γ → ⌊ Δ ⌋Ctx ⊢/⟨ k ⟩ σ ∈ ⌊ Γ ⌋Ctx
-/⟨⟩⇇-/⟨⟩∈ (≃-hsub a≃a⇇j ⌊j⌋≡k) =
+/⟨⟩⇇-/⟨⟩∈ : ∀ {k m n Δ Γ} {σ τ : SVSub m n} →
+            Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → ⌊ Δ ⌋Ctx ⊢/⟨ k ⟩ σ ∈ ⌊ Γ ⌋Ctx
+/⟨⟩⇇-/⟨⟩∈ (≃-hsub a≃b⇇j ⌊j⌋≡k) =
   subst (_ ⊢/⟨_⟩ _ ∈ _) (⌊⌋≡⇒⌊⌋-≡ ⌊j⌋≡k)
-        (∈-hsub (Nf⇇-Nf∈ (proj₁ (≃-valid a≃a⇇j))))
+        (∈-hsub (Nf⇇-Nf∈ (proj₁ (≃-valid a≃b⇇j))))
 /⟨⟩⇇-/⟨⟩∈ (≃-H↑ {Δ = Δ} {k} {Γ} {σ} {_} {j} {l} j≅l/σ _ σ≃σ∈Γ) =
   subst ((_⊢/⟨ k ⟩ σ ↑ ∈ ⌊ kd l ∷ Γ ⌋Ctx) ∘ (_∷ ⌊ Δ ⌋Ctx)) (begin
           ⌊ kd l ⌋Asc              ≡˘⟨ ⌊⌋-Asc/⟨⟩ (kd l) ⟩
@@ -577,10 +585,13 @@ module TrackSimpleKindsSubst where
                            (kd-/⟨⟩≃-<∷ k-kd τ≃σ⇇Γ) k/σ-kd)
 
     -- Applications in canonical kind checking are admissible.
+    --
+    -- NOTE. In the ?⇇-⇑-?∙∙ lemma, the second result r₂ is ignored.
+    -- See the comment above on /⟨⟩⇇-/⟨⟩∈ for an explanation.
 
-    ?⇇-⇑-?∙∙ : ∀ {k n} {Γ : Ctx n} {r a j as b c} →
-               Γ ⊢?⟨ k ⟩ r ⇇ a → Γ ⊢ a ≤ kd j →
-               Γ ⊢ j ⇉∙ as ⇉ b ⋯ c → Γ ⊢Nf r ?∙∙⟨ k ⟩ as ⇇ b ⋯ c
+    ?⇇-⇑-?∙∙ : ∀ {k n} {Γ : Ctx n} {r₁ r₂ a j as b c} →
+               Γ ⊢?⟨ k ⟩ r₁ ≃ r₂ ⇇ a → Γ ⊢ a ≤ kd j →
+               Γ ⊢ j ⇉∙ as ⇉ b ⋯ c → Γ ⊢Nf r₁ ?∙∙⟨ k ⟩ as ⇇ b ⋯ c
     ?⇇-⇑-?∙∙ (≃-hit a≃a⇇j ⌊j⌋≡k) j≤l l⇉as⇉b⋯c =
       Nf⇇-∙∙ (Nf⇇-⇑-≤ (proj₁ (≃-valid a≃a⇇j)) j≤l) l⇉as⇉b⋯c
              (⌊⌋≡-trans (sym (≤-⌊⌋ j≤l)) ⌊j⌋≡k)

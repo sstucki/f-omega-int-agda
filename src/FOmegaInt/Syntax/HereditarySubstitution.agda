@@ -2,7 +2,7 @@
 -- Untyped hereditary substitution in Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe --exact-split #-}
+{-# OPTIONS --safe --exact-split --without-K #-}
 
 module FOmegaInt.Syntax.HereditarySubstitution where
 

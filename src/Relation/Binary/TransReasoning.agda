@@ -3,7 +3,7 @@
 -- relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module Relation.Binary.TransReasoning where
 

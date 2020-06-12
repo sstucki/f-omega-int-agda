@@ -2,7 +2,7 @@
 -- Fω with interval kinds
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 -- Author: Sandro Stucki
 -- Copyright (c) 2017-2020 EPFL
