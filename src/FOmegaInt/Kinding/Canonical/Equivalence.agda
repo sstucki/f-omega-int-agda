@@ -125,12 +125,9 @@ mutual
                Γ ⊢Var x ∈ k → ⌞ Γ ⌟Ctx O.⊢Tp var x ∈ ⌞ k ⌟Kd
   sound-Var∈ {_} {Γ} (⇉-var {k} x Γ-ctx Γ[x]≡kd-k) =
     ∈-var x (sound-ctx Γ-ctx) (begin
-        TermCtx.lookup x ⌞ Γ ⌟Ctx
-      ≡⟨ ⌞⌟Ctx-Lemmas.lookup-map x ⌞_⌟Asc [] Γ (λ a → sym (⌞⌟Asc-weaken a)) ⟩
-        ⌞ lookup x Γ ⌟Asc
-      ≡⟨ cong ⌞_⌟Asc Γ[x]≡kd-k ⟩
-        kd ⌞ k ⌟Kd
-      ∎)
+      TermCtx.lookup ⌞ Γ ⌟Ctx x  ≡⟨ ⌞⌟Asc-lookup Γ x ⟩
+      ⌞ lookup Γ x ⌟Asc          ≡⟨ cong ⌞_⌟Asc Γ[x]≡kd-k ⟩
+      kd ⌞ k ⌟Kd                 ∎)
     where
       open ≡-Reasoning
       open Substitution using (⌞⌟Asc-weaken)
@@ -323,7 +320,7 @@ module CompletenessExtended where
     complete-Tp∈ : ∀ {n} {Γ : E.Ctx n} {a k} → Γ E.⊢Tp a ∈ k →
                    nfCtx Γ ⊢Nf nf (nfCtx Γ) a ⇇ nfKind (nfCtx Γ) k
     complete-Tp∈ {_} {Γ} (∈-var x Γ-ctx Γ[x]≡kd-k)
-      with C.lookup x (nfCtx Γ) | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
+      with C.lookup (nfCtx Γ) x | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
     complete-Tp∈ {_} {Γ} (∈-var x Γ-ctx Γ[x]≡kd-k) | kd ._ | refl =
       η-exp-Var∈ (WfCtxOps.lookup-kd x nf-Γ-ctx nf-Γ[x]≡kd-nf-k)
                  (⇉-var x nf-Γ-ctx nf-Γ[x]≡kd-nf-k)

@@ -169,7 +169,7 @@ mutual
   Tp∈-≃-⌞⌟-nf : ∀ {n} {Γ : Ctx n} {a k} →
                 Γ ⊢Tp a ∈ k → Γ ⊢ a ≃ ⌞ nf (nfCtx Γ) a ⌟ ∈ k
   Tp∈-≃-⌞⌟-nf {_} {Γ} (∈-var {k} x Γ-ctx Γ[x]≡kd-k)
-    with ElimCtx.lookup x (nfCtx Γ) | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
+    with ElimCtx.lookup (nfCtx Γ) x | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
   ... | kd ._ | refl =
     ≃-⇑ (Tp∈-⌞⌟-≃-η (∈-⇑ (∈-var x Γ-ctx Γ[x]≡kd-k) (≅⇒<∷ k≅⌞nf-k⌟)))
         (≅⇒<∷ (≅-sym k≅⌞nf-k⌟))
@@ -179,10 +179,9 @@ mutual
 
       Γ≃⌞nf-Γ⌟         = ctx-≃-⌞⌟-nf Γ-ctx
       ⌞nf-Γ⌟[x]≡kd-⌞k⌟ = begin
-          lookup x ⌞ nfCtx Γ ⌟Ctx
-        ≡⟨ ⌞⌟Ctx-Lemmas.lookup-map x ⌞_⌟Asc [] (nfCtx Γ)
-                                   (λ a → sym (⌞⌟Asc-weaken a)) ⟩
-          ⌞ ElimCtx.lookup x (nfCtx Γ) ⌟Asc
+          lookup ⌞ nfCtx Γ ⌟Ctx x
+        ≡⟨ ⌞⌟Asc-lookup (nfCtx Γ) x ⟩
+          ⌞ ElimCtx.lookup (nfCtx Γ) x ⌟Asc
         ≡⟨ cong ⌞_⌟Asc (nfCtx-lookup-kd x Γ Γ[x]≡kd-k) ⟩
           kd ⌞ nfKind (nfCtx Γ) k ⌟Kd
         ∎

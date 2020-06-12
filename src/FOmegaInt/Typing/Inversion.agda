@@ -35,7 +35,7 @@ infix 4 _⊢Tm-gen_∈_
 -- The possible types of a term (i.e. the possible results of
 -- generating/inverting _⊢Tp_∈_).
 data _⊢Tm-gen_∈_ {n} (Γ : Ctx n) : Term n → Term n → Set where
-  ∈-var : ∀ {a b} x → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢ a <: b ∈ * →
+  ∈-var : ∀ {a b} x → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢ a <: b ∈ * →
           Γ ⊢Tm-gen var x ∈ b
   ∈-∀-i : ∀ {k a b c} → Γ ⊢ k kd → kd k ∷ Γ ⊢Tm a ∈ b → Γ ⊢ Π k b <: c ∈ * →
           Γ ⊢Tm-gen Λ k a ∈ c

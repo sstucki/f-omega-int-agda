@@ -101,7 +101,7 @@ module Kinding where
 
     -- Kinding derivations.
     data _⊢Tp_∈_ {n} (Γ : Ctx n) : Term n → Kind Term n → Set where
-      ∈-var : ∀ {k} x → Γ ctx → lookup x Γ ≡ kd k → Γ ⊢Tp var x ∈ k
+      ∈-var : ∀ {k} x → Γ ctx → lookup Γ x ≡ kd k → Γ ⊢Tp var x ∈ k
       ∈-⊥-f : Γ ctx → Γ ⊢Tp ⊥ ∈ *
       ∈-⊤-f : Γ ctx → Γ ⊢Tp ⊤ ∈ *
       ∈-∀-f : ∀ {k a} → Γ ⊢ k kd → kd k ∷ Γ ⊢Tp a ∈ * → Γ ⊢Tp Π k a ∈ *
@@ -173,32 +173,32 @@ module Kinding where
   -- Combined kinding of types and term variable typing.
   data _⊢_∈_ {n} (Γ : Ctx n) : Term n → TermAsc n → Set where
     ∈-tp  : ∀ {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ∈ kd k
-    ∈-var : ∀ x {a} → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢ var x ∈ tp a
+    ∈-var : ∀ x {a} → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢ var x ∈ tp a
 
   -- Combined type equality and syntactic term variable equality (used
   -- for well-formed equality lifted to substitutions).
   data _⊢_≃⊎≡_∈_ {n} (Γ : Ctx n) : Term n → Term n → TermAsc n → Set where
     ≃-tp  : ∀ {a b k} → Γ ⊢ a ≃ b ∈ k           → Γ ⊢ a     ≃⊎≡ b     ∈ kd k
-    ≃-var : ∀ x {a} → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢ var x ≃⊎≡ var x ∈ tp a
+    ≃-var : ∀ x {a} → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢ var x ≃⊎≡ var x ∈ tp a
 
   open PropEq using ([_])
 
   -- Derived variable rules.
 
-  ∈-var′ : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ∈ lookup x Γ
-  ∈-var′ {Γ = Γ} x Γ-ctx with lookup x Γ | inspect (lookup x) Γ
+  ∈-var′ : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ∈ lookup Γ x
+  ∈-var′ {Γ = Γ} x Γ-ctx with lookup Γ x | inspect (lookup Γ) x
   ∈-var′ x Γ-ctx | kd k | [ Γ[x]≡kd-k ] = ∈-tp (∈-var x Γ-ctx Γ[x]≡kd-k)
   ∈-var′ x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ∈-var x Γ-ctx Γ[x]≡tp-a
 
-  ≃⊎≡-var : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ≃⊎≡ var x ∈ lookup x Γ
-  ≃⊎≡-var {Γ = Γ} x Γ-ctx with lookup x Γ | inspect (lookup x) Γ
+  ≃⊎≡-var : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ≃⊎≡ var x ∈ lookup Γ x
+  ≃⊎≡-var {Γ = Γ} x Γ-ctx with lookup Γ x | inspect (lookup Γ) x
   ≃⊎≡-var x Γ-ctx | kd k | [ Γ[x]≡kd-k ] =
     let x∈a = ∈-var x Γ-ctx Γ[x]≡kd-k
     in ≃-tp (<:-antisym (<:-refl x∈a) (<:-refl x∈a))
   ≃⊎≡-var x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ≃-var x Γ-ctx Γ[x]≡tp-a
 
-  open WellFormedContext (_⊢_wf) public hiding (_wf)
-    renaming (_⊢_wfExt to _⊢_ext; _⊢_wfExt′ to _⊢_ext′)
+  open WellFormedContext (_⊢_wf) public
+    hiding (_wf) renaming (_⊢_wfExt to _⊢_ext)
 
 
 ------------------------------------------------------------------------
@@ -447,7 +447,7 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
     Tp∈-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k σ} →
             Γ ⊢Tp a ∈ k → Δ ⊢/ σ ∈ Γ → Δ ⊢Tp a A./ σ ∈ k A.Kind/ σ
     Tp∈-/ (∈-var x Γ-ctx Γ[x]≡kd-k) σ∈Γ =
-      liftTp (cong (_/ _) Γ[x]≡kd-k) (S.lookup x σ∈Γ)
+      liftTp (cong (_/ _) Γ[x]≡kd-k) (S.lookup σ∈Γ x)
     Tp∈-/ (∈-⊥-f Γ-ctx)    σ∈Γ = ∈-⊥-f (/∈-wf σ∈Γ)
     Tp∈-/ (∈-⊤-f Γ-ctx)    σ∈Γ = ∈-⊤-f (/∈-wf σ∈Γ)
     Tp∈-/ (∈-∀-f k-kd a∈*) σ∈Γ =
@@ -600,7 +600,7 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
         Γ ⊢ a ∈ b → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A./ σ ∈ b A.TermAsc/ σ
   ∈-/ (∈-tp a∈b)                σ∈Γ = ∈-tp (Tp∈-/ a∈b σ∈Γ)
   ∈-/ (∈-var x Γ-ctx Γ[x]≡tp-a) σ∈Γ =
-    subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a) (lift (S.lookup x σ∈Γ))
+    subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a) (lift (S.lookup σ∈Γ x))
 
   -- Substitutions preserve type and syntactic term equality.
   ≃⊎≡-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b c σ} →
@@ -609,7 +609,7 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
   ≃⊎≡-/ (≃-tp a≃b∈k) σ∈Γ              = ≃-tp (≃-/ a≃b∈k σ∈Γ)
   ≃⊎≡-/ (≃-var x Γ-ctx Γ[x]≡tp-a) σ∈Γ =
     let x/σ∈tp-a/σ = subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a)
-                           (lift (S.lookup x σ∈Γ))
+                           (lift (S.lookup σ∈Γ x))
     in ≃⊎≡-refl x/σ∈tp-a/σ
 
 -- Well-kinded type variable substitutions (renamings).
@@ -705,9 +705,9 @@ module WfCtxOps where
 
   -- Lookup the kind of a type variable in a well-formed context.
   lookup-kd : ∀ {m} {Γ : Ctx m} {k} x →
-              Γ ctx → TermCtx.lookup x Γ ≡ kd k → Γ ⊢ k kd
+              Γ ctx → TermCtx.lookup Γ x ≡ kd k → Γ ⊢ k kd
   lookup-kd x Γ-ctx Γ[x]≡kd-k =
-    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-k (W.lookup x Γ-ctx))
+    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-k (W.lookup Γ-ctx x))
 
 -- Well-kinded type substitutions.
 module KindedSubstitution where
@@ -1007,7 +1007,7 @@ module WfSubstitutionEquality where
       (≃⊎≡-kd-inv (cong (_TermAsc/ ρ) Γ[x]≡kd-k)
                   (subst (_ ⊢ _ ≃⊎≡ _ ∈_)
                          (cong (_ TermAsc/_) (π₁-zip ρ σ))
-                         (≃-lookup x ρ≃σ∈Γ)))
+                         (≃-lookup ρ≃σ∈Γ x)))
     Tp∈-/≃ (∈-⊥-f Γ-ctx) (ρ∈Γ , _) = ≃-refl (∈-⊥-f (/∈-wf ρ∈Γ))
     Tp∈-/≃ (∈-⊤-f Γ-ctx) (ρ∈Γ , _) = ≃-refl (∈-⊤-f (/∈-wf ρ∈Γ))
     Tp∈-/≃ (∈-∀-f k-kd a∈*) ρ≃σ∈Γ =

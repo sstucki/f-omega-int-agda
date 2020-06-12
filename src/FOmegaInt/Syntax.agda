@@ -1156,12 +1156,11 @@ module Substitution where
 
 -- Generic typing contexts over T-ascriptions and useful operations.
 record KdOrTpCtx (T : ℕ → Set) : Set₁ where
-  open Context public hiding (Ctx; CtxExt; CtxExt′)
+  open Context public hiding (Ctx; CtxExt)
 
   -- Contexts and context extensions.
   Ctx     = Context.Ctx     (KdOrTp T)
   CtxExt  = Context.CtxExt  (KdOrTp T)
-  CtxExt′ = Context.CtxExt′ (KdOrTp T)
 
   -- Operations such as context lookup and substitutions in context
   -- extensions require some extra substitution machinery for
@@ -1180,14 +1179,7 @@ record KdOrTpCtx (T : ℕ → Set) : Set₁ where
   open WeakenOpsLemmas  weakenOps           public
   open ConversionLemmas weakenOps weakenOps public
 
-  open SubstOps termApplication simple public using (_E/_; _E′/_)
-
-  infix 10 _E′[_]
-
-  -- A shorthand for single-variable substitutions in context
-  -- extensions.
-  _E′[_] : ∀ {m n} → CtxExt′ (suc m) n → Term m → CtxExt′ m n
-  Γ′ E′[ a ] = Γ′ E′/ SubstOps.sub termApplication simple a
+  open SubstOps termApplication simple public using (_E/_)
 
 open Substitution
 
@@ -1205,7 +1197,7 @@ module ElimCtx = KdOrTpCtx elimCtx
 -- Concrete typing contexts over simple kind ascriptions and useful
 -- operations.
 module SimpleCtx where
-  open Context public hiding (Ctx; CtxExt; CtxExt′)
+  open Context public hiding (Ctx; CtxExt)
   open Maybe   public using  (Maybe) renaming (just to kd; nothing to tp)
 
   -- Simple kind ascriptions.
@@ -1226,7 +1218,6 @@ module SimpleCtx where
   -- Contexts and context extensions over simple kind ascriptions.
   Ctx     = Context.Ctx     SAsc
   CtxExt  = Context.CtxExt  SAsc
-  CtxExt′ = Context.CtxExt′ SAsc
 
   weakenOps : Extension SAsc
   weakenOps = record { weaken = Function.id }
@@ -1236,8 +1227,8 @@ module SimpleCtx where
   open ConversionLemmas weakenOps weakenOps public
 
   -- Change the indexing of a context extension.
-  re-idx : ∀ {k m n} → CtxExt′ k n → CtxExt′ m n
-  re-idx Γ′ = map′ (λ _ k → k) Γ′
+  re-idx : ∀ {k m n} → CtxExt k n → CtxExt m n
+  re-idx Γ = mapExt (λ _ k → k) Γ
 
   open Extension weakenOps public using () renaming (weaken⋆ to weakenSAsc⋆)
 
@@ -1263,35 +1254,45 @@ module ContextConversions where
   open Context
   open SimpleCtx using (kd; ⌊_⌋Asc; ⌊⌋-ElimAsc/Var)
 
-  ⌞_⌟Ctx : ∀ {m n} → ElimCtx.CtxExt m n → TermCtx.CtxExt m n
+  ⌞_⌟Ctx : ∀ {n} → ElimCtx.Ctx n → TermCtx.Ctx n
   ⌞ Γ ⌟Ctx = ElimCtx.map ⌞_⌟Asc Γ
 
-  ⌜_⌝Ctx : ∀ {m n} → TermCtx.CtxExt m n → ElimCtx.CtxExt m n
+  ⌜_⌝Ctx : ∀ {n} → TermCtx.Ctx n → ElimCtx.Ctx n
   ⌜ Γ ⌝Ctx = TermCtx.map ⌜_⌝Asc Γ
 
-  ⌊_⌋Ctx : ∀ {T m n} → CtxExt (KdOrTp T) m n → SimpleCtx.CtxExt m n
+  ⌊_⌋Ctx : ∀ {T n} → Ctx (KdOrTp T) n → SimpleCtx.Ctx n
   ⌊ Γ ⌋Ctx = SimpleCtx.map ⌊_⌋Asc Γ
 
-  ⌊_⌋CtxExt : ∀ {T m n} → CtxExt′ (KdOrTp T) m n → SimpleCtx.CtxExt′ m n
-  ⌊ Γ ⌋CtxExt = SimpleCtx.map′ (λ _ → ⌊_⌋Asc) Γ
+  ⌊_⌋CtxExt : ∀ {T m n} → CtxExt (KdOrTp T) m n → SimpleCtx.CtxExt m n
+  ⌊ Γ ⌋CtxExt = SimpleCtx.mapExt (λ _ → ⌊_⌋Asc) Γ
 
   module ⌞⌟Ctx-Lemmas = ConversionLemmas ElimCtx.weakenOps TermCtx.weakenOps
   module ⌜⌝Ctx-Lemmas = ConversionLemmas TermCtx.weakenOps ElimCtx.weakenOps
   module ⌊⌋Ctx-Lemmas = ConversionLemmas ElimCtx.weakenOps SimpleCtx.weakenOps
 
-  -- Context simplification commutes with context lookup.
+  -- Context conversions commute with context lookup.
 
-  ⌊⌋Asc-lookup : ∀ {n} x (Γ : ElimCtx.Ctx n) →
-                 SimpleCtx.lookup x ⌊ Γ ⌋Ctx ≡ ⌊ ElimCtx.lookup x Γ ⌋Asc
-  ⌊⌋Asc-lookup x Γ =
-    ⌊⌋Ctx-Lemmas.lookup-map x ⌊_⌋Asc [] Γ (λ a → sym (⌊⌋-ElimAsc/Var a))
+  ⌞⌟Asc-lookup : ∀ {n} (Γ : ElimCtx.Ctx n) x →
+                 TermCtx.lookup ⌞ Γ ⌟Ctx x ≡ ⌞ ElimCtx.lookup Γ x ⌟Asc
+  ⌞⌟Asc-lookup Γ x =
+    ⌞⌟Ctx-Lemmas.lookup-map ⌞_⌟Asc Γ x (λ a → sym (⌞⌟Asc-weaken a))
 
-  ⌊⌋-lookup : ∀ {n} x (Γ : ElimCtx.Ctx n) {k} → ElimCtx.lookup x Γ ≡ kd k →
-              SimpleCtx.lookup x ⌊ Γ ⌋Ctx ≡ kd ⌊ k ⌋
-  ⌊⌋-lookup x Γ {k} Γ[x]≡kd-k = begin
-      SimpleCtx.lookup x ⌊ Γ ⌋Ctx
-    ≡⟨ ⌊⌋Asc-lookup x Γ ⟩
-      ⌊ ElimCtx.lookup x Γ ⌋Asc
+  ⌜⌝Asc-lookup : ∀ {n} (Γ : TermCtx.Ctx n) x →
+                 ElimCtx.lookup ⌜ Γ ⌝Ctx x ≡ ⌜ TermCtx.lookup Γ x ⌝Asc
+  ⌜⌝Asc-lookup Γ x =
+    ⌜⌝Ctx-Lemmas.lookup-map ⌜_⌝Asc Γ x (λ a → sym (⌜⌝Asc-weaken a))
+
+  ⌊⌋Asc-lookup : ∀ {n} (Γ : ElimCtx.Ctx n) x →
+                 SimpleCtx.lookup ⌊ Γ ⌋Ctx x ≡ ⌊ ElimCtx.lookup Γ x ⌋Asc
+  ⌊⌋Asc-lookup Γ x =
+    ⌊⌋Ctx-Lemmas.lookup-map ⌊_⌋Asc Γ x (λ a → sym (⌊⌋-ElimAsc/Var a))
+
+  ⌊⌋-lookup : ∀ {n} (Γ : ElimCtx.Ctx n) x {k} → ElimCtx.lookup Γ x ≡ kd k →
+              SimpleCtx.lookup ⌊ Γ ⌋Ctx x ≡ kd ⌊ k ⌋
+  ⌊⌋-lookup Γ x {k} Γ[x]≡kd-k = begin
+      SimpleCtx.lookup ⌊ Γ ⌋Ctx x
+    ≡⟨ ⌊⌋Asc-lookup Γ x ⟩
+      ⌊ ElimCtx.lookup Γ x ⌋Asc
     ≡⟨ cong ⌊_⌋Asc Γ[x]≡kd-k ⟩
       kd ⌊ k ⌋
     ∎

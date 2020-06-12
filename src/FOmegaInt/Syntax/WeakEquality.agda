@@ -641,8 +641,8 @@ module WeakEqEtaExpansion where
   -- A variant of `nf-var-kd' that is a corollary of the above.
 
   nf-var-kd-⌊⌋ : ∀ {n} (Γ : Ctx n) {k} x →
-                 ⌊ lookup x Γ ⌋Asc ≡ kd ⌊ k ⌋ → nf Γ (var x) ≈ η-exp k (var∙ x)
-  nf-var-kd-⌊⌋ Γ x hyp with lookup x Γ
+                 ⌊ lookup Γ x ⌋Asc ≡ kd ⌊ k ⌋ → nf Γ (var x) ≈ η-exp k (var∙ x)
+  nf-var-kd-⌊⌋ Γ x hyp with lookup Γ x
   nf-var-kd-⌊⌋ Γ x hyp | kd j = ≈-η-exp (kd-inj′ hyp) (≈-var∙ x)
   nf-var-kd-⌊⌋ Γ x ()  | tp _
 
@@ -654,20 +654,18 @@ module WeakEqNormalization where
   open ContextConversions
 
   -- A helper lemma.
-  ⌊⌋≡⌊⌋-lookup : ∀ {n} x (Γ₁ Γ₂ : Ctx n) → ⌊ Γ₁ ⌋Ctx ≡ ⌊ Γ₂ ⌋Ctx →
-                 ⌊ lookup x Γ₁ ⌋Asc ≡ ⌊ lookup x Γ₂ ⌋Asc
-  ⌊⌋≡⌊⌋-lookup x Γ₁ Γ₂ ⌊Γ₁⌋≡⌊Γ₂⌋ = begin
-      ⌊ lookup x Γ₁ ⌋Asc
-    ≡⟨ sym (L.lookup-map x ⌊_⌋Asc [] Γ₁ (λ a → sym (⌊⌋-ElimAsc/Var a))) ⟩
-      SimpleCtx.lookup x ⌊ Γ₁ ⌋Ctx
-    ≡⟨ cong (SimpleCtx.lookup x) ⌊Γ₁⌋≡⌊Γ₂⌋ ⟩
-      SimpleCtx.lookup x ⌊ Γ₂ ⌋Ctx
-    ≡⟨ L.lookup-map x ⌊_⌋Asc [] Γ₂ (λ a → sym (⌊⌋-ElimAsc/Var a)) ⟩
-      ⌊ lookup x Γ₂ ⌋Asc
+  ⌊⌋≡⌊⌋-lookup : ∀ {n} (Γ₁ Γ₂ : Ctx n) x → ⌊ Γ₁ ⌋Ctx ≡ ⌊ Γ₂ ⌋Ctx →
+                 ⌊ lookup Γ₁ x ⌋Asc ≡ ⌊ lookup Γ₂ x ⌋Asc
+  ⌊⌋≡⌊⌋-lookup Γ₁ Γ₂ x ⌊Γ₁⌋≡⌊Γ₂⌋ = begin
+      ⌊ lookup Γ₁ x ⌋Asc
+    ≡˘⟨ ⌊⌋Asc-lookup Γ₁ x ⟩
+      SimpleCtx.lookup ⌊ Γ₁ ⌋Ctx x
+    ≡⟨ cong (λ Δ → SimpleCtx.lookup Δ x) ⌊Γ₁⌋≡⌊Γ₂⌋ ⟩
+      SimpleCtx.lookup ⌊ Γ₂ ⌋Ctx x
+    ≡⟨ ⌊⌋Asc-lookup Γ₂ x ⟩
+      ⌊ lookup Γ₂ x ⌋Asc
     ∎
-    where
-      open ≡-Reasoning
-      module L = ⌊⌋Ctx-Lemmas
+    where open ≡-Reasoning
 
   -- If two contexts simplify equally, then kinds, types and terms
   -- normalize weakly equally in these contexts.
@@ -677,7 +675,7 @@ module WeakEqNormalization where
     ≈-nf : ∀ {n} {Γ₁ Γ₂ : Ctx n} →
            ⌊ Γ₁ ⌋Ctx ≡ ⌊ Γ₂ ⌋Ctx → ∀ a → nf Γ₁ a ≈ nf Γ₂ a
     ≈-nf {_} {Γ₁} {Γ₂} ⌊Γ₁⌋≡⌊Γ₂⌋ (var x)
-      with lookup x Γ₁ | lookup x Γ₂ | ⌊⌋≡⌊⌋-lookup x Γ₁ Γ₂ ⌊Γ₁⌋≡⌊Γ₂⌋
+      with lookup Γ₁ x | lookup Γ₂ x | ⌊⌋≡⌊⌋-lookup Γ₁ Γ₂ x ⌊Γ₁⌋≡⌊Γ₂⌋
     ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ (var x) | kd k₁ | kd k₂ | ⌊kd-k₁⌋≡⌊kd-k₂⌋ =
       ≈-η-exp (kd-inj′ ⌊kd-k₁⌋≡⌊kd-k₂⌋) (≈-var∙ x)
     ≈-nf ⌊Γ₁⌋≡⌊Γ₂⌋ (var x) | kd _  | tp _  | ()

@@ -66,11 +66,11 @@ mutual
   nf-Tp∈ : ∀ {n} {Γ : Ctx n} {a k} →
            let Γ′ = nfCtx Γ in Γ ⊢Tp a ∈ k → ⌊ Γ′ ⌋Ctx ⊢Nf nf Γ′ a ∈ ⌊ k ⌋
   nf-Tp∈ {_} {Γ} (∈-var {j} x Γ-ctx Γ[x]≡kd-k)
-    with E.lookup x (nfCtx Γ) | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
+    with E.lookup (nfCtx Γ) x | nfCtx-lookup-kd x Γ Γ[x]≡kd-k
   nf-Tp∈ {_} {Γ} (∈-var {j} x Γ-ctx Γ[x]≡kd-j) | kd ._ | refl =
     subst (_ ⊢Nf η-exp (nfKind _ j) (var∙ x) ∈_) (⌊⌋-nf _)
           (η-exp-Var∈ (lookup-kd x (nf-ctx Γ-ctx) nf-Γ[x]≡kd-nf-j)
-                      (∈-var x (⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j)))
+                      (∈-var x (⌊⌋-lookup (nfCtx Γ) x nf-Γ[x]≡kd-nf-j)))
     where
       open WfsCtxOps using (lookup-kd)
       nf-Γ[x]≡kd-nf-j = nfCtx-lookup-kd x Γ Γ[x]≡kd-j
@@ -200,7 +200,7 @@ mutual
            nf (nfCtx Δ) (a / toSub σ)  ≈
              nf (nfCtx Γ) a /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
   nf-/⟨⟩ {Γ = Γ} (∈-var x Γ-ctx Γ[x]≡kd-j) σ∈Γ
-    with E.lookup x (nfCtx Γ) | nfCtx-lookup-kd x Γ Γ[x]≡kd-j
+    with E.lookup (nfCtx Γ) x | nfCtx-lookup-kd x Γ Γ[x]≡kd-j
   nf-/⟨⟩ {Δ = Δ} {k} {Γ} {σ} {_} {j} (∈-var x Γ-ctx Γ[x]≡kd-j) σ∈Γ
     | kd nf-j | refl with hit? σ x
   ... | hit a hitP =
@@ -209,7 +209,7 @@ mutual
         nf-Γ[x]≡kd-nf-j = nfCtx-lookup-kd x Γ Γ[x]≡kd-j
         nf-j-kds  = lookup-kd x nf-Γ-ctxs nf-Γ[x]≡kd-nf-j
         hitP-nf-σ = nf-Hit (nfCtx Δ) hitP
-        x∈⌊j⌋     = ∈-var x (⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j)
+        x∈⌊j⌋     = ∈-var x (⌊⌋-lookup (nfCtx Γ) x nf-Γ[x]≡kd-nf-j)
     in begin
       nf (nfCtx Δ) (Vec.lookup (toSub σ) x)
     ≡⟨ cong (nf (nfCtx Δ)) (lookup-toSub σ x) ⟩
@@ -227,7 +227,7 @@ mutual
         nf-Γ[x]≡kd-nf-j = nfCtx-lookup-kd x Γ Γ[x]≡kd-j
         nf-j-kds   = lookup-kd x nf-Γ-ctxs nf-Γ[x]≡kd-nf-j
         missP-nf-σ = nf-Miss (nfCtx Δ) missP
-        x∈⌊j⌋      = ∈-var x (⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j)
+        x∈⌊j⌋      = ∈-var x (⌊⌋-lookup (nfCtx Γ) x nf-Γ[x]≡kd-nf-j)
     in begin
       nf (nfCtx Δ) (Vec.lookup (toSub σ) x)
     ≡⟨ cong (nf (nfCtx Δ)) (lookup-toSub σ x) ⟩
@@ -235,12 +235,12 @@ mutual
     ≡⟨ cong (nf (nfCtx Δ) ∘ ⌞_⌟ ∘ toElim) (lookup-Miss missP) ⟩
       nf (nfCtx Δ) (var y)
     ≈⟨ nf-var-kd-⌊⌋ (nfCtx Δ) y (P.begin
-          ⌊ E.lookup y (nfCtx Δ) ⌋Asc
-        P.≡˘⟨ ⌊⌋Asc-lookup y (nfCtx Δ) ⟩
-          S.lookup y ⌊ nfCtx Δ ⌋Ctx
+          ⌊ E.lookup (nfCtx Δ) y ⌋Asc
+        P.≡˘⟨ ⌊⌋Asc-lookup (nfCtx Δ) y ⟩
+          S.lookup ⌊ nfCtx Δ ⌋Ctx y
         P.≡⟨ lookup-/⟨⟩∈-Miss (nf-/⟨⟩∈ σ∈Γ) x∈⌊j⌋ missP-nf-σ  ⟩
-          S.lookup x ⌊ nfCtx Γ ⌋Ctx
-        P.≡⟨ ⌊⌋-lookup x (nfCtx Γ) nf-Γ[x]≡kd-nf-j ⟩
+          S.lookup ⌊ nfCtx Γ ⌋Ctx x
+        P.≡⟨ ⌊⌋-lookup (nfCtx Γ) x nf-Γ[x]≡kd-nf-j ⟩
           kd ⌊ nfKind (nfCtx Γ) j ⌋
         P.≡˘⟨ cong kd (⌊⌋-Kind/⟨⟩ (nfKind (nfCtx Γ) j)) ⟩
           kd ⌊ nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ ⌋

@@ -2,7 +2,7 @@
 -- Binary relations lifted to substitutions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module Data.Fin.Substitution.Relation where
 

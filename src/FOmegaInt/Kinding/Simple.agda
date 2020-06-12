@@ -11,7 +11,7 @@ open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Typed
-open import Data.List using ([]; _∷_; _++_; _∷ʳ_; map)
+open import Data.List as List using ([]; _∷_; _∷ʳ_; map)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (∃; _,_; _×_)
 open import Data.Unit using (tt)
@@ -41,7 +41,7 @@ module Kinding where
 
   -- Simple kinding of variables.
   data _⊢Var_∈_ {n} (Γ : Ctx n) : Fin n → SKind → Set where
-    ∈-var : ∀ {k} x → lookup x Γ ≡ kd k → Γ ⊢Var x ∈ k
+    ∈-var : ∀ {k} x → lookup Γ x ≡ kd k → Γ ⊢Var x ∈ k
 
   mutual
 
@@ -83,18 +83,17 @@ module Kinding where
 
   -- Simply well-formed context extensions.
   module SimplyWfCtx = WellFormedContext (λ Γ a → ⌊ Γ ⌋Ctx ⊢ a wfs)
-  open SimplyWfCtx public using ()
-    renaming (_wf to _ctxs; _⊢_wfExt to _⊢_exts; _⊢_wfExt′ to _⊢_exts′)
+  open SimplyWfCtx public using () renaming (_wf to _ctxs; _⊢_wfExt to _⊢_exts)
 
 open Syntax
-open SimpleCtx hiding (_++_)
+open SimpleCtx
 open Kinding
 open PropEq
 
 -- An admissible kinding rule for spine concatenation.
 ∈-++ : ∀ {n} {Γ : Ctx n} {as bs j k l} →
        Γ ⊢ j ∋∙ as ∈ k → Γ ⊢ k ∋∙ bs ∈ l →
-       Γ ⊢ j ∋∙ as ++ bs ∈ l
+       Γ ⊢ j ∋∙ as List.++ bs ∈ l
 ∈-++ ∈-[]               k∋as∈l = k∋as∈l
 ∈-++ (∈-∷ b∈j₁ j₂∋as∈k) k∋as∈l = ∈-∷ b∈j₁ (∈-++ j₂∋as∈k k∋as∈l)
 
@@ -163,7 +162,7 @@ module KindedRenaming where
   -- Renamings preserve synthesized kinds of variables.
   Var∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {x k ρ} →
               Γ ⊢Var x ∈ k → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Var Vec.lookup ρ x ∈ k
-  Var∈-/Var (∈-var x Γ[x]≡kd-k) ρ∈Γ = Var∈′-Var∈ Γ[x]≡kd-k (∈-lookup x ρ∈Γ)
+  Var∈-/Var (∈-var x Γ[x]≡kd-k) ρ∈Γ = Var∈′-Var∈ Γ[x]≡kd-k (∈-lookup ρ∈Γ x)
 
   mutual
 
@@ -212,8 +211,8 @@ module KindedRenaming where
                Γ ⊢ k kds → a ∷ Γ ⊢ weakenKind′ k kds
   kds-weaken k-kds = kds-/Var k-kds (∈-wk tt)
 
-  kds-weaken⋆ : ∀ {m n} (Δ′ : CtxExt′ m n) {Γ : Ctx m} {k} →
-                Γ ⊢ k kds → Δ′ ′++ Γ ⊢ weakenKind′⋆ n k kds
+  kds-weaken⋆ : ∀ {m n} (Δ : CtxExt m n) {Γ : Ctx m} {k} →
+                Γ ⊢ k kds → Δ ++ Γ ⊢ weakenKind′⋆ n k kds
   kds-weaken⋆ []       k-kds = k-kds
   kds-weaken⋆ (_ ∷ Δ′) k-kds = kds-weaken (kds-weaken⋆ Δ′ k-kds)
 
@@ -223,8 +222,8 @@ module KindedRenaming where
                Γ ⊢Nf b ∈ k → (a ∷ Γ) ⊢Nf weakenElim b ∈ k
   Nf∈-weaken b∈k = Nf∈-/Var b∈k (∈-wk tt)
 
-  Nf∈-weaken⋆ : ∀ {m n} (Δ′ : CtxExt′ m n) {Γ : Ctx m} {a k} →
-                Γ ⊢Nf a ∈ k → Δ′ ′++ Γ ⊢Nf weakenElim⋆ n a ∈ k
+  Nf∈-weaken⋆ : ∀ {m n} (Δ : CtxExt m n) {Γ : Ctx m} {a k} →
+                Γ ⊢Nf a ∈ k → Δ ++ Γ ⊢Nf weakenElim⋆ n a ∈ k
   Nf∈-weaken⋆ []       a∈k = a∈k
   Nf∈-weaken⋆ (_ ∷ Δ′) a∈k = Nf∈-weaken (Nf∈-weaken⋆ Δ′ a∈k)
 
@@ -258,9 +257,9 @@ module WfsCtxOps where
 
   -- Lookup the kind of a type variable in a well-formed context.
   lookup-kd : ∀ {m} {Γ : ElimCtx.Ctx m} {a} x →
-              Γ ctxs → ElimCtx.lookup x Γ ≡ kd a → ⌊ Γ ⌋Ctx ⊢ a kds
+              Γ ctxs → ElimCtx.lookup Γ x ≡ kd a → ⌊ Γ ⌋Ctx ⊢ a kds
   lookup-kd x Γ-ctxs Γ[x]≡kd-a =
-    wfs-kd-inv (subst (_ ⊢_wfs) Γ[x]≡kd-a (W.lookup x Γ-ctxs))
+    wfs-kd-inv (subst (_ ⊢_wfs) Γ[x]≡kd-a (W.lookup Γ-ctxs x))
 
 module KindedHereditarySubstitution where
   open Data.Fin         using (zero; raise; lift)
@@ -283,7 +282,7 @@ module KindedHereditarySubstitution where
 
   data _⊢?⟨_⟩_∈_ {n} (Γ : Ctx n) (k : SKind) : SVRes n → SAsc n → Set where
     ∈-hit  : ∀ {a}   → Γ ⊢Nf a ∈ k    → Γ ⊢?⟨ k ⟩ hit a ∈ kd k
-    ∈-miss : ∀ y {a} → lookup y Γ ≡ a → Γ ⊢?⟨ k ⟩ miss y ∈ a
+    ∈-miss : ∀ y {a} → lookup Γ y ≡ a → Γ ⊢?⟨ k ⟩ miss y ∈ a
 
   -- A variant of `∈-H↑' that applies `σ' in the target context
 
@@ -297,8 +296,8 @@ module KindedHereditarySubstitution where
   -- Lift a kinded hereditary substitution over multiple additional
   -- variables.
 
-  ∈-H↑⋆ : ∀ {m n i} (E : CtxExt′ m i) {Δ k Γ} {σ : SVSub m n} →
-          Δ ⊢/⟨ k ⟩ σ ∈ Γ → re-idx E ′++ Δ ⊢/⟨ k ⟩ σ ↑⋆ i ∈ E ′++ Γ
+  ∈-H↑⋆ : ∀ {m n i} (E : CtxExt m i) {Δ k Γ} {σ : SVSub m n} →
+          Δ ⊢/⟨ k ⟩ σ ∈ Γ → re-idx E ++ Δ ⊢/⟨ k ⟩ σ ↑⋆ i ∈ E ++ Γ
   ∈-H↑⋆ []      σ∈Γ = σ∈Γ
   ∈-H↑⋆ (a ∷ E) σ∈Γ = ∈-H↑ (∈-H↑⋆ E σ∈Γ)
 
@@ -307,13 +306,13 @@ module KindedHereditarySubstitution where
   ?∈-/Var : ∀ {m n Γ k Δ r a} {ρ : Sub Fin m n} →
             Γ ⊢?⟨ k ⟩ r ∈ a → Δ ⊢/Var ρ ∈ Γ → Δ ⊢?⟨ k ⟩ r ?/Var ρ ∈ a
   ?∈-/Var                 (∈-hit a∈k)     ρ∈Γ = ∈-hit (Nf∈-/Var a∈k ρ∈Γ)
-  ?∈-/Var {Γ = Γ} {k} {Δ} (∈-miss y refl) ρ∈Γ = helper refl (TS.lookup y ρ∈Γ)
+  ?∈-/Var {Γ = Γ} {k} {Δ} (∈-miss y refl) ρ∈Γ = helper refl (TS.lookup ρ∈Γ y)
     where
       module TS = TypedSub KindedRenaming.typedSub
       module TV = TypedVarSubst KindedRenaming.typedVarSubst
 
-      helper : ∀ {x a} → a ≡ lookup y Γ → Δ TV.⊢Var x ∈ a →
-               Δ ⊢?⟨ k ⟩ miss x ∈ lookup y Γ
+      helper : ∀ {x a} → a ≡ lookup Γ y → Δ TV.⊢Var x ∈ a →
+               Δ ⊢?⟨ k ⟩ miss x ∈ lookup Γ y
       helper Δ[x]≡Γ[y] (TV.var x _) = ∈-miss x Δ[x]≡Γ[y]
 
   ?∈-weaken : ∀ {n} {Γ : Ctx n} {k r a b} →
@@ -324,7 +323,7 @@ module KindedHereditarySubstitution where
 
   lookup-/⟨⟩∈ : ∀ {m n Δ k Γ} {σ : SVSub m n} →
                 Δ ⊢/⟨ k ⟩ σ ∈ Γ → (x : Fin m) →
-                Δ ⊢?⟨ k ⟩ lookupSV σ x ∈ lookup x Γ
+                Δ ⊢?⟨ k ⟩ lookupSV σ x ∈ lookup Γ x
   lookup-/⟨⟩∈                (∈-hsub a∈k) zero    = ∈-hit a∈k
   lookup-/⟨⟩∈ {Γ = kd k ∷ Γ} (∈-hsub a∈k) (suc x) =
     ∈-miss x (cong (λ Γ → Vec.lookup Γ x) (sym (VecProps.map-id (toVec Γ))))
@@ -359,12 +358,12 @@ module KindedHereditarySubstitution where
 
   lookup-/⟨⟩∈-Miss : ∀ {m n Δ k} {σ : SVSub m n} {Γ x y j} →
                      Δ ⊢/⟨ k ⟩ σ ∈ Γ → Γ ⊢Var x ∈ j → Miss σ x y →
-                     lookup y Δ ≡ lookup x Γ
+                     lookup Δ y ≡ lookup Γ x
   lookup-/⟨⟩∈-Miss σ∈Γ (∈-var {j} x Γ[x]≡kd-j) missP =
     helper (lookup-Miss missP) (lookup-/⟨⟩∈ σ∈Γ x)
     where
       helper : ∀ {n} {Δ : Ctx n} {r y b k} →
-               r ≡ miss y → Δ ⊢?⟨ k ⟩ r ∈ b → lookup y Δ ≡ b
+               r ≡ miss y → Δ ⊢?⟨ k ⟩ r ∈ b → lookup Δ y ≡ b
       helper refl (∈-miss y Δ[y]≡b) = Δ[y]≡b
 
   open KindSimpLemmas simpLemmasKind′
@@ -427,7 +426,7 @@ module KindedHereditarySubstitution where
   -- Concatenation of simply well-formed spines results in application.
   Nf∈-++-∙∙⟨⟩ : ∀ {n} {Γ : Ctx n} {a bs cs j k l} →
                 Γ ⊢Nf a ∈ j → Γ ⊢ j ∋∙ bs ∈ k → Γ ⊢ k ∋∙ cs ∈ l →
-                a ∙∙⟨ j ⟩ (bs ++ cs) ≡ a ∙∙⟨ j ⟩ bs ∙∙⟨ k ⟩ cs
+                a ∙∙⟨ j ⟩ (bs List.++ cs) ≡ a ∙∙⟨ j ⟩ bs ∙∙⟨ k ⟩ cs
   Nf∈-++-∙∙⟨⟩ a∈j     ∈-[]                  k∋cs∈l = refl
   Nf∈-++-∙∙⟨⟩ a∈j₁⇒j₂ (∈-∷ b∈j₁ j₂[b]∋bs∈k) k∋cs∈l =
     Nf∈-++-∙∙⟨⟩ (Nf∈-Π-e a∈j₁⇒j₂ b∈j₁) j₂[b]∋bs∈k k∋cs∈l
@@ -446,9 +445,9 @@ module KindedHereditarySubstitution where
     -- Data.Fin.Substitution.Lemmas adapted to hereditary
     -- substitutions.
 
-    kds-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+    kds-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt (suc m) i) {Γ Δ}
                     {j b k l} {σ : SVSub m n} →
-                    E ′++ kd k ∷ Γ ⊢ j kds → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    E ++ kd k ∷ Γ ⊢ j kds → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
                     j Kind/⟨ k ⟩ (sub b ↑⋆ i) Kind/⟨ l ⟩ σ ↑⋆ i ≡
                       j Kind/⟨ l ⟩ (σ ↑) ↑⋆ i Kind/⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
     kds-[]-/⟨⟩-↑⋆ E (kds-⋯ a∈★ b∈★)     c∈k σ∈Γ =
@@ -457,9 +456,9 @@ module KindedHereditarySubstitution where
       cong₂ Π (kds-[]-/⟨⟩-↑⋆ E j-kds b∈k σ∈Γ)
               (kds-[]-/⟨⟩-↑⋆ (_ ∷ E) k-kds b∈k σ∈Γ)
 
-    Nf∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+    Nf∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt (suc m) i) {Γ Δ}
                     {a b j k l} {σ : SVSub m n} →
-                    E ′++ kd k ∷ Γ ⊢Nf a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    E ++ kd k ∷ Γ ⊢Nf a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
                     a /⟨ k ⟩ (sub b ↑⋆ i) /⟨ l ⟩ σ ↑⋆ i ≡
                       a /⟨ l ⟩ (σ ↑) ↑⋆ i /⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
     Nf∈-[]-/⟨⟩-↑⋆ E ∈-⊥-f b∈k σ∈Γ = refl
@@ -475,9 +474,9 @@ module KindedHereditarySubstitution where
                             (Nf∈-[]-/⟨⟩-↑⋆ (_ ∷ E) a∈l b∈k σ∈Γ))
     Nf∈-[]-/⟨⟩-↑⋆ E (∈-ne a∈★)        b∈k σ∈Γ = Ne∈-[]-/⟨⟩-↑⋆ E a∈★ b∈k σ∈Γ
 
-    Ne∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+    Ne∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt (suc m) i) {Γ Δ}
                     {a b j k l} {σ : SVSub m n} →
-                    E ′++ kd k ∷ Γ ⊢Ne a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
+                    E ++ kd k ∷ Γ ⊢Ne a ∈ j → Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
                     a /⟨ k ⟩ (sub b ↑⋆ i) /⟨ l ⟩ σ ↑⋆ i ≡
                       a /⟨ l ⟩ (σ ↑) ↑⋆ i /⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i
     Ne∈-[]-/⟨⟩-↑⋆ {i} E {b = b} (∈-∙ (∈-var x _) j∋as∈l) b∈k σ∈Γ
@@ -573,9 +572,9 @@ module KindedHereditarySubstitution where
         lookupSV ((σ ↑) ↑⋆ i) x ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
       ∎
 
-    Sp∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt′ (suc m) i) {Γ Δ}
+    Sp∈-[]-/⟨⟩-↑⋆ : ∀ {i m n} (E : CtxExt (suc m) i) {Γ Δ}
                     {as b j₁ j₂ k l} {σ : SVSub m n} →
-                    E ′++ kd k ∷ Γ ⊢ j₁ ∋∙ as ∈ j₂ →
+                    E ++ kd k ∷ Γ ⊢ j₁ ∋∙ as ∈ j₂ →
                     Γ ⊢Nf b ∈ k → Δ ⊢/⟨ l ⟩ σ ∈ Γ →
                     as //⟨ k ⟩ (sub b ↑⋆ i) //⟨ l ⟩ σ ↑⋆ i ≡
                       as //⟨ l ⟩ (σ ↑) ↑⋆ i //⟨ k ⟩ sub (b /⟨ l ⟩ σ) ↑⋆ i

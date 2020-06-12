@@ -2,7 +2,7 @@
 -- Well-typed binary relations lifted to substitutions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module Data.Fin.Substitution.TypedRelation where
 
@@ -99,12 +99,12 @@ record TypedSubRel (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
 
   -- Look up a pair of related entries in a pair of related
   -- substitutions.
-  lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} (x : Fin m) {σ ρ} →
-           Δ ⊢/ σ ∼ ρ ∈ Γ →
-           Δ ⊢ Vec.lookup σ x ∼ Vec.lookup ρ x ∈ C.lookup x Γ / zip σ ρ
-  lookup x {σ} {ρ} σ∼ρ∈Γ =
+  lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ ρ} →
+           Δ ⊢/ σ ∼ ρ ∈ Γ → (x : Fin m) →
+           Δ ⊢ Vec.lookup σ x ∼ Vec.lookup ρ x ∈ C.lookup Γ x / zip σ ρ
+  lookup {σ = σ} {ρ} σ∼ρ∈Γ x =
     subst₂ (toTyping _⊢_∼_∈_ _) (lookup-zip x σ ρ) refl
-           (TypedSub.lookup typedSub x σ∼ρ∈Γ)
+           (TypedSub.lookup typedSub σ∼ρ∈Γ x)
 
 
 -- Helpers functions for relating extensions of (untyped) zipped
@@ -376,7 +376,7 @@ module VarEquality {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
 
   -- Abstract variable equality.
   data _⊢Var_≡_∈_ {n} (Γ : Ctx Tp n) : Fin n → Fin n → Tp n → Set where
-    refl : ∀ x → Γ wf → Γ ⊢Var x ≡ x ∈ lookup x Γ
+    refl : ∀ x → Γ wf → Γ ⊢Var x ≡ x ∈ lookup Γ x
 
 
 -- Helpers lemmas for relating (untyped) zipped substitutions to their

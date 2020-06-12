@@ -124,7 +124,7 @@ module Kinding where
     -- top-level subtyping statements.
 
     data _⊢Var_∈_ {n} (Γ : Ctx n) : Fin n → Kind Elim n → Set where
-      ⇉-var : ∀ {k} x → Γ ctx → lookup x Γ ≡ kd k → Γ ⊢Var x ∈ k
+      ⇉-var : ∀ {k} x → Γ ctx → lookup Γ x ≡ kd k → Γ ⊢Var x ∈ k
       ⇇-⇑   : ∀ {x j k} → Γ ⊢Var x ∈ j → Γ ⊢ j <∷ k → Γ ⊢ k kd →
               Γ ⊢Var x ∈ k
 
@@ -193,8 +193,8 @@ module Kinding where
              Γ ⊢ Π j k ⇉∙ a ∷ as ≃ b ∷ bs ⇉ l
 
   -- Well-formed context extensions.
-  open WellFormedContext (_⊢_wf) public hiding (_wf)
-    renaming (_⊢_wfExt to _⊢_ext; _⊢_wfExt′ to _⊢_ext′)
+  open WellFormedContext (_⊢_wf) public
+    hiding (_wf) renaming (_⊢_wfExt to _⊢_ext)
 
   -- A wrapper for the _⊢Var_∈_ judgment that also provides term
   -- variable bindings.
@@ -203,12 +203,12 @@ module Kinding where
 
   data _⊢Var′_∈_ {n} (Γ : Ctx n) : Fin n → ElimAsc n → Set where
     ∈-tp : ∀ {x k} → Γ ⊢Var x ∈ k → Γ ⊢Var′ x ∈ kd k
-    ∈-tm : ∀ x {a} → Γ ctx → lookup x Γ ≡ tp a → Γ ⊢Var′ x ∈ tp a
+    ∈-tm : ∀ x {a} → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢Var′ x ∈ tp a
 
   -- A derived variable rule.
 
-  ∈-var′ : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢Var′ x ∈ lookup x Γ
-  ∈-var′ {Γ = Γ} x Γ-ctx with lookup x Γ | inspect (lookup x) Γ
+  ∈-var′ : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢Var′ x ∈ lookup Γ x
+  ∈-var′ {Γ = Γ} x Γ-ctx with lookup Γ x | inspect (lookup Γ) x
   ∈-var′ x Γ-ctx | kd k | [ Γ[x]≡kd-k ] = ∈-tp (⇉-var x Γ-ctx Γ[x]≡kd-k)
   ∈-var′ x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ∈-tm x Γ-ctx Γ[x]≡tp-a
 
@@ -542,7 +542,7 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
                 Γ ⊢Var x ∈ k → Δ ⊢/Var ρ ∈ Γ →
                 Δ ⊢Var Vec.lookup ρ x ∈ k Kind′/Var ρ
     Var∈-/Var {ρ = ρ} (⇉-var x Γ-ctx Γ[x]≡kd-k) ρ∈Γ =
-      V∈-Var∈ (cong (_ElimAsc/Var ρ) Γ[x]≡kd-k) (∈-lookup x ρ∈Γ)
+      V∈-Var∈ (cong (_ElimAsc/Var ρ) Γ[x]≡kd-k) (∈-lookup ρ∈Γ x)
     Var∈-/Var (⇇-⇑ x∈j j<∷k k-kd) ρ∈Γ =
       ⇇-⇑ (Var∈-/Var x∈j ρ∈Γ) (<∷-/Var j<∷k ρ∈Γ) (kd-/Var k-kd ρ∈Γ)
 
@@ -709,7 +709,7 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
   Var′∈-/Var         (∈-tp x∈k)               ρ∈Γ = ∈-tp (Var∈-/Var x∈k ρ∈Γ)
   Var′∈-/Var {ρ = ρ} (∈-tm x Γ-ctx Γ[x]≡tp-t) ρ∈Γ =
     subst (_ ⊢Var′ _ ∈_) (cong (_ElimAsc/Var ρ) Γ[x]≡tp-t)
-          (lift (∈-lookup x ρ∈Γ))
+          (lift (∈-lookup ρ∈Γ x))
 
 -- Well-kinded renamings in canonically kinded types, i.e. lemmas
 -- showing that renaming preserves kinding.
@@ -833,9 +833,9 @@ module WfCtxOps where
   -- Lookup the kind of a type variable in a well-formed context.
 
   lookup-kd : ∀ {m} {Γ : Ctx m} {a} x →
-              Γ ctx → ElimCtx.lookup x Γ ≡ kd a → Γ ⊢ a kd
+              Γ ctx → ElimCtx.lookup Γ x ≡ kd a → Γ ⊢ a kd
   lookup-kd x Γ-ctx Γ[x]≡kd-a =
-    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-a (lookup-wf x Γ-ctx))
+    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-a (lookup-wf Γ-ctx x))
 
 open WfCtxOps
 
@@ -1128,7 +1128,7 @@ Nf⇇-Π-i j-kd (⇇-⇑ a⇉l l<∷k) =
 
 -- An inversion lemma about variable kinding.
 Var∈-inv : ∀ {n} {Γ : Ctx n} {x k} → Γ ⊢Var x ∈ k →
-           ∃ λ j → lookup x Γ ≡ kd j × Γ ⊢ j <∷ k × Γ ⊢ j kd × Γ ⊢ k kd
+           ∃ λ j → lookup Γ x ≡ kd j × Γ ⊢ j <∷ k × Γ ⊢ j kd × Γ ⊢ k kd
 Var∈-inv (⇉-var x Γ-ctx Γ[x]≡kd-j) =
   let j-kd = lookup-kd x Γ-ctx Γ[x]≡kd-j
   in _ , Γ[x]≡kd-j , <∷-refl j-kd , j-kd , j-kd
@@ -1171,16 +1171,10 @@ module _ where
   Var∈-sVar∈ : ∀ {n} {Γ : Ctx n} {a k} →
                Γ ⊢Var a ∈ k → ⌊ Γ ⌋Ctx ⊢sVar a ∈ ⌊ k ⌋
   Var∈-sVar∈ {_} {Γ} {_} {k} (⇉-var x Γ-ctx Γ[x]≡kd-k) = ∈-var x (begin
-      SimpleCtx.lookup x ⌊ Γ ⌋Ctx
-    ≡⟨ ⌊⌋Ctx-Lemmas.lookup-map x ⌊_⌋Asc [] Γ (λ a → sym (⌊⌋Asc-weaken a)) ⟩
-      ⌊ ElimCtx.lookup x Γ ⌋Asc
-    ≡⟨ cong ⌊_⌋Asc Γ[x]≡kd-k ⟩
-      kd ⌊ k ⌋
-    ∎)
-    where
-      ⌊⌋Asc-weaken : ∀ {n} (a : ElimAsc n) → ⌊ weakenElimAsc a ⌋Asc ≡ ⌊ a ⌋Asc
-      ⌊⌋Asc-weaken (kd a) = cong kd (⌊⌋-Kind′/Var a)
-      ⌊⌋Asc-weaken (tp a) = refl
+    SimpleCtx.lookup ⌊ Γ ⌋Ctx x   ≡⟨ ⌊⌋Asc-lookup Γ x ⟩
+    ⌊ ElimCtx.lookup Γ x ⌋Asc     ≡⟨ cong ⌊_⌋Asc Γ[x]≡kd-k ⟩
+    kd ⌊ k ⌋                      ∎)
+    where open ContextConversions
   Var∈-sVar∈ (⇇-⇑ x∈j j<∷k k-kd) =
     subst (_ ⊢sVar _ ∈_) (<∷-⌊⌋ j<∷k) (Var∈-sVar∈ x∈j)
 

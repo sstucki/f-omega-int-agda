@@ -2,7 +2,7 @@
 -- Well-typed substitutions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --safe #-}
+{-# OPTIONS --safe --without-K #-}
 
 module Data.Fin.Substitution.Typed where
 
@@ -12,6 +12,7 @@ open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Context
 open import Data.Fin.Substitution.Context.Properties
+  using (module WellFormedContextLemmas)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (_×_; _,_)
 open import Data.Unit using (⊤; tt)
@@ -89,16 +90,19 @@ record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
   -- applied to a well-typed term Γ ⊢ t ∈ a in a source context Γ,
   -- yield a well-typed term Δ ⊢ t / σ ∈ a / σ in a well-formed target
   -- context Δ.
+
   data _⊢/_∈_ {m n} (Δ : Ctx Tp₂ n) (σ : Sub Tm m n) (Γ : Ctx Tp₁ m) : Set where
      _,_ : (Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ σ) → Δ wf → Δ ⊢/ σ ∈ Γ
 
   -- Look up an entry in a typed substitution.
-  lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ}
-           (x : Fin m) → Δ ⊢/ σ ∈ Γ → Δ ⊢ Vec.lookup σ x ∈ C.lookup x Γ / σ
-  lookup {_} {_} {Δ} {Γ} x (σ⟨∈⟩Γ⊙σ , _) =
+
+  lookup : ∀ {m n Δ Γ} {σ : Sub Tm m n} →
+           Δ ⊢/ σ ∈ Γ → (x : Fin m) → Δ ⊢ Vec.lookup σ x ∈ C.lookup Γ x / σ
+  lookup {_} {_} {Δ} {Γ} (σ⟨∈⟩Γ⊙σ , _) x =
     subst (Δ ⊢ _ ∈_) (lookup-map x _ (C.toVec Γ)) (PW.lookup σ⟨∈⟩Γ⊙σ x)
 
   -- Context validity of typed substitutions.
+
   /∈-wf : ∀ {m n Δ Γ} {σ : Sub Tm m n} → Δ ⊢/ σ ∈ Γ → Δ wf
   /∈-wf (_ , Δ-wf) = Δ-wf
 
@@ -208,7 +212,7 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
 
     -- Takes variables to well-typed Tms.
     ∈-var : ∀ {n} {Γ : Ctx Tp n} (x : Fin n) →
-            Γ wf → Γ ⊢ S₁.var x ∈ C.lookup x Γ
+            Γ wf → Γ ⊢ S₁.var x ∈ C.lookup Γ x
 
     -- Types are invariant under the identity substitution.
     id-vanishes : ∀ {n} (a : Tp n) → a / S₂.id ≡ a
@@ -225,7 +229,7 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
   open RawTypedExtension rawTypedExtension public
 
   -- Context operations that require Tm₂ substitutions in Tp-types.
-  open SubstOps application simple₂ using (_E′/_)
+  open SubstOps application simple₂ using (_E/_)
 
   -- Some useful helper lemmas.
 
@@ -257,12 +261,12 @@ record RawTypedSimple {Tp Tm₁ Tm₂}
   ∈-↑ {Γ = Γ} a/ρ-wf σ⟨∈⟩Γ⊙ρ =
     ∈-/∷ {Γ = Γ} (∈-var zero (a/ρ-wf ∷ wf-wf a/ρ-wf)) σ⟨∈⟩Γ⊙ρ
 
-  ∈-↑⋆ : ∀ {k m n} {E : CtxExt′ Tp m k} {Δ : Ctx Tp n} {Γ : Ctx Tp m}
-         {σ ρ} → Δ ⊢ (E E′/ ρ) wfExt′ → Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ ρ →
-         (E E′/ ρ) ′++ Δ ⊢ σ S₁.↑⋆ k ⟨ _⊢_∈_ ⟩ C.toVec (E ′++ Γ) ⊙ ρ S₂.↑⋆ k
+  ∈-↑⋆ : ∀ {k m n} {E : CtxExt Tp m k} {Δ : Ctx Tp n} {Γ : Ctx Tp m}
+         {σ ρ} → Δ ⊢ (E E/ ρ) wfExt → Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ ρ →
+         (E E/ ρ) ++ Δ ⊢ σ S₁.↑⋆ k ⟨ _⊢_∈_ ⟩ C.toVec (E ++ Γ) ⊙ ρ S₂.↑⋆ k
   ∈-↑⋆ {E = []}            []                        σ⟨∈⟩Γ⊙ρ = σ⟨∈⟩Γ⊙ρ
   ∈-↑⋆ {E = a ∷ E} {Δ} {Γ} (a/ρ↑⋆1+k-wf ∷ E/ρ-wfExt) σ⟨∈⟩Γ⊙ρ =
-    ∈-↑ {Γ = E ′++ Γ} a/ρ↑⋆1+k-wf (∈-↑⋆ {E = E} E/ρ-wfExt σ⟨∈⟩Γ⊙ρ)
+    ∈-↑ {Γ = E ++ Γ} a/ρ↑⋆1+k-wf (∈-↑⋆ {E = E} E/ρ-wfExt σ⟨∈⟩Γ⊙ρ)
 
   -- The identity substitution.
   ∈-id : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢ S₁.id ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ S₂.id
@@ -319,7 +323,7 @@ record TypedSimple {Tp Tm}
     hiding (rawTypedExtension; ∈-/∷; ∈-↑; ∈-↑⋆; ∈-id; ∈-wk; ∈-sub; ∈-tsub)
   open Simple    simple             hiding (weaken)
   open WeakenOps weakenOps
-  open SubstOps  application simple using (_E′/_)
+  open SubstOps  application simple using (_E/_)
   open WellFormedContextLemmas _⊢_wf
 
   typedExtension : TypedExtension _ _
@@ -333,9 +337,8 @@ record TypedSimple {Tp Tm}
   ∈-↑ {Γ = Γ} a/σ-wf (σ⟨∈⟩Γ⊙σ , Δ-wf) =
     R.∈-↑ {Γ = Γ} a/σ-wf σ⟨∈⟩Γ⊙σ , a/σ-wf ∷ wf-wf a/σ-wf
 
-  ∈-↑⋆ : ∀ {k m n} {E : CtxExt′ Tp m k} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {σ} →
-         Δ ⊢ (E E′/ σ) wfExt′ → Δ ⊢/ σ ∈ Γ →
-         (E E′/ σ) ′++ Δ ⊢/ σ ↑⋆ k ∈ E ′++ Γ
+  ∈-↑⋆ : ∀ {k m n} {E : CtxExt Tp m k} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {σ} →
+         Δ ⊢ (E E/ σ) wfExt → Δ ⊢/ σ ∈ Γ → (E E/ σ) ++ Δ ⊢/ σ ↑⋆ k ∈ E ++ Γ
   ∈-↑⋆ {E = E} {Δ} {Γ} E/σ-wfExt (σ⟨∈⟩Γ⊙σ , Δ-wf) =
     R.∈-↑⋆ E/σ-wfExt σ⟨∈⟩Γ⊙σ , wf-++-wfExt E/σ-wfExt Δ-wf
 
@@ -353,9 +356,9 @@ record TypedSimple {Tp Tm}
   ∈-sub t∈a = R.∈-sub t∈a , ∈-wf t∈a
 
   -- A substitution which only replaces the m-th variable.
-  ∈-sub-↑⋆ : ∀ {m n} {Δ : CtxExt′ Tp (suc n) m} {Γ : Ctx Tp n} {t a} →
-             Γ ⊢ Δ E′/ sub t wfExt′ → Γ ⊢ t ∈ a →
-             (Δ E′/ sub t) ′++ Γ ⊢/ sub t ↑⋆ m ∈ Δ ′++ a ∷ Γ
+  ∈-sub-↑⋆ : ∀ {m n} {Δ : CtxExt Tp (suc n) m} {Γ : Ctx Tp n} {t a} →
+             Γ ⊢ Δ E/ sub t wfExt → Γ ⊢ t ∈ a →
+             (Δ E/ sub t) ++ Γ ⊢/ sub t ↑⋆ m ∈ Δ ++ a ∷ Γ
   ∈-sub-↑⋆ Δ-wfExt t∈a = ∈-↑⋆ Δ-wfExt (∈-sub t∈a)
 
   -- A substitution which only changes the type of the first variable.
@@ -371,20 +374,21 @@ record TypedSimple {Tp Tm}
     (id ↑⋆ k) ↑   ≡⟨ cong _↑ (id-↑⋆ k) ⟩
     id        ↑   ∎
 
-  E′/-id-vanishes : ∀ {m n} (Δ : CtxExt′ Tp m n) → Δ E′/ id ≡ Δ
-  E′/-id-vanishes             []      = refl
-  E′/-id-vanishes {n = suc n} (a ∷ Δ) = cong₂ _∷_ (begin
+  E/-id-vanishes : ∀ {m n} (Δ : CtxExt Tp m n) → Δ E/ id ≡ Δ
+  E/-id-vanishes             []      = refl
+  E/-id-vanishes {n = suc n} (a ∷ Δ) = cong₂ _∷_ (begin
     a / id ↑⋆ n   ≡⟨ cong (a /_) (id-↑⋆ n) ⟩
     a / id        ≡⟨ id-vanishes a ⟩
-    a             ∎) (E′/-id-vanishes Δ)
+    a             ∎) (E/-id-vanishes Δ)
 
   -- A substitution which only changes the type of the m-th variable.
-  ∈-tsub-↑⋆ : ∀ {m n} {Δ : CtxExt′ Tp (suc n) m} {Γ : Ctx Tp n} {a b} →
-              b ∷ Γ ⊢ Δ wfExt′ → b ∷ Γ ⊢ var zero ∈ weaken a →
-              Δ ′++ b ∷ Γ ⊢/ id ∈ Δ ′++ a ∷ Γ
+
+  ∈-tsub-↑⋆ : ∀ {m n} {Δ : CtxExt Tp (suc n) m} {Γ : Ctx Tp n} {a b} →
+              b ∷ Γ ⊢ Δ wfExt → b ∷ Γ ⊢ var zero ∈ weaken a →
+              Δ ++ b ∷ Γ ⊢/ id ∈ Δ ++ a ∷ Γ
   ∈-tsub-↑⋆ {m} {n} {Δ} Δ-wfExt z∈a =
-    subst₂ (_⊢/_∈ _) (cong (_′++ _) (E′/-id-vanishes Δ)) (id-↑⋆ m)
-           (∈-↑⋆ {E = Δ} (subst (_ ⊢_wfExt′) (sym (E′/-id-vanishes Δ)) Δ-wfExt)
+    subst₂ (_⊢/_∈ _) (cong (_++ _) (E/-id-vanishes Δ)) (id-↑⋆ m)
+           (∈-↑⋆ {E = Δ} (subst (_ ⊢_wfExt) (sym (E/-id-vanishes Δ)) Δ-wfExt)
                  (∈-tsub z∈a))
 
 -- TODO: applications of well-typed substitutions to well-typed terms.
@@ -419,7 +423,7 @@ module VarTyping {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
 
   -- Abstract reflexive variable typings.
   data _⊢Var_∈_ {n} (Γ : Ctx Tp n) : Fin n → Tp n → Set where
-    var : ∀ x → Γ wf → Γ ⊢Var x ∈ lookup x Γ
+    var : ∀ x → Γ wf → Γ ⊢Var x ∈ lookup Γ x
 
 -- Abstract typed variable substitutions (renamings).
 record TypedVarSubst {Tp} (_⊢_wf : Wf Tp) : Set where

@@ -123,11 +123,11 @@ module CtxEqOps where
   -- Ascriptions looked up in equal contexts are equal.
 
   lookup-≃ : ∀ {m} {Γ Δ : Ctx m} x → Γ ≃ Δ ctx →
-             Γ ⊢ lookup x Γ ≃ lookup x Δ wf
+             Γ ⊢ lookup Γ x ≃ lookup Δ x wf
   lookup-≃ x Γ≃Δ = Pointwise.lookup (≃ctx-toAll Γ≃Δ) x
 
   lookup-≃-kd : ∀ {m} {Γ Δ : Ctx m} {j k} x → Γ ≃ Δ ctx →
-                lookup x Γ ≡ kd j → lookup x Δ ≡ kd k → Γ ⊢ j ≅ k
+                lookup Γ x ≡ kd j → lookup Δ x ≡ kd k → Γ ⊢ j ≅ k
   lookup-≃-kd x Γ≃Δ Γ[x]≡kd-j Δ[x]≡kd-k =
     ≃wf-kd-inv (subst₂ (_ ⊢_≃_wf) Γ[x]≡kd-j Δ[x]≡kd-k (lookup-≃ x Γ≃Δ))
 

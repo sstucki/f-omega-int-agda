@@ -90,7 +90,7 @@ Nf⇇-⇑-≤ a⇇k ≤-refl           = a⇇k
 -- An admissible variable rule based on the ascription order.
 
 Var∈-⇑-≤  : ∀ {n} {Γ : Ctx n} {a k} x →
-            Γ ctx → lookup x Γ ≡ a → Γ ⊢ a ≤ kd k → Γ ⊢Var x ∈ k
+            Γ ctx → lookup Γ x ≡ a → Γ ⊢ a ≤ kd k → Γ ⊢Var x ∈ k
 Var∈-⇑-≤ x Γ-ctx Γ[x]≡j (≤-<∷ j<∷k k-kd) = ⇇-⇑ (⇉-var x Γ-ctx Γ[x]≡j) j<∷k k-kd
 Var∈-⇑-≤ x Γ-ctx Γ[x]≡k ≤-refl           = ⇉-var x Γ-ctx Γ[x]≡k
 
@@ -117,7 +117,7 @@ data _⊢?⟨_⟩_≃_⇇_ {n} (Γ : Ctx n) (k : SKind)
                  : SVRes n → SVRes n → ElimAsc n → Set where
   ≃-hit  : ∀ {a b j} →
            Γ ⊢ a ≃ b ⇇ j → ⌊ j ⌋≡ k → Γ ⊢?⟨ k ⟩ hit a ≃ hit b ⇇ kd j
-  ≃-miss : ∀ y {a b} → Γ ctx → lookup y Γ ≡ a → Γ ⊢ a ≤ b →
+  ≃-miss : ∀ y {a b} → Γ ctx → lookup Γ y ≡ a → Γ ⊢ a ≤ b →
            Γ ⊢?⟨ k ⟩ miss y ≃ miss y ⇇ b
 
 -- Well-kinded suspended hereditary substations are just a degenerate
@@ -154,7 +154,7 @@ _⊢?⟨_⟩_⇇_ : ∀ {n} → Ctx n → SKind → SVRes n → ElimAsc n → Se
 ?≃-/Var (≃-hit a≃b∈k ⌊j⌋≡k) ρ∈Γ =
   ≃-hit (≃-/Var a≃b∈k ρ∈Γ) (⌊⌋≡-/Var ⌊j⌋≡k)
 ?≃-/Var {Γ = Γ} {k} {Δ} {ρ = ρ} (≃-miss y {a} {b} _ Γ[x]≡a a≤b) ρ∈Γ =
-  helper (cong (_ElimAsc/Var ρ) Γ[x]≡a) (TS.lookup y ρ∈Γ)
+  helper (cong (_ElimAsc/Var ρ) Γ[x]≡a) (TS.lookup ρ∈Γ y)
   where
     module TS = TypedSub TV.typedSub
 
@@ -173,17 +173,17 @@ _⊢?⟨_⟩_⇇_ : ∀ {n} → Ctx n → SKind → SVRes n → ElimAsc n → Se
 
 lookup-/⟨⟩≃ : ∀ {m n Δ k Γ} {σ τ : SVSub m n} →
               Δ ⊢/⟨ k ⟩ σ ≃ τ ⇇ Γ → (x : Fin m) →
-              Δ ⊢?⟨ k ⟩ lookupSV σ x ≃ lookupSV τ x ⇇ lookup x Γ Asc/⟨ k ⟩ σ
+              Δ ⊢?⟨ k ⟩ lookupSV σ x ≃ lookupSV τ x ⇇ lookup Γ x Asc/⟨ k ⟩ σ
 lookup-/⟨⟩≃ (≃-hsub {_} {Γ} {k} {a} {b} {j} a≃b⇇k ⌊j⌋≡k) zero =
   subst (Γ ⊢?⟨ k ⟩ hit a ≃ hit b ⇇_)
         (cong kd (sym (Kind/Var-wk-↑⋆-hsub-vanishes 0 j))) (≃-hit a≃b⇇k ⌊j⌋≡k)
 lookup-/⟨⟩≃ (≃-hsub {Γ = Γ} {k} {a} {_} {j} a≃b⇇k ⌊j⌋≡k) (suc x) =
   subst (Γ ⊢?⟨ k ⟩ miss x ≃ miss x ⇇_) (begin
-      lookup x Γ
-    ≡˘⟨ Asc/Var-wk-↑⋆-hsub-vanishes 0 (lookup x Γ) ⟩
-      weakenElimAsc (lookup x Γ) Asc/⟨ k ⟩ sub a
+      lookup Γ x
+    ≡˘⟨ Asc/Var-wk-↑⋆-hsub-vanishes 0 (lookup Γ x) ⟩
+      weakenElimAsc (lookup Γ x) Asc/⟨ k ⟩ sub a
     ≡˘⟨ cong (_Asc/⟨ k ⟩ sub a) (VecProps.lookup-map x weakenElimAsc (toVec Γ)) ⟩
-       lookup (suc x) (kd j ∷ Γ) Asc/⟨ k ⟩ sub a
+       lookup (kd j ∷ Γ) (suc x) Asc/⟨ k ⟩ sub a
     ∎) (≃-miss x (≃-ctx a≃b⇇k) refl ≤-refl)
 lookup-/⟨⟩≃ (≃-H↑ {Δ = Δ} {k} {j = j} {l} j≅l/σ j≅l/τ σ≃τ⇇Γ) zero =
   let j-kd , l/σ-kd = ≅-valid j≅l/σ
@@ -194,12 +194,12 @@ lookup-/⟨⟩≃ (≃-H↑ {Δ = Δ} {k} {j = j} {l} j≅l/σ j≅l/τ σ≃τ�
            (≃-miss zero (j-wf ∷ (kd-ctx j-kd)) refl j≤l/σ)
 lookup-/⟨⟩≃ (≃-H↑ {k = k} {Γ} {σ} {_} {_} {l} j≅l/σ _ σ≃τ⇇Γ) (suc x) =
   subst (_ ⊢?⟨ k ⟩ _ ≃ _ ⇇_) (begin
-      weakenElimAsc (lookup x Γ Asc/⟨ k ⟩ σ)
-    ≡˘⟨ wk-Asc/⟨⟩-↑⋆ 0 (lookup x Γ) ⟩
-      weakenElimAsc (lookup x Γ) Asc/⟨ k ⟩ σ ↑
+      weakenElimAsc (lookup Γ x Asc/⟨ k ⟩ σ)
+    ≡˘⟨ wk-Asc/⟨⟩-↑⋆ 0 (lookup Γ x) ⟩
+      weakenElimAsc (lookup Γ x) Asc/⟨ k ⟩ σ ↑
     ≡˘⟨ cong (_Asc/⟨ k ⟩ σ ↑)
              (VecProps.lookup-map x weakenElimAsc (toVec Γ)) ⟩
-      lookup (suc x) (kd l ∷ Γ) Asc/⟨ k ⟩ σ ↑
+      lookup (kd l ∷ Γ) (suc x) Asc/⟨ k ⟩ σ ↑
     ∎) (?≃-weaken (wf-kd (proj₁ (≅-valid j≅l/σ))) (lookup-/⟨⟩≃ σ≃τ⇇Γ x))
 
 -- Equation and context validity lemmas for hereditary substitutions.

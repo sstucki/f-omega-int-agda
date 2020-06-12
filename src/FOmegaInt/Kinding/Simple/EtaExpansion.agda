@@ -106,7 +106,7 @@ module TrackSimpleKindsKindedEtaExp where
           as′     = weakenSpine as
           ηz∈k₁   = η-exp-Var∈ (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (kds-weaken j₁-kds)
                                (∈-var zero refl)
-          kd-l∷Γ[x+1]≡kd-l = trans (lookup-suc x (kd l) [] Γ) Γ[x]≡kd-l
+          kd-l∷Γ[x+1]≡kd-l = trans (lookup-suc (kd l) Γ x) Γ[x]≡kd-l
           x+1∈l            = ∈-var (suc x) kd-l∷Γ[x+1]≡kd-l
           l∋as∈k₁⇒k₂′      = Sp∈-weaken l∋as∈k₁⇒k₂
           σ↑∈k₁∷Γ          = ∈-H↑ σ∈Γ
@@ -195,9 +195,9 @@ module TrackSimpleKindsKindedEtaExp where
     -- this predicate, but that will likely render the proof even
     -- harder to follow than it already is.
 
-    kds-[]-η-var : ∀ {k m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ j l}
+    kds-[]-η-var : ∀ {k m n} (Γ₂ : CtxExt (suc m) n) {Γ₁ j l}
                    (hyp : ⌊ j ⌋≡ k) → kd k ∷ Γ₁ ⊢ j kds →
-                   Γ₂ ′++ kd k ∷ Γ₁ ⊢ l kds →
+                   Γ₂ ++ kd k ∷ Γ₁ ⊢ l kds →
                    let l′ = l Kind′/Var (V.wk V.↑) V.↑⋆ n
                    in l′ Kind/⟨ k ⟩ sub (TK.η-exp j hyp (var∙ zero)) ↑⋆ n ≋ l
     kds-[]-η-var Γ₂ hyp j-kds (kds-⋯ a∈★ b∈★) =
@@ -206,9 +206,9 @@ module TrackSimpleKindsKindedEtaExp where
       ≋-Π (kds-[]-η-var Γ₂ hyp j-kds k-kds)
           (kds-[]-η-var (_ ∷ Γ₂) hyp j-kds l-kds)
 
-    Nf∈-[]-η-var : ∀ {k m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ a j l}
+    Nf∈-[]-η-var : ∀ {k m n} (Γ₂ : CtxExt (suc m) n) {Γ₁ a j l}
                    (hyp : ⌊ j ⌋≡ k) → kd k ∷ Γ₁ ⊢ j kds →
-                   Γ₂ ′++ kd k ∷ Γ₁ ⊢Nf a ∈ l →
+                   Γ₂ ++ kd k ∷ Γ₁ ⊢Nf a ∈ l →
                    let a′ = a Elim/Var (V.wk V.↑) V.↑⋆ n
                    in a′ /⟨ k ⟩ sub (TK.η-exp j hyp (var∙ zero)) ↑⋆ n ≈ a
     Nf∈-[]-η-var Γ₂ hyp j-kds ∈-⊥-f = ≈-refl ⊥∙
@@ -258,10 +258,10 @@ module TrackSimpleKindsKindedEtaExp where
       ∎
       where
         x = raise n zero
-        Γ = Γ₂ ′++ kd k ∷ Γ₁
+        Γ = Γ₂ ++ kd k ∷ Γ₁
 
         Γ[x]≡kd-k = begin
-          lookup (raise n zero) Γ   ≡⟨ lookup-weaken⋆′ n zero [] Γ₂ _ ⟩
+          lookup Γ (raise n zero)   ≡⟨ lookup-weaken⋆ n Γ₂ _ zero ⟩
           weakenSAsc⋆ n (kd k)      ≡⟨ weakenSAsc⋆-id n ⟩
           kd k                      ∎
           where open ≡-Reasoning
@@ -305,9 +305,9 @@ module TrackSimpleKindsKindedEtaExp where
 
         open ≈-Reasoning
 
-    Sp∈-[]-η-var : ∀ {k m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ as j l₁ l₂}
+    Sp∈-[]-η-var : ∀ {k m n} (Γ₂ : CtxExt (suc m) n) {Γ₁ as j l₁ l₂}
                    (hyp : ⌊ j ⌋≡ k) → kd k ∷ Γ₁ ⊢ j kds →
-                   Γ₂ ′++ kd k ∷ Γ₁ ⊢ l₁ ∋∙ as ∈ l₂ →
+                   Γ₂ ++ kd k ∷ Γ₁ ⊢ l₁ ∋∙ as ∈ l₂ →
                    let as′ = as //Var (V.wk V.↑) V.↑⋆ n
                    in as′ //⟨ k ⟩ sub (TK.η-exp j hyp (var∙ zero)) ↑⋆ n ≈Sp as
     Sp∈-[]-η-var Γ₂ hyp j-kds ∈-[] = ≈-[]
@@ -406,22 +406,22 @@ private module TK = TrackSimpleKindsKindedEtaExp
 
 -- Hereditary substitutions of a variable by its η-expansion vanish.
 
-kds-[]-η-var : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ j k} →
-               Γ₁ ⊢ j kds → Γ₂ ′++ kd ⌊ j ⌋ ∷ Γ₁ ⊢ k kds →
+kds-[]-η-var : ∀ {m n} (Γ₂ : CtxExt (suc m) n) {Γ₁ j k} →
+               Γ₁ ⊢ j kds → Γ₂ ++ kd ⌊ j ⌋ ∷ Γ₁ ⊢ k kds →
                let j′ = weakenKind′ j
                    k′ = k Kind′/Var (VarSubst.wk VarSubst.↑) VarSubst.↑⋆ n
                in k′ Kind/⟨ ⌊ j′ ⌋ ⟩ sub (η-exp j′ (var∙ zero)) ↑⋆ n ≋ k
 kds-[]-η-var Γ₂ {Γ₁} {j} j-kds k-kds =
   TK.kds-[]-η-var Γ₂ (⌊⌋-⌊⌋≡ _) (kds-weaken j-kds)
-                  (subst (λ l → Γ₂ ′++ kd l ∷ Γ₁ ⊢ _ kds)
+                  (subst (λ l → Γ₂ ++ kd l ∷ Γ₁ ⊢ _ kds)
                          (sym (⌊⌋-Kind′/Var j)) k-kds)
 
-Nf∈-[]-η-var : ∀ {m n} (Γ₂ : CtxExt′ (suc m) n) {Γ₁ a j k} →
-               Γ₁ ⊢ j kds → Γ₂ ′++ kd ⌊ j ⌋ ∷ Γ₁ ⊢Nf a ∈ k →
+Nf∈-[]-η-var : ∀ {m n} (Γ₂ : CtxExt (suc m) n) {Γ₁ a j k} →
+               Γ₁ ⊢ j kds → Γ₂ ++ kd ⌊ j ⌋ ∷ Γ₁ ⊢Nf a ∈ k →
                let j′ = weakenKind′ j
                    a′ = a Elim/Var (VarSubst.wk VarSubst.↑) VarSubst.↑⋆ n
                in a′ /⟨ ⌊ j′ ⌋ ⟩ sub (η-exp j′ (var∙ zero)) ↑⋆ n ≈ a
 Nf∈-[]-η-var Γ₂ {Γ₁} {a} {j} j-kds a∈k =
   TK.Nf∈-[]-η-var Γ₂ (⌊⌋-⌊⌋≡ _) (kds-weaken j-kds)
-                  (subst (λ l → Γ₂ ′++ kd l ∷ Γ₁ ⊢Nf _ ∈ _)
+                  (subst (λ l → Γ₂ ++ kd l ∷ Γ₁ ⊢Nf _ ∈ _)
                          (sym (⌊⌋-Kind′/Var j)) a∈k)

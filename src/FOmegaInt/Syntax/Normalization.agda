@@ -354,7 +354,7 @@ open ElimCtx
 mutual
 
   nf : ∀ {n} → Ctx n → Term n → Elim n
-  nf Γ (var x) with lookup x Γ
+  nf Γ (var x) with lookup Γ x
   nf Γ (var x) | kd k = η-exp k (var∙ x)
   nf Γ (var x) | tp a = var∙ x                    -- ! a not a kind
   nf Γ ⊥       = ⊥∙
@@ -380,9 +380,9 @@ nfCtx : ∀ {n} → TermCtx.Ctx n → Ctx n
 nfCtx []      = []
 nfCtx (a ∷ Γ) = let Γ′ = nfCtx Γ in nfAsc Γ′ a ∷ Γ′
 
-nfCtxExt : ∀ {m n} → Ctx m → TermCtx.CtxExt′ m n → CtxExt′ m n
+nfCtxExt : ∀ {m n} → Ctx m → TermCtx.CtxExt m n → CtxExt m n
 nfCtxExt Γ []      = []
-nfCtxExt Γ (a ∷ Δ) = let Δ′ = nfCtxExt Γ Δ in nfAsc (Δ′ ′++ Γ) a ∷ Δ′
+nfCtxExt Γ (a ∷ Δ) = let Δ′ = nfCtxExt Γ Δ in nfAsc (Δ′ ++ Γ) a ∷ Δ′
 
 -- Simple kinds are stable w.r.t. normalization.
 ⌊⌋-nf : ∀ {n} {Γ : Ctx n} k → ⌊ nfKind Γ k ⌋ ≡ ⌊ k ⌋
@@ -403,16 +403,16 @@ open ContextConversions using (⌊_⌋Ctx)
 ⌊⌋Ctx-nf (a ∷ Γ) = cong₂ _∷_ (⌊⌋Asc-nf a) (⌊⌋Ctx-nf Γ)
 
 -- Normalization commutes with context concatenation.
-nf-++ : ∀ {m n} (Δ : TermCtx.CtxExt′ m n) Γ →
-        nfCtx (Δ ′++ Γ) ≡ nfCtxExt (nfCtx Γ) Δ ′++ nfCtx Γ
+nf-++ : ∀ {m n} (Δ : TermCtx.CtxExt m n) Γ →
+        nfCtx (Δ ++ Γ) ≡ nfCtxExt (nfCtx Γ) Δ ++ nfCtx Γ
 nf-++ []      Γ = refl
 nf-++ (a ∷ Δ) Γ = cong₂ _∷_ (cong (λ Δ → nfAsc Δ a) (nf-++ Δ Γ)) (nf-++ Δ Γ)
 
 -- A helper lemma about normalization of variables.
 
 nf-var-kd : ∀ {n} (Γ : Ctx n) {k} x →
-            lookup x Γ ≡ kd k → nf Γ (var x) ≡ η-exp k (var∙ x)
-nf-var-kd Γ x Γ[x]≡kd-k with lookup x Γ
+            lookup Γ x ≡ kd k → nf Γ (var x) ≡ η-exp k (var∙ x)
+nf-var-kd Γ x Γ[x]≡kd-k with lookup Γ x
 nf-var-kd Γ x refl | kd k = refl
 nf-var-kd Γ x ()   | tp _
 
@@ -448,11 +448,11 @@ module RenamingCommutesNorm where
 
   -- Extract a "consistency" proof from a well-formed renaming, i.e. a
   -- proof that `Δ(ρ(x)) = Γ(x)ρ'.
-  lookup-≡ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} x → Δ ⊢/Var ρ ∈ Γ →
-             lookup (Vec.lookup ρ x) Δ ≡ lookup x Γ ElimAsc/Var ρ
-  lookup-≡ {_} {_} {Δ} {Γ} {ρ} x ρ∈Γ
-    with Vec.lookup ρ x | lookup x Γ ElimAsc/Var ρ | TS.lookup x ρ∈Γ
-  lookup-≡ x ρ∈Γ | y | _ | VarTyping.var .y _ = refl
+  lookup-≡ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} → Δ ⊢/Var ρ ∈ Γ → ∀ x →
+             lookup Δ (Vec.lookup ρ x) ≡ lookup Γ x ElimAsc/Var ρ
+  lookup-≡ {_} {_} {Δ} {Γ} {ρ} ρ∈Γ x
+    with Vec.lookup ρ x | lookup Γ x ElimAsc/Var ρ | TS.lookup ρ∈Γ x
+  lookup-≡ ρ∈Γ x | y | _ | VarTyping.var .y _ = refl
 
   mutual
 
@@ -467,7 +467,7 @@ module RenamingCommutesNorm where
     nf-/Var : ∀ {m n Δ Γ} {ρ : Sub Fin m n} a → Δ ⊢/Var ρ ∈ Γ →
               nf Γ a Elim/Var ρ ≡ nf Δ (a /Var ρ)
     nf-/Var {_} {_} {Δ} {Γ} {ρ} (var x) ρ∈Γ
-      with lookup x Γ | lookup (Vec.lookup ρ x) Δ | lookup-≡ x ρ∈Γ
+      with lookup Γ x | lookup Δ (Vec.lookup ρ x) | lookup-≡ ρ∈Γ x
     nf-/Var (var x) ρ∈Γ | kd k | _ | refl = η-exp-/Var k (var∙ x)
     nf-/Var (var x) ρ∈Γ | tp a | _ | refl = refl
     nf-/Var ⊥       ρ∈Γ = refl
@@ -503,17 +503,6 @@ module RenamingCommutesNorm where
   nf-weaken : ∀ {n} {Γ : Ctx n} a b →
               weakenElim (nf Γ b) ≡ nf (a ∷ Γ) (weaken b)
   nf-weaken a b = nf-/Var b (∈-wk tt)
-
-  nf-weaken⋆ : ∀ {m n} (Γ₂ : CtxExt′ m n) {Γ₁ : Ctx m} a →
-               weakenElim⋆ n (nf Γ₁ a) ≡ nf (Γ₂ ′++ Γ₁) (weaken⋆ n a)
-  nf-weaken⋆             []            a = refl
-  nf-weaken⋆ {_} {suc n} (b ∷ Γ₂) {Γ₁} a = begin
-      weakenElim⋆ (suc n) (nf Γ₁ a)
-    ≡⟨ cong weakenElim (nf-weaken⋆ Γ₂ a) ⟩
-      weakenElim (nf (Γ₂ ′++ Γ₁) (weaken⋆ n a))
-    ≡⟨ nf-weaken b (weaken⋆ n a) ⟩
-      nf ((b ∷ Γ₂) ′++ Γ₁) (weaken⋆ (suc n) a)
-    ∎
 
   nfKind-weaken : ∀ {n} {Γ : Ctx n} a k →
                   weakenKind′ (nfKind Γ k) ≡ nfKind (a ∷ Γ) (weakenKind k)
@@ -568,20 +557,20 @@ module _ where
       ∎)
 
   -- Normalization commutes with context lookup.
-  nfCtx-lookup : ∀ {n} x (Γ : TermCtx.Ctx n) →
-                 lookup x (nfCtx Γ) ≡ nfAsc (nfCtx Γ) (TermCtx.lookup x Γ)
-  nfCtx-lookup x Γ = begin
-      lookup x (nfCtx Γ)
+  nfCtx-lookup : ∀ {n} (Γ : TermCtx.Ctx n) x →
+                 lookup (nfCtx Γ) x ≡ nfAsc (nfCtx Γ) (TermCtx.lookup Γ x)
+  nfCtx-lookup Γ x = begin
+      lookup (nfCtx Γ) x
     ≡⟨ cong (flip Vec.lookup x) (nfCtx-toVec Γ) ⟩
       Vec.lookup (Vec.map (nfAsc (nfCtx Γ)) (TermCtx.toVec Γ)) x
     ≡⟨ VecProps.lookup-map x _ (TermCtx.toVec Γ) ⟩
-      nfAsc (nfCtx Γ) (TermCtx.lookup x Γ)
+      nfAsc (nfCtx Γ) (TermCtx.lookup Γ x)
     ∎
 
   -- A corollary of the above.
-  nfCtx-lookup-kd : ∀ {n k} x (Γ : TermCtx.Ctx n) → TermCtx.lookup x Γ ≡ kd k →
-                    lookup x (nfCtx Γ) ≡ kd (nfKind (nfCtx Γ) k)
-  nfCtx-lookup-kd x Γ Γ[x]≡kd-k with TermCtx.lookup x Γ | nfCtx-lookup x Γ
+  nfCtx-lookup-kd : ∀ {n k} x (Γ : TermCtx.Ctx n) → TermCtx.lookup Γ x ≡ kd k →
+                    lookup (nfCtx Γ) x ≡ kd (nfKind (nfCtx Γ) k)
+  nfCtx-lookup-kd x Γ Γ[x]≡kd-k with TermCtx.lookup Γ x | nfCtx-lookup Γ x
   nfCtx-lookup-kd x Γ refl | kd k | nf-Γ[x]≡kd-nf-k = nf-Γ[x]≡kd-nf-k
   nfCtx-lookup-kd x Γ ()   | tp t | _
 
@@ -593,7 +582,7 @@ mutual
   -- conversion of representation).
 
   ⌞⌟-nf-βη : ∀ {n} (Γ : Ctx n) a → a →βη* ⌞ nf Γ a ⌟
-  ⌞⌟-nf-βη Γ (var x) with lookup x Γ
+  ⌞⌟-nf-βη Γ (var x) with lookup Γ x
   ⌞⌟-nf-βη Γ (var x) | kd a = η-exp-βη a (var∙ x)
   ⌞⌟-nf-βη Γ (var x) | tp a = ε
   ⌞⌟-nf-βη Γ ⊥       = ε
