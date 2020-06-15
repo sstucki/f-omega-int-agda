@@ -110,7 +110,6 @@ Tp∈-η a∈Πjk | a∈Πjk′ with E.Tp∈-valid a∈Πjk′
 -- and validity of ascription equality.
 module CtxEqOps where
   open Pointwise using (Pointwise; []; _∷_; map⁺)
-  open TypedRenaming using (≃wf-weaken)
 
   -- Convert a context equation to its All₂ representation.
   ≃ctx-toAll : ∀ {m} {Γ Δ : Ctx m} → Γ ≃ Δ ctx →

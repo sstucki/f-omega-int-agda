@@ -6,6 +6,7 @@
 
 module FOmegaInt.Kinding.Canonical where
 
+open import Data.Context.WellFormed
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
@@ -14,6 +15,7 @@ open import Data.Fin.Substitution.Typed
 open import Data.List using ([]; _∷_; _∷ʳ_)
 open import Data.Product using (∃; _,_; _×_)
 open import Data.Vec as Vec using ([])
+open import Level using () renaming (zero to lzero)
 open import Relation.Binary.PropositionalEquality
 
 open import FOmegaInt.Syntax
@@ -64,7 +66,7 @@ module Kinding where
     -- Contexts and context extensions are well-formed if all the
     -- ascriptions they contain are well-formed.
     _ctx : ∀ {n} → Ctx n → Set
-    Γ ctx = WellFormedContext._wf _⊢_wf Γ
+    Γ ctx = ContextFormation._wf _⊢_wf Γ
 
     -- Well-formedness checking for η-long β-normal kinds.
     data _⊢_kd {n} (Γ : Ctx n) : Kind Elim n → Set where
@@ -193,7 +195,7 @@ module Kinding where
              Γ ⊢ Π j k ⇉∙ a ∷ as ≃ b ∷ bs ⇉ l
 
   -- Well-formed context extensions.
-  open WellFormedContext (_⊢_wf) public
+  open ContextFormation _⊢_wf public
     hiding (_wf) renaming (_⊢_wfExt to _⊢_ext)
 
   -- A wrapper for the _⊢Var_∈_ judgment that also provides term
@@ -454,38 +456,38 @@ Nf⇇-→-f a⇇* b⇇* =
 -- are necessary because the latter requires the weakening lemma,
 -- which in turn depends on the former.
 
--- Generic variable substitutions between ElimCtx contexts.
+-- Liftings between variable typings
 
-module ElimCtxVarSub (_⊢V_∈_ : Typing ElimAsc Fin ElimAsc) where
+record LiftTo-Var′∈ (_⊢V_∈_ : Typing ElimAsc Fin ElimAsc lzero) : Set₁ where
+  open Substitution using (weakenElimAsc; _ElimAsc/Var_)
 
-  typedVarSub : TypedSub ElimAsc Fin ElimAsc
-  typedVarSub = record
-    { _⊢_∈_       = _⊢V_∈_
-    ; _⊢_wf       = _⊢_wf
-    ; application = record { _/_    = Substitution._ElimAsc/Var_ }
-    ; weakenOps   = record { weaken = Substitution.weakenElimAsc }
+  typedSub : TypedSub ElimAsc Fin lzero
+  typedSub = record
+    { _⊢_wf               = _⊢_wf
+    ; _⊢_∈_               = _⊢V_∈_
+    ; typeExtension       = record { weaken = weakenElimAsc }
+    ; typeTermApplication = record { _/_ = _ElimAsc/Var_ }
+    ; termSimple          = VarSubst.simple
     }
+  open TypedSub typedSub public
+    renaming (_⊢/_∈_ to _⊢/Var_∈_) hiding (_⊢_wf; _⊢_∈_; typeExtension)
 
-  open TypedSub typedVarSub public
-    hiding (_⊢_∈_) renaming (_⊢/_∈_ to _⊢/Var_∈_)
+  -- Simple typed variable substitutions.
 
--- Liftings between different variable typings.
+  field typedSimple : TypedSimple typedSub
+  open TypedSimple typedSimple public renaming (lookup to /∈-lookup)
 
-varToVarLift : Lift Fin Fin
-varToVarLift = record { simple = VarSubst.simple ; lift = λ x → x }
+  -- Lifts well-typed Term₁-terms to well-typed Term₂-terms.
 
-LiftTo-Var′∈ : Typing ElimAsc Fin ElimAsc → Set
-LiftTo-Var′∈ _⊢T_∈_ = LiftTyped varToVarLift typedVarSub _⊢Var′_∈_
-  where open ElimCtxVarSub _⊢T_∈_ using (typedVarSub)
+  field ∈-lift : ∀ {n} {Γ : Ctx n} {x a} → Γ ⊢V x ∈ a → Γ ⊢Var′ x ∈ a
 
--- Application of typed/kinded variable substitutions.
+module TypedVarSubstApp (_⊢V_∈_ : Typing ElimAsc Fin ElimAsc lzero)
+                        (liftTyped : LiftTo-Var′∈ _⊢V_∈_)
+                        where
 
-module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
-                        (lt : LiftTo-Var′∈ _⊢V_∈_) where
-  open LiftTyped lt
+  open LiftTo-Var′∈ liftTyped
   open Substitution hiding (subst; _/Var_) renaming (_Elim/Var_ to _/Var_)
   open RenamingCommutes using (Kind[∈⌊⌋]-/Var)
-  open ElimCtxVarSub _⊢V_∈_ hiding (_⊢_wf) renaming (lookup to ∈-lookup)
 
   -- A helper.
 
@@ -498,7 +500,7 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
 
   V∈-Var∈ : ∀ {n} {Γ : Ctx n} {x a k} → a ≡ kd k →
             Γ ⊢V x ∈ a → Γ ⊢Var x ∈ k
-  V∈-Var∈ refl xT∈kd-k with lift xT∈kd-k
+  V∈-Var∈ refl xT∈kd-k with ∈-lift xT∈kd-k
   V∈-Var∈ refl xT∈kd-k | ∈-tp x∈k = x∈k
 
   mutual
@@ -524,8 +526,8 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
 
     Nf⇉-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k ρ} →
                Γ ⊢Nf a ⇉ k → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Nf a /Var ρ ⇉ k Kind′/Var ρ
-    Nf⇉-/Var (⇉-⊥-f Γ-ctx)       (_ , Δ-ctx) = ⇉-⊥-f Δ-ctx
-    Nf⇉-/Var (⇉-⊤-f Γ-ctx)       (_ , Δ-ctx) = ⇉-⊤-f Δ-ctx
+    Nf⇉-/Var (⇉-⊥-f Γ-ctx)       ρ∈Γ = ⇉-⊥-f (/∈-wf ρ∈Γ)
+    Nf⇉-/Var (⇉-⊤-f Γ-ctx)       ρ∈Γ = ⇉-⊤-f (/∈-wf ρ∈Γ)
     Nf⇉-/Var (⇉-∀-f k-kd a⇉a⋯a)  ρ∈Γ =
       let k/ρ-kd = kd-/Var k-kd ρ∈Γ
       in ⇉-∀-f k/ρ-kd (Nf⇉-/Var a⇉a⋯a (∈-↑′ k/ρ-kd ρ∈Γ))
@@ -540,9 +542,9 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
 
     Var∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {x k ρ} →
                 Γ ⊢Var x ∈ k → Δ ⊢/Var ρ ∈ Γ →
-                Δ ⊢Var Vec.lookup ρ x ∈ k Kind′/Var ρ
+                Δ ⊢Var (Vec.lookup ρ x) ∈ k Kind′/Var ρ
     Var∈-/Var {ρ = ρ} (⇉-var x Γ-ctx Γ[x]≡kd-k) ρ∈Γ =
-      V∈-Var∈ (cong (_ElimAsc/Var ρ) Γ[x]≡kd-k) (∈-lookup ρ∈Γ x)
+      V∈-Var∈ (cong (_ElimAsc/Var ρ) Γ[x]≡kd-k) (/∈-lookup ρ∈Γ x)
     Var∈-/Var (⇇-⇑ x∈j j<∷k k-kd) ρ∈Γ =
       ⇇-⇑ (Var∈-/Var x∈j ρ∈Γ) (<∷-/Var j<∷k ρ∈Γ) (kd-/Var k-kd ρ∈Γ)
 
@@ -705,11 +707,11 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
 
   Var′∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {x k ρ} →
                Γ ⊢Var′ x ∈ k → Δ ⊢/Var ρ ∈ Γ →
-               Δ ⊢Var′ Vec.lookup ρ x ∈ k ElimAsc/Var ρ
+               Δ ⊢Var′ (Vec.lookup ρ x) ∈ k ElimAsc/Var ρ
   Var′∈-/Var         (∈-tp x∈k)               ρ∈Γ = ∈-tp (Var∈-/Var x∈k ρ∈Γ)
   Var′∈-/Var {ρ = ρ} (∈-tm x Γ-ctx Γ[x]≡tp-t) ρ∈Γ =
     subst (_ ⊢Var′ _ ∈_) (cong (_ElimAsc/Var ρ) Γ[x]≡tp-t)
-          (lift (∈-lookup ρ∈Γ x))
+          (∈-lift (/∈-lookup ρ∈Γ x))
 
 -- Well-kinded renamings in canonically kinded types, i.e. lemmas
 -- showing that renaming preserves kinding.
@@ -721,33 +723,35 @@ module TypedVarSubstApp {_⊢V_∈_ : Typing ElimAsc Fin ElimAsc}
 module KindedRenaming where
   open Substitution using (termLikeLemmasElimAsc)
 
-  typedVarSubst : TypedVarSubst (_⊢_wf)
+  typedVarSubst : TypedVarSubst ElimAsc lzero
   typedVarSubst = record
-    { application = AppLemmas.application appLemmas
-    ; weakenOps   = ElimCtx.weakenOps
-    ; /-wk        = refl
-    ; id-vanishes = id-vanishes
-    ; /-⊙         = /-⊙
-    ; wf-wf       = wf-ctx
+    { _⊢_wf              = _⊢_wf
+    ; typeExtension      = ElimCtx.weakenOps
+    ; typeVarApplication = AppLemmas.application appLemmas
+    ; wf-wf              = wf-ctx
+    ; /-wk               = refl
+    ; id-vanishes        = id-vanishes
+    ; /-⊙                 = /-⊙
     }
     where
       open TermLikeLemmas termLikeLemmasElimAsc using (varLiftAppLemmas)
       open LiftAppLemmas  varLiftAppLemmas
 
-  open TypedVarSubst typedVarSubst renaming (_⊢Var_∈_ to _⊢GenVar_∈_)
+  open TypedVarSubst typedVarSubst
+    hiding (_⊢_wf) renaming (_⊢Var_∈_ to _⊢GenVar_∈_)
 
   -- Liftings from generic variable typings to variable kindings.
 
-  liftTyped : LiftTyped varToVarLift typedSub _⊢Var′_∈_
+  liftTyped : LiftTo-Var′∈ _⊢GenVar_∈_
   liftTyped = record
     { typedSimple  = typedSimple
-    ; lift         = lift
+    ; ∈-lift       = ∈-lift
     }
     where
-      lift : ∀ {n} {Γ : Ctx n} {x a} → Γ ⊢GenVar x ∈ a → Γ ⊢Var′ x ∈ a
-      lift (var x Γ-ctx) = ∈-var′ x Γ-ctx
+      ∈-lift : ∀ {n} {Γ : Ctx n} {x a} → Γ ⊢GenVar x ∈ a → Γ ⊢Var′ x ∈ a
+      ∈-lift (∈-var x Γ-ctx) = ∈-var′ x Γ-ctx
 
-  open TypedVarSubstApp liftTyped public
+  open TypedVarSubstApp _⊢GenVar_∈_ liftTyped public
   open Substitution hiding (subst)
 
   -- Weakening preserves well-formedness of kinds.
@@ -824,10 +828,10 @@ module KindedRenaming where
 module WfCtxOps where
   open KindedRenaming using (wf-weaken)
 
-  wfWeakenOps : WfWeakenOps weakenOps
+  wfWeakenOps : WellFormedWeakenOps weakenOps
   wfWeakenOps = record { wf-weaken = wf-weaken }
 
-  open WfWeakenOps wfWeakenOps public
+  open WellFormedWeakenOps wfWeakenOps public
     hiding (wf-weaken) renaming (lookup to lookup-wf)
 
   -- Lookup the kind of a type variable in a well-formed context.
@@ -858,7 +862,6 @@ module ContextNarrowing where
     using (termLikeLemmasElim; termLikeLemmasKind′; termLikeLemmasElimAsc)
   open TermLikeLemmas termLikeLemmasElimAsc using (varLiftAppLemmas)
   open LiftAppLemmas varLiftAppLemmas
-  open ElimCtxVarSub _⊢Var′_∈_ hiding (_∷_; wf-∷₁)
   open KindedRenaming using (kd-weaken; <∷-weaken; Var′∈-weaken)
   private
     module EL = LiftAppLemmas
@@ -885,34 +888,32 @@ module ContextNarrowing where
   -- required a weakening lemma for subkiding, which in turn is
   -- implemented via typed renamings.
 
-  -- Simple instances of typed variable substitutions
+  -- The trivial lifting from _⊢Var′_∈_ to itself, and simple typed
+  -- variable substitutions.
 
-  typedSimple : TypedSimple VarLemmas.simple typedVarSub
-  typedSimple = record
-    { rawTypedSimple = record
-        { rawTypedExtension = record
-            { ∈-weaken = Var′∈-weaken
-            ; weaken-/ = wk-commutes
-            ; ∈-wf     = Var′∈-ctx
-            }
-        ; ∈-var             = ∈-var′
-        ; id-vanishes       = id-vanishes
-        ; /-wk              = refl
-        ; wk-sub-vanishes   = wk-sub-vanishes
-        ; wf-wf             = wf-ctx
-        }
-    }
-
-  -- The trivial lifting from _⊢Var′_∈_ to itself
-
-  liftTyped : LiftTyped varToVarLift typedVarSub _⊢Var′_∈_
+  liftTyped : LiftTo-Var′∈ _⊢Var′_∈_
   liftTyped = record
-    { typedSimple  = typedSimple
-    ; lift         = λ x → x
+    { typedSimple      = record
+      { typedWeakenOps = record
+        { ∈-weaken     = Var′∈-weaken
+        ; ∈-wf         = Var′∈-ctx
+        ; /-wk         = refl
+        ; /-weaken     = /-weaken
+        ; weaken-/-∷   = weaken-/-∷
+        }
+      ; ∈-var          = ∈-var′
+      ; wf-wf          = wf-ctx
+      ; id-vanishes    = id-vanishes
+      }
+    ; ∈-lift           = λ x∈a → x∈a
     }
+    where
+      weakenLemmas : WeakenLemmas ElimAsc Fin
+      weakenLemmas = record { appLemmas = appLemmas ; /-wk = refl }
+      open WeakenLemmas weakenLemmas
 
-  open LiftTyped liftTyped
-  open TypedVarSubstApp liftTyped
+  open LiftTo-Var′∈ liftTyped
+  open TypedVarSubstApp _⊢Var′_∈_ liftTyped
 
   -- A typed renaming that narrows the kind of the first type
   -- variable.

@@ -8,12 +8,14 @@
 module Relation.Binary.TransReasoning where
 
 open import Level using (suc; _⊔_)
-open import Data.Fin.Substitution.Context using (Ctx)
-open import Data.Fin.Substitution.Typed using (CtxTermRel)
+open import Data.Context using (Ctx)
+open import Data.Fin.Substitution.Typed using (Typing)
 open import Data.Fin.Substitution.TypedRelation using (TypedRel)
+open import Data.Nat using (ℕ)
 open import Data.Product using (_,_; proj₁; proj₂)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; subst)
 open import Relation.Binary
+open import Relation.Unary using (Pred)
 
 
 ------------------------------------------------------------------------
@@ -137,10 +139,11 @@ module TransRelReasoning {c ℓ₁ ℓ₂} (R : TransRel c ℓ₁ ℓ₂) where
 -- into Data.Fin.Substitution.{Typed,TypedRel})
 
 -- A form of pre-order reasoning for transitive relations in a context.
-record TransCtxTermRelReasoning {T₁ T₂}
-                                (_⊢_∼_ : CtxTermRel T₁ T₂ T₂) : Set₁ where
+record TransCtxTermRelReasoning {t₁ t₂ ℓ} {T₁ : Pred ℕ t₁} {T₂ : Pred ℕ t₂}
+                                (_⊢_∼_ : Typing T₁ T₂ T₂ ℓ)
+                                : Set (t₁ ⊔ t₂ ⊔ ℓ) where
 
-  -- Transitivity of _⊢_∼_∈_ for a given context.
+  -- Transitivity of _⊢_∼_ for a given context.
   field ∼-trans : ∀ {n} {Γ : Ctx T₁ n} → Transitive (Γ ⊢_∼_)
 
   module _ {n} {Γ : Ctx T₁ n} where
@@ -160,8 +163,10 @@ record TransCtxTermRelReasoning {T₁ T₂}
       renaming (_≈⟨_⟩_ to _≡⟨_⟩_; _≈⟨⟩_ to _≡⟨⟩_)
 
 -- A form of pre-order reasoning for typed transitive relations.
-record TypedTransRelReasoning {T₁ T₂ T₃}
-                              (_⊢_∼_∈_ : TypedRel T₁ T₂ T₂ T₃) : Set₁ where
+record TypedTransRelReasoning {t₁ t₂ t₃ ℓ} {T₁ : Pred ℕ t₁}
+                              {T₂ : Pred ℕ t₂} {T₃ : Pred ℕ t₃}
+                              (_⊢_∼_∈_ : TypedRel T₁ T₂ T₂ T₃ ℓ)
+                              : Set (t₁ ⊔ t₂ ⊔ t₃ ⊔ ℓ) where
 
   -- Transitivity of _⊢_∼_∈_ for a given context and T₃-"type".
   field ∼-trans : ∀ {n} {Γ : Ctx T₁ n} {t} → Transitive (Γ ⊢_∼_∈ t)

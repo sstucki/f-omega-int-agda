@@ -6,85 +6,123 @@
 
 module Data.Fin.Substitution.TypedRelation where
 
-open import Data.Fin using (Fin; zero; suc)
+open import Data.Context hiding (map)
+open import Data.Context.WellFormed
+open import Data.Fin using (Fin; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Context hiding (map)
 open import Data.Fin.Substitution.Typed
-open import Data.Nat using (ℕ; zero; suc; _+_)
+open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product as Prod using (_×_; _,_)
 open import Data.Vec as Vec using (_∷_; map; zip; unzip)
 open import Data.Vec.Properties
-open import Function using (flip; _∘_)
+open import Function using (flip)
+open import Level using (_⊔_) renaming (zero to lzero; suc to lsuc)
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
+open import Relation.Unary using (Pred)
 
-infixr 2 _⊗_
 
 ------------------------------------------------------------------------
 -- Abstract typed binary relations lifted point-wise to substitutions
 
 -- A shorthand.
-_⊗_ : (ℕ → Set) → (ℕ → Set) → ℕ → Set
+
+infixr 2 _⊗_
+
+_⊗_ : ∀ {t₁ t₂ } → Pred ℕ t₁ → Pred ℕ t₂ → Pred ℕ (t₁ ⊔ t₂)
 (T₁ ⊗ T₂) n = T₁ n × T₂ n
 
 -- Abstract typed binary relations on terms.
 --
--- An abtract typed term relation _⊢_∼_∈_ : TypedRel Tp₁ Tm₁ Tm₂ Tp₂
--- is a four-place relation which, in a given Tp₁-context, relates Tm₁
--- to Tm₂-terms and their Tp₂-types.
-TypedRel : (ℕ → Set) → (ℕ → Set) → (ℕ → Set) → (ℕ → Set) → Set₁
-TypedRel Tp₁ Tm₁ Tm₂ Tp₂ = ∀ {n} → Ctx Tp₁ n → Tm₁ n → Tm₂ n → Tp₂ n → Set
+-- An abtract typed term relation _⊢_∼_∈_ : TypedRel Bnd Term₁ Term₂
+-- Type is a four-place relation which, in a given Bnd-context,
+-- relates Term₁ to Term₂-terms and their Type-types.
 
--- The following maps witness the obvious correspondence between typed
--- relations on Tm₁ and Tm₂ terms and typings of Tm₁-Tm₂ pairs.
+-- An abtract typing judgment _⊢_∈_ : Typing Bnd Term Type is a
+-- ternary relation which, in a given Bnd-context, relates Term-terms
+-- to their Type-types.
 
-toTyping : ∀ {Tp₁ Tm₁ Tm₂ Tp₂} →
-           TypedRel Tp₁ Tm₁ Tm₂ Tp₂ → Typing Tp₁ (Tm₁ ⊗ Tm₂) Tp₂
-toTyping _⊢_∼_∈_ Γ = Prod.uncurry (_⊢_∼_∈_ Γ)
+TypedRel : ∀ {t₁ t₂ t₃ t₄} →
+         Pred ℕ t₁ → Pred ℕ t₂ → Pred ℕ t₃ → Pred ℕ t₄ → ∀ ℓ →
+         Set (t₁ ⊔ t₂ ⊔ t₃ ⊔ t₄ ⊔ lsuc ℓ)
+TypedRel Bnd Term₁ Term₂ Type ℓ =
+  ∀ {n} → Ctx Bnd n → Term₁ n → Term₂ n → Type n → Set ℓ
 
-fromTyping : ∀ {Tp₁ Tm₁ Tm₂ Tp₂} →
-             Typing Tp₁ (Tm₁ ⊗ Tm₂) Tp₂ → TypedRel Tp₁ Tm₁ Tm₂ Tp₂
-fromTyping _⊢_∈_ Γ = Prod.curry (_⊢_∈_ Γ)
+module _ {t₁ t₂ t₃ t₄ ℓ} {Bnd : Pred ℕ t₁}
+         {Term₁ : Pred ℕ t₂} {Term₂ : Pred ℕ t₃} {Type : Pred ℕ t₄} where
 
--- A handy helper.
+  -- The following maps witness the obvious correspondence between typed
+  -- relations on Term₁ and Term₂ terms and typings of Term₁-Term₂ pairs.
 
-subst₃ : ∀ {a b c p} {A : Set a} {B : Set b} {C : Set c}
-         (P : A → B → C → Set p) {x₁ x₂ y₁ y₂ z₁ z₂} →
-         x₁ ≡ x₂ → y₁ ≡ y₂ → z₁ ≡ z₂ → P x₁ y₁ z₁ → P x₂ y₂ z₂
-subst₃ P refl refl refl p = p
+  toTyping : TypedRel Bnd Term₁ Term₂ Type ℓ →
+             Typing Bnd (Term₁ ⊗ Term₂) Type ℓ
+  toTyping _⊢_∼_∈_ Γ = Prod.uncurry (_⊢_∼_∈_ Γ)
 
--- Abstract typed term relations lifted point-wise to substitutions
-record TypedSubRel (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
+  fromTyping : Typing Bnd (Term₁ ⊗ Term₂) Type ℓ →
+               TypedRel Bnd Term₁ Term₂ Type ℓ
+  fromTyping _⊢_∈_ Γ = Prod.curry (_⊢_∈_ Γ)
+
+record TypedRelation {t}
+                     (Type : Pred ℕ t)      -- Type syntax
+                     (Term : Pred ℕ lzero)  -- Term syntax
+                     ℓ
+                     : Set (lsuc (t ⊔ ℓ)) where
 
   infix 4 _⊢_∼_∈_ _⊢_wf
 
   field
-    _⊢_∼_∈_ : TypedRel Tp₂ Tm₁ Tm₂ Tp₁   -- the associated typed relation
-    _⊢_wf   : Wf Tp₂                     -- (traget) Tp₂-well-formedness
+    _⊢_wf   : Wf Type Type ℓ                   -- Type formation judgment
+    _⊢_∼_∈_ : TypedRel Type Term Term Type ℓ   -- Typed relation judgment
 
-    -- Application of Tm₁⊗Tm₂-substitutions to (source) Tp₁-types
-    application : Application Tp₁ (Tm₁ ⊗ Tm₂)
 
-    -- Weakening of Tp₁-types.
-    weakenOps : Extension Tp₁
+------------------------------------------------------------------------
+-- Abstract typed term relations lifted point-wise to substitutions
 
-  open WellFormedContext _⊢_wf public
-  private module C = WeakenOps weakenOps
+record TypedSubRel {t}
+                   (Type : Pred ℕ t)      -- Type syntax
+                   (Term : Pred ℕ lzero)  -- Term syntax
+                   ℓ
+                   : Set (lsuc (t ⊔ ℓ)) where
+
+  -- The underlying typed relation
+
+  field typedRelation : TypedRelation Type Term ℓ
+
+  open TypedRelation typedRelation public
+
+  -- Weakening and term substitutions in types.
+
+  field
+    typeExtension       : Extension Type                  -- type weakening
+    typeTermApplication : Application Type (Term ⊗ Term)  -- term subst. app.
+    termSimple          : Simple Term                     -- simple term subst.
+
+  open ContextFormation _⊢_wf          using (_wf)
+  open Application typeTermApplication using (_/_)
 
   -- We associate with every typed relation _⊢_∼_∈_ lifted to a pair
-  -- of Tm₁- and Tm₂-substitutions a _⊢_∈_-typed (simple) substitution
-  -- of pairs of Tm₁- and Tm₂-terms.
-  typedSub : TypedSub Tp₁ (Tm₁ ⊗ Tm₂) Tp₂
+  -- of Term-substitutions a single typed substitution of pairs of
+  -- Term-terms.
+
+  termPairSimple : Simple (Term ⊗ Term)
+  termPairSimple = record
+    { var    = Prod.< var , var >
+    ; weaken = Prod.map weaken weaken
+    }
+    where open Simple termSimple
+
+  typedSub : TypedSub Type (Term ⊗ Term) ℓ
   typedSub = record
-    { _⊢_∈_       = toTyping _⊢_∼_∈_
-    ; _⊢_wf       = _⊢_wf
-    ; application = application
-    ; weakenOps   = weakenOps
+    { _⊢_wf               = _⊢_wf
+    ; _⊢_∈_               = toTyping _⊢_∼_∈_
+    ; typeExtension       = typeExtension
+    ; typeTermApplication = typeTermApplication
+    ; termSimple          = termPairSimple
     }
 
-  open TypedSub typedSub using (_⊢_∈_; _⊢/_∈_; _/_; _⊙_; _,_) public
+  open TypedSub typedSub using (_⊢_∈_; _⊢/_∈_; /∈-wf) public
 
   infix  4 _⊢/_∼_∈_
 
@@ -94,18 +132,14 @@ record TypedSubRel (Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set) : Set₁ where
   -- substitutions which, when applied to related terms Γ ⊢ s ∼ t ∈ a
   -- in a source context Γ, yield related well-typed terms Δ ⊢ s / σ ∼
   -- t / ρ ∈ a / zip σ ρ in a well-formed target context Δ.
-  _⊢/_∼_∈_ : ∀ {m n} → Ctx Tp₂ n → Sub Tm₁ m n → Sub Tm₂ m n → Ctx Tp₁ m → Set
+
+  _⊢/_∼_∈_ : ∀ {m n} →
+             Ctx Type n → Sub Term m n → Sub Term m n → Ctx Type m →
+             Set (t ⊔ ℓ)
   Δ ⊢/ σ ∼ ρ ∈ Γ = Δ ⊢/ zip σ ρ ∈ Γ
 
-  -- Look up a pair of related entries in a pair of related
-  -- substitutions.
-  lookup : ∀ {m n} {Δ : Ctx Tp₂ n} {Γ : Ctx Tp₁ m} {σ ρ} →
-           Δ ⊢/ σ ∼ ρ ∈ Γ → (x : Fin m) →
-           Δ ⊢ Vec.lookup σ x ∼ Vec.lookup ρ x ∈ C.lookup Γ x / zip σ ρ
-  lookup {σ = σ} {ρ} σ∼ρ∈Γ x =
-    subst₂ (toTyping _⊢_∼_∈_ _) (lookup-zip x σ ρ) refl
-           (TypedSub.lookup typedSub σ∼ρ∈Γ x)
-
+------------------------------------------------------------------------
+-- Operations on abstract well-typed substitutions
 
 -- Helpers functions for relating extensions of (untyped) zipped
 -- substitutions to their projections.
@@ -134,60 +168,109 @@ module ZipUnzipExtension {Tm₁ Tm₂ : ℕ → Set}
 
   -- π₁ and π₂ are projections (w.r.t. zipping)
 
-  π₁-zip : ∀ {n m} (σ : Sub Tm₁ m n) (ρ : Sub Tm₂ m n) → π₁ (zip σ ρ) ≡ σ
-  π₁-zip σ ρ = cong Prod.proj₁ (unzip∘zip σ ρ)
+  π₁-zip : ∀ {n m} (σ : Sub Tm₁ m n) (τ : Sub Tm₂ m n) → π₁ (zip σ τ) ≡ σ
+  π₁-zip σ τ = cong Prod.proj₁ (unzip∘zip σ τ)
 
-  π₂-zip : ∀ {n m} (σ : Sub Tm₁ m n) (ρ : Sub Tm₂ m n) → π₂ (zip σ ρ) ≡ ρ
-  π₂-zip σ ρ = cong Prod.proj₂ (unzip∘zip σ ρ)
+  π₂-zip : ∀ {n m} (σ : Sub Tm₁ m n) (τ : Sub Tm₂ m n) → π₂ (zip σ τ) ≡ τ
+  π₂-zip σ τ = cong Prod.proj₂ (unzip∘zip σ τ)
 
-  -- Extension commutes with zipping.
-  /∷-zip : ∀ {m n s t} (σ : Sub Tm₁ m n) ρ →
-           (s , t) /∷ zip σ ρ ≡ zip (s E₁./∷ σ) (t E₂./∷ ρ)
-  /∷-zip σ ρ = cong (_∷_ _) (map-zip E₁.weaken E₂.weaken σ ρ)
+  -- Weakening commutes with zipping and unzipping.
 
-  -- Extension commutes with unzipping.
-  /∷-unzip : ∀ {m n s t} (σ : Sub (Tm₁ ⊗ Tm₂) m n) →
-             (s E₁./∷ π₁ σ , t E₂./∷ π₂ σ) ≡ unzip ((s , t) /∷ σ)
-  /∷-unzip σ = cong (Prod.map (_∷_ _) (_∷_ _)) (map-unzip _ _ σ)
+  map-weaken-zip : ∀ {m n} (σ : Sub Tm₁ m n) τ →
+                   Vec.map weaken (zip σ τ) ≡
+                     zip (Vec.map E₁.weaken σ) (Vec.map E₂.weaken τ)
+  map-weaken-zip σ τ = map-zip E₁.weaken E₂.weaken σ τ
 
+  map-weaken-unzip : ∀ {m n} (στ : Sub (Tm₁ ⊗ Tm₂) m n) →
+                     (Vec.map E₁.weaken (π₁ στ) , Vec.map E₂.weaken (π₂ στ)) ≡
+                       unzip (Vec.map weaken στ)
+  map-weaken-unzip στ = map-unzip E₁.weaken E₂.weaken στ
 
--- Extensions of abstract typed relations lifted to substitutions.
+  -- Extension commutes with zipping and unzipping.
 
-record TypedRelExtension {Tp₁ Tm₁ Tm₂ Tp₂ : ℕ → Set}
-                         (ext₁ : Extension Tm₁)
-                         (ext₂ : Extension Tm₂)
-                         (typedSubRel : TypedSubRel Tp₁ Tm₁ Tm₂ Tp₂)
-                         : Set where
+  /∷-zip : ∀ {m n s t} (σ : Sub Tm₁ m n) τ →
+           (s , t) /∷ zip σ τ ≡ zip (s E₁./∷ σ) (t E₂./∷ τ)
+  /∷-zip σ τ = cong (_∷_ _) (map-weaken-zip σ τ)
 
-  open TypedSubRel typedSubRel
+  /∷-unzip : ∀ {m n s t} (στ : Sub (Tm₁ ⊗ Tm₂) m n) →
+             (s E₁./∷ π₁ στ , t E₂./∷ π₂ στ) ≡ unzip ((s , t) /∷ στ)
+  /∷-unzip στ = cong (Prod.map (_∷_ _) (_∷_ _)) (map-weaken-unzip στ)
+
+-- Operations on related abstract typed substitutions that require
+-- weakening of derivations of the typed relation
+
+record TypedRelWeakenOps {t ℓ} {Type : Pred ℕ t} {Term : Pred ℕ lzero}
+                         (typedSubRel : TypedSubRel Type Term ℓ)
+                         : Set (lsuc (t ⊔ ℓ)) where
+
+  open TypedSubRel      typedSubRel
+  open ContextFormation _⊢_wf               using (_wf)
+  open Application      typeTermApplication using (_/_)
+
+  -- Operations on contexts and raw terms that require weakening
+
   private
-    module E₁ = Extension ext₁
-    module E₂ = Extension ext₂
+    termExtension : Extension Term
+    termExtension = record { weaken = Simple.weaken termSimple }
 
-  open ZipUnzipExtension ext₁ ext₂ renaming (zippedExtension to ext)
+    module E = Extension termExtension
+    module C = WeakenOps typeExtension
+    module P = Simple    termPairSimple
 
-  field rawTypedExtension : RawTypedExtension _⊢_wf _⊢_∈_ application
-                                              weakenOps ext ext
+  field
 
-  -- Extension of the associated typed Tm₁⊗Tm₂-substitutions.
-  typedExtension : TypedExtension ext typedSub
-  typedExtension = record { rawTypedExtension = rawTypedExtension }
+    -- Weakening preserves well-typed terms.
 
-  private module TE = TypedExtension typedExtension
-  open TE public hiding (rawTypedExtension; ∈-/∷) renaming
-    ( ∈-weaken to ∼∈-weaken
-    ; ∈-wf     to ∼∈-wf
-    )
-  open Extension ext hiding (weaken)
-  open WeakenOps weakenOps
+    ∼∈-weaken : ∀ {n} {Δ : Ctx Type n} {t u a b} →
+                Δ ⊢ a wf → Δ ⊢ t ∼ u ∈ b →
+                (a ∷ Δ) ⊢ E.weaken t ∼ E.weaken u ∈ C.weaken b
 
-  -- Extension by typed related terms.
-  ∼∈-/∷ : ∀ {m n} {Γ : Ctx Tp₁ m} {Δ : Ctx Tp₂ n} {s t a b σ ρ} →
-          b ∷ Δ ⊢ s ∼ t ∈ weaken (a / zip σ ρ) → Δ ⊢/ σ ∼ ρ ∈ Γ →
-          b ∷ Δ ⊢/ (s E₁./∷ σ) ∼ (t E₂./∷ ρ) ∈ a ∷ Γ
-  ∼∈-/∷ s∼t∈a/σρ σ∼ρ∈Γ =
-    subst (flip (_⊢/_∈_ _) _) (/∷-zip _ _) (TE.∈-/∷ s∼t∈a/σρ σ∼ρ∈Γ)
+    -- Well-typedness implies well-formedness of contexts.
 
+    ∼∈-wf : ∀ {n} {Δ : Ctx Type n} {t u a} → Δ ⊢ t ∼ u ∈ a → Δ wf
+
+    -- Lemmas relating type weakening to term substitutions
+
+    /-wk : ∀ {n} {a : Type n} → a / P.wk ≡ C.weaken a
+
+    /-weaken : ∀ {m n} {στ : Sub (Term ⊗ Term) m n} a →
+               a / Vec.map P.weaken στ ≡ a / στ / P.wk
+
+    weaken-/-∷ : ∀ {n m} {tu} {στ : Sub (Term ⊗ Term) m n} (a : Type m) →
+                 C.weaken a / (tu ∷ στ) ≡ a / στ
+
+  -- Operations on the underlying abstract typed substitutions that
+  -- require weakening.
+
+  typedWeakenOps : TypedWeakenOps typedSub
+  typedWeakenOps = record
+    { ∈-weaken   = ∼∈-weaken
+    ; ∈-wf       = ∼∈-wf
+    ; /-wk       = /-wk
+    ; /-weaken   = /-weaken
+    ; weaken-/-∷ = weaken-/-∷
+    }
+
+  open TypedWeakenOps typedWeakenOps using (∈-/∷)
+  open ZipUnzipExtension termExtension termExtension using (/∷-zip)
+
+  -- Look up a pair of related entries in a pair of related
+  -- substitutions.
+
+  lookup : ∀ {m n Δ} {σ τ : Sub Term m n} {Γ} →
+           Δ ⊢/ σ ∼ τ ∈ Γ → (x : Fin m) →
+           Δ ⊢ Vec.lookup σ x ∼ Vec.lookup τ x ∈ C.lookup Γ x / zip σ τ
+  lookup {σ = σ} {τ} σ∼τ∈Γ x =
+    subst₂ (toTyping _⊢_∼_∈_ _) (lookup-zip x σ τ) refl
+           (TypedWeakenOps.lookup typedWeakenOps σ∼τ∈Γ x)
+
+  -- Extension by a pair of related typed terms.
+
+  ∼∈-/∷ : ∀ {m n Γ} {σ τ : Sub Term m n} {Δ t u a b} →
+          b ∷ Δ ⊢ t ∼ u ∈ C.weaken (a / zip σ τ) → Δ ⊢/ σ ∼ τ ∈ Γ →
+          b ∷ Δ ⊢/ (t E./∷ σ) ∼ (u E./∷ τ) ∈ a ∷ Γ
+  ∼∈-/∷ t∼u∈a/στ σ∼τ∈Γ =
+    subst (flip (_⊢/_∈_ _) _) (/∷-zip _ _) (∈-/∷ t∼u∈a/στ σ∼τ∈Γ)
 
 -- Helpers functions for relating simple (untyped) zipped
 -- substitutions to their projections.
@@ -212,9 +295,21 @@ module ZipUnzipSimple {Tm₁ Tm₂ : ℕ → Set}
   open SimpleExt zippedSimple
 
   -- Lifting commutes with zipping.
-  ↑-zip : ∀ {m n} (σ : Sub Tm₁ m n) ρ →
-          zip σ ρ ↑ ≡ zip (σ S₁.↑) (ρ S₂.↑)
-  ↑-zip σ ρ = /∷-zip σ ρ
+
+  ↑-zip : ∀ {m n} (σ : Sub Tm₁ m n) τ →
+          zip σ τ ↑ ≡ zip (σ S₁.↑) (τ S₂.↑)
+  ↑-zip σ τ = /∷-zip σ τ
+
+  ↑⋆-zip : ∀ {m n} (σ : Sub Tm₁ m n) τ k →
+           zip σ τ ↑⋆ k ≡ zip (σ S₁.↑⋆ k) (τ S₂.↑⋆ k)
+  ↑⋆-zip σ τ zero    = refl
+  ↑⋆-zip σ τ (suc k) = cong (var zero ∷_) (begin
+      map weaken (zip σ τ ↑⋆ k)
+    ≡⟨ cong (map weaken) (↑⋆-zip σ τ k) ⟩  --
+      map weaken (zip (σ S₁.↑⋆ k) (τ S₂.↑⋆ k))
+    ≡⟨ map-weaken-zip (σ S₁.↑⋆ k) (τ S₂.↑⋆ k) ⟩
+      zip (map S₁.weaken (σ S₁.↑⋆ k)) (map S₂.weaken (τ S₂.↑⋆ k))
+    ∎)
 
   -- Lifting commutes with unzipping.
   ↑-unzip : ∀ {m n} (σ : Sub (Tm₁ ⊗ Tm₂) m n) →
@@ -265,263 +360,98 @@ module ZipUnzipSimple {Tm₁ Tm₂ : ℕ → Set}
   sub-unzip : ∀ {n} (s : Tm₁ n) t → (S₁.sub s , S₂.sub t) ≡ unzip (sub (s , t))
   sub-unzip s t = cong (Prod.map (_∷_ s) (_∷_ t)) id-unzip
 
+-- Operations on abstract typed substitutions that require simple term
+-- substitutions
 
--- Abstract typed relations lifted to some simple substitutions.
+record TypedRelSimple {t ℓ} {Type : Pred ℕ t} {Term : Pred ℕ lzero}
+                      (typedSubRel : TypedSubRel Type Term ℓ)
+                      : Set (lsuc (t ⊔ ℓ)) where
 
-record TypedRelSimple {Tp Tm₁ Tm₂ : ℕ → Set}
-                      (simple₁ : Simple Tm₁)
-                      (simple₂ : Simple Tm₂)
-                      (typedSubRel : TypedSubRel Tp Tm₁ Tm₂ Tp)
-                      : Set where
+  -- Operations on related abstract typed substitutions that require
+  -- weakening.
 
-  open TypedSubRel typedSubRel
+  field typedRelWeakenOps : TypedRelWeakenOps typedSubRel
+
+  open TypedRelWeakenOps typedRelWeakenOps public
+  open TypedSubRel       typedSubRel
+  open ContextFormation  _⊢_wf               using (_wf; _⊢_wfExt)
+  open Application       typeTermApplication using (_/_)
+
   private
-    module S₁ = SimpleExt simple₁
-    module S₂ = SimpleExt simple₂
-    module L₀ = Lemmas₀   (record { simple = simple₁ })
-    module C  = WeakenOps weakenOps
+    module S = Simple    termSimple
+    module C = WeakenOps typeExtension
+    module P = Simple    termPairSimple
+  open S using (_↑; _↑⋆_; id; wk; sub)
 
-    -- Extension of the underlying substitutions.
+  -- Context operations that require term substitutions in types.
 
-    ext₁ : Extension Tm₁
-    ext₁ = record { weaken = S₁.weaken }
+  open SubstOps typeTermApplication termPairSimple using (_E/_)
 
-    ext₂ : Extension Tm₂
-    ext₂ = record { weaken = S₂.weaken }
+  field
 
-  open ZipUnzipSimple simple₁ simple₂ renaming (zippedSimple to simple)
+    -- Takes equal variables to well-typed related terms.
 
-  field rawTypedSimple : RawTypedSimple _⊢_wf _⊢_∈_ application
-                                        weakenOps simple simple
+    ∼∈-var : ∀ {n} {Γ : Ctx Type n} →
+             ∀ x → Γ wf → Γ ⊢ S.var x ∼ S.var x ∈ C.lookup Γ x
 
-  -- The associated simple typed Tm₁⊗Tm₂-substitutions.
-  typedSimple : TypedSimple simple typedSub
-  typedSimple = record { rawTypedSimple = rawTypedSimple }
+    -- Well-formedness of related types implies well-formedness of
+    -- contexts.
 
-  private module TS = TypedSimple typedSimple
-  open TS public hiding (rawTypedSimple; ∈-/∷; ∈-↑; ∈-id; ∈-wk; ∈-sub; ∈-tsub)
-    renaming
-    ( ∈-weaken to ∼∈-weaken
-    ; ∈-wf     to ∼∈-wf
-    ; ∈-var    to ∼∈-var
-    )
-  open Simple simple
+    wf-wf : ∀ {n} {Γ : Ctx Type n} {a} → Γ ⊢ a wf → Γ wf
 
-  typedRelExtension : TypedRelExtension ext₁ ext₂ typedSubRel
-  typedRelExtension = record { rawTypedExtension = rawTypedExtension }
-    where open RawTypedSimple TS.rawTypedSimple
-  open TypedRelExtension typedRelExtension public using (∼∈-/∷)
+    -- The identity substitution in types is an identity
+
+    id-vanishes : ∀ {n} (a : Type n) → a / P.id ≡ a
+
+  -- Operations on the underlying abstract typed substitutions that
+  -- require simple typed term substitutions.
+
+  typedSimple : TypedSimple typedSub
+  typedSimple = record
+    { typedWeakenOps = typedWeakenOps
+    ; ∈-var          = ∼∈-var
+    ; wf-wf          = wf-wf
+    ; id-vanishes    = id-vanishes
+    }
+
+  open TypedSimple typedSimple using (∈-↑; ∈-↑⋆; ∈-id; ∈-wk; ∈-sub; ∈-tsub)
+  open ZipUnzipSimple termSimple termSimple
 
   -- Lifting.
-  ∼∈-↑ : ∀ {m n} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {a σ ρ} →
-         Δ ⊢ a / zip σ ρ wf → Δ ⊢/ σ ∼ ρ ∈ Γ →
-         a / zip σ ρ ∷ Δ ⊢/ σ S₁.↑ ∼ ρ S₂.↑ ∈ a ∷ Γ
-  ∼∈-↑ a/σρ-wf σ∼ρΓ =
-    subst (flip (_⊢/_∈_ _) _) (↑-zip _ _) (TS.∈-↑ a/σρ-wf σ∼ρΓ)
 
-  -- Identity substitutions in typed related terms.
-  ∼∈-id  : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢/ S₁.id ∼ S₂.id ∈ Γ
-  ∼∈-id Γ-wf = subst (flip (_⊢/_∈_ _) _) id-zip (TS.∈-id Γ-wf)
+  ∼∈-↑ : ∀ {m n Δ} {σ τ : Sub Term m n} {a Γ} →
+         Δ ⊢ a / zip σ τ wf → Δ ⊢/ σ ∼ τ ∈ Γ →
+         a / zip σ τ ∷ Δ ⊢/ σ ↑ ∼ τ ↑ ∈ a ∷ Γ
+  ∼∈-↑ a/στ-wf σ∼τΓ =
+    subst (flip (_⊢/_∈_ _) _) (↑-zip _ _) (∈-↑ a/στ-wf σ∼τΓ)
 
-  -- Weakening of typed related terms.
-  ∼∈-wk : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → a ∷ Γ ⊢/ S₁.wk ∼ S₂.wk ∈ Γ
-  ∼∈-wk a-wf = subst (flip (_⊢/_∈_ _) _) wk-zip (TS.∈-wk a-wf)
+  ∼∈-↑⋆ : ∀ {k m n Δ} {E : CtxExt Type m k} {σ τ : Sub Term m n} {Γ} →
+          Δ ⊢ (E E/ zip σ τ) wfExt → Δ ⊢/ σ ∼ τ ∈ Γ →
+          (E E/ zip σ τ) ++ Δ ⊢/ σ ↑⋆ k ∼ τ ↑⋆ k ∈ (E ++ Γ)
+  ∼∈-↑⋆ {k} E/στ-wfExt σ∼τ∈Γ =
+    subst (flip (_⊢/_∈_ _) _) (↑⋆-zip _ _ k) (∈-↑⋆ E/στ-wfExt σ∼τ∈Γ)
 
-  -- Related substitutions which only replace the first variable.
-  ∼∈-sub : ∀ {n} {Γ : Ctx Tp n} {s t a} → Γ ⊢ s ∼ t ∈ a →
-           Γ ⊢/ S₁.sub s ∼ S₂.sub t ∈ a ∷ Γ
+  -- The identity substitution.
+
+  ∼∈-id : ∀ {n} {Γ : Ctx Type n} → Γ wf → Γ ⊢/ id ∼ id ∈ Γ
+  ∼∈-id Γ-wf = subst (flip (_⊢/_∈_ _) _) id-zip (∈-id Γ-wf)
+
+  -- Weakening.
+
+  ∼∈-wk : ∀ {n} {Γ : Ctx Type n} {a} → Γ ⊢ a wf → a ∷ Γ ⊢/ wk ∼ wk ∈ Γ
+  ∼∈-wk a-wf = subst (flip (_⊢/_∈_ _) _) wk-zip (∈-wk a-wf)
+
+  -- A substitution which only replaces the first variable.
+
+  ∼∈-sub : ∀ {n} {Γ : Ctx Type n} {t u a} → Γ ⊢ t ∼ u ∈ a →
+           Γ ⊢/ sub t ∼ sub u ∈ a ∷ Γ
   ∼∈-sub s∼t∈a =
-    subst (flip (_⊢/_∈_ _) _) (sub-zip _ _) (TS.∈-sub s∼t∈a)
-
-  -- Related substitutions which only change the type of the first
-  -- variable in the context.
-  ∼∈-tsub : ∀ {n} {Γ : Ctx Tp n} {a b} →
-            b ∷ Γ ⊢ S₁.var zero ∼ S₂.var zero ∈ C.weaken a →
-            b ∷ Γ ⊢/ S₁.id ∼ S₂.id ∈ a ∷ Γ
-  ∼∈-tsub z∈a = subst (flip (_⊢/_∈_ _) _) id-zip (TS.∈-tsub z∈a)
+    subst (flip (_⊢/_∈_ _) _) (sub-zip _ _) (∈-sub s∼t∈a)
 
 
--- Abstract typed liftings from Tm₁/Tm₂ to Tm₁′/Tm₂′.
+  -- A substitution which only changes the type of the first variable.
 
-record LiftTypedRel {Tp Tm₁ Tm₂ Tm₁′ Tm₂′}
-                    (l₁ : Lift Tm₁ Tm₁′)
-                    (l₂ : Lift Tm₂ Tm₂′)
-                    (typedSubRel : TypedSubRel Tp Tm₁ Tm₂ Tp)
-                    (_⊢₂_∼_∈_ : TypedRel Tp Tm₁′ Tm₂′ Tp)
-                    : Set where
-
-  open TypedSubRel typedSubRel renaming (_⊢_∼_∈_ to _⊢₁_∼_∈_)
-  private
-    module L₁ = Lift l₁
-    module L₂ = Lift l₂
-
-  -- The underlying well-typed related simple Tm₁-Tm₂-substitutions.
-  field
-    typedRelSimple : TypedRelSimple L₁.simple L₂.simple typedSubRel
-
-  open TypedRelSimple typedRelSimple public
-
-  -- Lifts well-typed Tm₁-terms to well-typed Tm₂-terms.
-  field lift : ∀ {n} {Γ : Ctx Tp n} {s t a} →
-               Γ ⊢₁ s ∼ t ∈ a → Γ ⊢₂ (L₁.lift s) ∼ (L₂.lift t) ∈ a
-
-
--- Abstract typed variable equality.
-
-module VarEquality {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
-  open WeakenOps weakenOps
-  open WellFormedContext _⊢_wf
-
-  infix 4 _⊢Var_≡_∈_
-
-  -- Abstract variable equality.
-  data _⊢Var_≡_∈_ {n} (Γ : Ctx Tp n) : Fin n → Fin n → Tp n → Set where
-    refl : ∀ x → Γ wf → Γ ⊢Var x ≡ x ∈ lookup Γ x
-
-
--- Helpers lemmas for relating (untyped) zipped substitutions to their
--- first projection.
-
-record ProjLemmas (Tp Tm : ℕ → Set) : Set where
-
-  field
-    weakenOps   : Extension Tp
-    appLemmas   : AppLemmas Tp Tm
-
-  private
-    module C = WeakenOps      weakenOps
-    module L = ExtAppLemmas   appLemmas
-    module H = ZipUnzipSimple L.simple L.simple
-    module S = SimpleExt      H.zippedSimple
-  open SimpleExt   L.simple
-  open Application L.application
-  open H public
-
-  field
-    /-wk : ∀ {n} {a : Tp n} → a / wk ≡ C.weaken a
-
-  open Prod using (proj₁)
-
-  -- Weakening commutes with unzipped substitution.
-  weaken-/ : ∀ {m n} {σ : Sub (Tm ⊗ Tm) m n} {st} a →
-             C.weaken (a / π₁ σ) ≡ C.weaken a / π₁ (st S./∷ σ)
-  weaken-/ {σ = σ} {s , t} a = begin
-      C.weaken (a / π₁ σ)
-    ≡⟨ sym /-wk ⟩
-      a / π₁ σ / wk
-    ≡⟨ L.wk-commutes a ⟩
-      a / wk / (s /∷ π₁ σ)
-    ≡⟨ cong₂ _/_ /-wk refl ⟩
-      C.weaken a / (s /∷ π₁ σ)
-    ≡⟨ cong (_/_ (C.weaken a) ∘ proj₁) (H./∷-unzip {t = t} σ) ⟩
-      C.weaken a / π₁ ((s , t) S./∷ σ)
-    ∎
-
-  id-vanishes : ∀ {n} (a : Tp n) → a / π₁ S.id ≡ a
-  id-vanishes a = begin
-    a / π₁ S.id   ≡⟨ cong (_/_ _ ∘ proj₁) (sym (H.id-unzip)) ⟩
-    a / id        ≡⟨ L.id-vanishes a ⟩
-    a             ∎
-
-  /-proj₁-wk : ∀ {n} {a : Tp n} → a / π₁ S.wk ≡ C.weaken a
-  /-proj₁-wk {a = a} = begin
-    a / π₁ S.wk   ≡⟨ cong (_/_ _ ∘ proj₁) (sym H.wk-unzip) ⟩
-    a / wk        ≡⟨ /-wk ⟩
-    C.weaken a    ∎
-
-  wk-sub-vanishes : ∀ {n} {xy} (a : Tp n) →
-                    a / π₁ S.wk / π₁ (S.sub xy) ≡ a
-  wk-sub-vanishes {xy = x , y} a = begin
-      a / π₁ S.wk / π₁ (S.sub (x , y))
-    ≡⟨ cong (_/_ (a / π₁ S.wk) ∘ proj₁) (sym (H.sub-unzip x y)) ⟩
-      a / π₁ S.wk / sub x
-    ≡⟨ cong (λ σ → a / proj₁ σ / sub x) (sym H.wk-unzip) ⟩
-      a / wk / sub x
-    ≡⟨ L.wk-sub-vanishes a ⟩
-      a
-    ∎
-
--- Abstract typed variable equality substitutions (renamings).
-
-record TypedVarEqSubst {Tp} (_⊢_wf : Wf Tp) : Set where
-
-  field
-    application : Application Tp Fin
-    weakenOps   : Extension Tp
-
-  open WellFormedContext     _⊢_wf
-  open VarEquality weakenOps _⊢_wf public
-  open Application application     using (_/_)
-  open VarLemmas                   using (simple; lemmas₄)
-  open Lemmas₄     lemmas₄         using (_↑; id; wk; sub; _⊙_)
-  open SimpleExt   simple          using (extension)
-  private module C = WeakenOps weakenOps
-
-  field
-    /-wk        : ∀ {n} {a : Tp n} → a / wk ≡ C.weaken a
-    id-vanishes : ∀ {n} (a : Tp n) → a / id ≡ a
-    /-⊙         : ∀ {m n k} {σ₁ : Sub Fin m n} {σ₂ : Sub Fin n k} a →
-                  a / σ₁ ⊙ σ₂ ≡ a / σ₁ / σ₂
-    wf-wf       : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → Γ wf
-
-  projLemmas : ProjLemmas Tp Fin
-  projLemmas = record
-    { weakenOps = weakenOps
-    ; appLemmas = record
-      { application = application
-      ; lemmas₄     = lemmas₄
-      ; id-vanishes = id-vanishes
-      ; /-⊙         = /-⊙
-      }
-    ; /-wk      = /-wk
-    }
-
-  private module H = ProjLemmas projLemmas
-
-  typedSubRel : TypedSubRel Tp Fin Fin Tp
-  typedSubRel = record
-    { _⊢_∼_∈_     = _⊢Var_≡_∈_
-    ; _⊢_wf       = _⊢_wf
-    ; application = record { _/_ = λ a σ → a / H.π₁ σ }
-    ; weakenOps   = weakenOps
-    }
-
-  open TypedSubRel typedSubRel public
-    using () renaming (_⊢/_∼_∈_ to _⊢/Var_≡_∈_)
-
-  -- Extensions of renamings in related terms.
-  typedRelExtension : TypedRelExtension extension extension typedSubRel
-  typedRelExtension = record
-    { rawTypedExtension = record
-      { ∈-weaken = ≡∈-weaken
-      ; weaken-/ = λ {_} {_} {ρ} {xy} a → H.weaken-/ {σ = ρ} {xy} a
-      ; ∈-wf     = ≡∈-wf
-      }
-    }
-    where
-      ≡∈-weaken : ∀ {n} {Γ : Ctx Tp n} {x y a b} → Γ ⊢ a wf →
-                  Γ ⊢Var x ≡ y ∈ b → a ∷ Γ ⊢Var suc x ≡ suc y ∈ C.weaken b
-      ≡∈-weaken {_} {Γ} a-wf (refl x Γ-wf) =
-        subst (_⊢Var_≡_∈_ _ _ _) (lookup-map x C.weaken (C.toVec Γ))
-              (refl (suc x) (a-wf ∷ Γ-wf))
-
-      ≡∈-wf : ∀ {n} {Γ : Ctx Tp n} {x y a} → Γ ⊢Var x ≡ y ∈ a → Γ wf
-      ≡∈-wf (refl x Γ-wf) = Γ-wf
-
-  open TypedRelExtension typedRelExtension using (rawTypedExtension)
-
-  -- Typed simple renamings in related terms.
-  typedRelSimple : TypedRelSimple simple simple typedSubRel
-  typedRelSimple = record
-    { rawTypedSimple = record
-      { rawTypedExtension = rawTypedExtension
-      ; ∈-var             = refl
-      ; id-vanishes       = H.id-vanishes
-      ; /-wk              = H./-proj₁-wk
-      ; wk-sub-vanishes   = λ {_} {xy} a → H.wk-sub-vanishes {xy = xy} a
-      ; wf-wf             = wf-wf
-      }
-    }
-
-  open TypedRelSimple typedRelSimple public
-    hiding (typedRelExtension; /-wk; id-vanishes; wk-sub-vanishes; wf-wf)
+  ∼∈-tsub : ∀ {n} {Γ : Ctx Type n} {a b} →
+            b ∷ Γ ⊢ S.var zero ∼ S.var zero ∈ C.weaken a →
+            b ∷ Γ ⊢/ id ∼ id ∈ a ∷ Γ
+  ∼∈-tsub z∈a = subst (flip (_⊢/_∈_ _) _) id-zip (∈-tsub z∈a)

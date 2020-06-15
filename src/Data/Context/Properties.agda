@@ -4,7 +4,7 @@
 
 {-# OPTIONS --safe --without-K #-}
 
-module Data.Fin.Substitution.Context.Properties where
+module Data.Context.Properties where
 
 open import Data.Fin using (Fin; zero; suc; lift; raise)
 open import Data.Fin.Substitution.ExtraLemmas
@@ -15,8 +15,10 @@ import Data.Vec.Properties as VecProps
 open import Function as Fun using (_∘_; flip)
 open import Relation.Binary.PropositionalEquality hiding (subst-∘)
 open ≡-Reasoning
+open import Relation.Unary using (Pred)
 
-open import Data.Fin.Substitution.Context
+open import Data.Context
+open import Data.Context.WellFormed
 
 
 ------------------------------------------------------------------------
@@ -24,48 +26,53 @@ open import Data.Fin.Substitution.Context
 
 -- Properties of the `map' functions.
 
--- pointwise equality is a congruence w.r.t. map and mapExt.
+module _ {ℓ₁ ℓ₂} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ ℓ₂} where
 
-map-cong : ∀ {T₁ T₂ : ℕ → Set} {n}
-           {f g : ∀ {k} → T₁ k → T₂ k} → (∀ {k} → f {k} ≗ g {k}) →
-           _≗_ {A = Ctx T₁ n} (map f) (map g)
-map-cong f≗g []        = refl
-map-cong f≗g (_∷_ t Γ) = cong₂ _∷_ (f≗g t) (map-cong f≗g Γ)
+  -- pointwise equality is a congruence w.r.t. map and mapExt.
 
-mapExt-cong : ∀ {T₁ T₂ : ℕ → Set} {k m n}
-              {f g : ∀ i → T₁ (i + m) → T₂ (i + n)} → (∀ {i} → f i ≗ g i) →
-              _≗_ {A = CtxExt T₁ m k} (mapExt {T₂ = T₂} f) (mapExt g)
-mapExt-cong f≗g []            = refl
-mapExt-cong f≗g (_∷_ {l} t Γ) = cong₂ _∷_ (f≗g {l} t) (mapExt-cong f≗g Γ)
+  map-cong : ∀ {n} {f g : ∀ {k} → T₁ k → T₂ k} → (∀ {k} → f {k} ≗ g {k}) →
+             _≗_ {A = Ctx T₁ n} (map f) (map g)
+  map-cong f≗g []        = refl
+  map-cong f≗g (_∷_ t Γ) = cong₂ _∷_ (f≗g t) (map-cong f≗g Γ)
 
--- map and mapExt are functorial.
+  mapExt-cong : ∀ {k m n} {f g : ∀ i → T₁ (i + m) → T₂ (i + n)} →
+                (∀ {i} → f i ≗ g i) →
+                _≗_ {A = CtxExt T₁ m k} (mapExt {T₂ = T₂} f) (mapExt g)
+  mapExt-cong f≗g []            = refl
+  mapExt-cong f≗g (_∷_ {l} t Γ) = cong₂ _∷_ (f≗g {l} t) (mapExt-cong f≗g Γ)
 
-map-id : ∀ {T n} → _≗_ {A = Ctx T n} (map Fun.id) Fun.id
-map-id []      = refl
-map-id (t ∷ Γ) = cong (t ∷_) (map-id Γ)
+module _ {ℓ} {T : Pred ℕ ℓ} where
 
-mapExt-id : ∀ {T m n} → _≗_ {A = CtxExt T m n} (mapExt λ _ t → t) Fun.id
-mapExt-id []      = refl
-mapExt-id (t ∷ Γ) = cong (t ∷_) (mapExt-id Γ)
+  -- map and mapExt are functorial.
 
-map-∘ : ∀ {T₁ T₂ T₃ : ℕ → Set} {n}
-        (f : ∀ {k} → T₂ k → T₃ k) (g : ∀ {k} → T₁ k → T₂ k) (Γ : Ctx T₁ n) →
-        map {T₂ = T₃} (f ∘ g) Γ ≡ map {T₁ = T₂} f (map g Γ)
-map-∘ f g []      = refl
-map-∘ f g (t ∷ Γ) = cong (_ ∷_) (map-∘ f g Γ)
+  map-id : ∀ {n} → _≗_ {A = Ctx T n} (map Fun.id) Fun.id
+  map-id []      = refl
+  map-id (t ∷ Γ) = cong (t ∷_) (map-id Γ)
 
-mapExt-∘ : ∀ {T₁ T₂ T₃ : ℕ → Set} {k l m n}
-           (f : ∀ i → T₂ (i + m) → T₃ (i + n))
-           (g : ∀ i → T₁ (i + l) → T₂ (i + m)) →
-           (Γ : CtxExt T₁ l k) →
-           mapExt {T₂ = T₃} (λ i t → f i (g i t)) Γ ≡
-             mapExt {T₁ = T₂} f (mapExt g Γ)
-mapExt-∘ f g []      = refl
-mapExt-∘ f g (t ∷ Γ) = cong (_ ∷_) (mapExt-∘ f g Γ)
+  mapExt-id : ∀ {m n} → _≗_ {A = CtxExt T m n} (mapExt λ _ t → t) Fun.id
+  mapExt-id []      = refl
+  mapExt-id (t ∷ Γ) = cong (t ∷_) (mapExt-id Γ)
+
+module _ {ℓ₁ ℓ₂ ℓ₃} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ ℓ₂} {T₃ : Pred ℕ ℓ₃} where
+
+  map-∘ : ∀ {n} (f : ∀ {k} → T₂ k → T₃ k) (g : ∀ {k} → T₁ k → T₂ k)
+          (Γ : Ctx T₁ n) → map {T₂ = T₃} (f ∘ g) Γ ≡ map {T₁ = T₂} f (map g Γ)
+  map-∘ f g []      = refl
+  map-∘ f g (t ∷ Γ) = cong (_ ∷_) (map-∘ f g Γ)
+
+  mapExt-∘ : ∀ {k l m n}
+             (f : ∀ i → T₂ (i + m) → T₃ (i + n))
+             (g : ∀ i → T₁ (i + l) → T₂ (i + m)) →
+             (Γ : CtxExt T₁ l k) →
+             mapExt {T₂ = T₃} (λ i t → f i (g i t)) Γ ≡
+               mapExt {T₁ = T₂} f (mapExt g Γ)
+  mapExt-∘ f g []      = refl
+  mapExt-∘ f g (t ∷ Γ) = cong (_ ∷_) (mapExt-∘ f g Γ)
 
 -- Lemmas about operations on contexts that require weakening of
 -- types.
-module WeakenOpsLemmas {T : ℕ → Set} (extension : Extension T) where
+
+module WeakenOpsLemmas {ℓ} {T : Pred ℕ ℓ} (extension : Extension T) where
 
   -- The underlyig operations.
   open WeakenOps extension
@@ -166,8 +173,9 @@ module ConversionLemmas {T₁ T₂ : ℕ → Set}
 
 -- Lemmas about well-formed contexts and context extensions.
 
-module WellFormedContextLemmas {T} (_⊢_wf : Wf T) where
-  open WellFormedContext _⊢_wf
+module ContextFormationLemmas {t ℓ} {T : Pred ℕ t}
+                              (_⊢_wf : Wf T T ℓ) where
+  open ContextFormation _⊢_wf
 
   -- Concatenation preserves well-formedness of contexts.
 

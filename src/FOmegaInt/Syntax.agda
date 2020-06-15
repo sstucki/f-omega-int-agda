@@ -7,12 +7,12 @@
 module FOmegaInt.Syntax where
 
 open import Algebra using (Monoid)
+import Data.Context as Context
+open import Data.Context.Properties
 open import Data.Fin using (Fin; suc; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-import Data.Fin.Substitution.Context as Context
-open import Data.Fin.Substitution.Context.Properties
 open import Data.Nat using (ℕ; suc; zero)
 open import Data.Product using (proj₂)
 open import Data.Vec as Vec using ([]; _∷_)
@@ -990,7 +990,7 @@ module Substitution where
       }
 
   open TermLikeLemmas termLikeLemmas public using
-    (varLiftAppLemmas; varLiftSubLemmas; _/Var_
+    ( varLiftAppLemmas; varLiftSubLemmas; _/Var_
     ; weaken-sub; weaken-/; weaken⋆; /-wk⋆
     )
 
@@ -1048,9 +1048,10 @@ module Substitution where
     }
 
   open TermLikeLemmas termLikeLemmasTermAsc public using () renaming
-    ( _/_    to _TermAsc/_
-    ; _/Var_ to _TermAsc/Var_
-    ; weaken to weakenTermAsc
+    ( termLikeSubst to termAscTermSubst
+    ; _/_           to _TermAsc/_
+    ; _/Var_        to _TermAsc/Var_
+    ; weaken        to weakenTermAsc
     )
 
   termLikeLemmasElimAsc : TermLikeLemmas ElimAsc Term
@@ -1062,10 +1063,11 @@ module Substitution where
     }
 
   open TermLikeLemmas termLikeLemmasElimAsc public using () renaming
-    ( _/_     to _ElimAsc/_
-    ; _/Var_  to _ElimAsc/Var_
-    ; weaken  to weakenElimAsc
-    ; weaken⋆ to weakenElimAsc⋆
+    ( termLikeSubst to elimAscTermSubst
+    ; _/_           to _ElimAsc/_
+    ; _/Var_        to _ElimAsc/Var_
+    ; weaken        to weakenElimAsc
+    ; weaken⋆       to weakenElimAsc⋆
     )
 
   -- Weakening of heads and spines.

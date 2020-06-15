@@ -6,6 +6,7 @@
 
 module FOmegaInt.Kinding.Simple where
 
+open import Data.Context.WellFormed
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
@@ -14,10 +15,10 @@ open import Data.Fin.Substitution.Typed
 open import Data.List as List using ([]; _∷_; _∷ʳ_; map)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (∃; _,_; _×_)
-open import Data.Unit using (tt)
 open import Data.Vec as Vec using ([]; _∷_)
 import Data.Vec.Properties as VecProps
 open import Function using (_∘_)
+import Level
 open import Relation.Binary.PropositionalEquality as PropEq using (refl; _≡_)
 open import Relation.Nullary.Negation
 
@@ -81,8 +82,8 @@ module Kinding where
     wfs-kd : ∀ {a} → Γ ⊢ a kds   → Γ ⊢ kd a wfs
     wfs-tp : ∀ {a} → Γ ⊢Nf a ∈ ★ → Γ ⊢ tp a wfs
 
-  -- Simply well-formed context extensions.
-  module SimplyWfCtx = WellFormedContext (λ Γ a → ⌊ Γ ⌋Ctx ⊢ a wfs)
+  -- Simply well-formed contexts and context extensions.
+  module SimplyWfCtx = ContextFormation (λ Γ a → ⌊ Γ ⌋Ctx ⊢ a wfs)
   open SimplyWfCtx public using () renaming (_wf to _ctxs; _⊢_wfExt to _⊢_exts)
 
 open Syntax
@@ -128,19 +129,19 @@ module KindedRenaming where
 
   open ⊤-WellFormed SimpleCtx.weakenOps
 
-  typedVarSubst : TypedVarSubst (_⊢_wf)
+  typedVarSubst : TypedVarSubst SAsc Level.zero
   typedVarSubst = record
-    { application = record { _/_ = λ k _ → k }
-    ; weakenOps   = SimpleCtx.weakenOps
-    ; /-wk        = refl
-    ; id-vanishes = λ _ → refl
-    ; /-⊙         = λ _ → refl
-    ; wf-wf       = λ _ → ctx-wf _
+    { _⊢_wf              = _⊢_wf
+    ; typeExtension      = SimpleCtx.weakenOps
+    ; typeVarApplication = record { _/_ = λ k _ → k }
+    ; /-wk               = refl
+    ; id-vanishes        = λ _ → refl
+    ; /-⊙                = λ _ → refl
+    ; wf-wf            = λ _ → ctx-wf _
     }
-
   open TypedVarSubst typedVarSubst public
-    hiding (∈-weaken; ∈-var) renaming (_⊢Var_∈_ to _⊢Var′_∈_)
-  open TypedSub typedSub using () renaming (lookup to ∈-lookup)
+    hiding (∈-weaken)
+    renaming (_⊢Var_∈_ to _⊢Var′_∈_; lookup to ∈-lookup)
 
   open Substitution hiding (subst; _/Var_) renaming (_Elim/Var_ to _/Var_)
   open RenamingCommutes using (Kind[∈⌊⌋]-/Var)
@@ -152,12 +153,12 @@ module KindedRenaming where
          Δ ⊢/Var ρ ∈ Γ →
          kd ⌊ k Kind′/Var ρ ⌋ ∷ Δ ⊢/Var ρ VarSubst.↑ ∈ kd ⌊ k ⌋ ∷ Γ
   ∈-↑′ {Δ = Δ} {_} {k} ρ∈Γ =
-    subst (λ j → kd j ∷ Δ ⊢/Var _ ∈ _) (sym (⌊⌋-Kind′/Var k)) (∈-↑ tt ρ∈Γ)
+    subst (λ j → kd j ∷ Δ ⊢/Var _ ∈ _) (sym (⌊⌋-Kind′/Var k)) (∈-↑ _ ρ∈Γ)
 
   -- Convert between well-kindedness judgments for variables.
   Var∈′-Var∈ : ∀ {n} {Γ : Ctx n} {x a k} → a ≡ kd k →
                Γ ⊢Var′ x ∈ a → Γ ⊢Var x ∈ k
-  Var∈′-Var∈ Γ[x]≡kd-k (var x Γ-ctx) = ∈-var x Γ[x]≡kd-k
+  Var∈′-Var∈ Γ[x]≡kd-k (∈-var x Γ-ctx) = ∈-var x Γ[x]≡kd-k
 
   -- Renamings preserve synthesized kinds of variables.
   Var∈-/Var : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {x k ρ} →
@@ -209,7 +210,7 @@ module KindedRenaming where
 
   kds-weaken : ∀ {n} {Γ : Ctx n} {k a} →
                Γ ⊢ k kds → a ∷ Γ ⊢ weakenKind′ k kds
-  kds-weaken k-kds = kds-/Var k-kds (∈-wk tt)
+  kds-weaken k-kds = kds-/Var k-kds (∈-wk _)
 
   kds-weaken⋆ : ∀ {m n} (Δ : CtxExt m n) {Γ : Ctx m} {k} →
                 Γ ⊢ k kds → Δ ++ Γ ⊢ weakenKind′⋆ n k kds
@@ -220,7 +221,7 @@ module KindedRenaming where
 
   Nf∈-weaken : ∀ {n} {Γ : Ctx n} {a b k} →
                Γ ⊢Nf b ∈ k → (a ∷ Γ) ⊢Nf weakenElim b ∈ k
-  Nf∈-weaken b∈k = Nf∈-/Var b∈k (∈-wk tt)
+  Nf∈-weaken b∈k = Nf∈-/Var b∈k (∈-wk _)
 
   Nf∈-weaken⋆ : ∀ {m n} (Δ : CtxExt m n) {Γ : Ctx m} {a k} →
                 Γ ⊢Nf a ∈ k → Δ ++ Γ ⊢Nf weakenElim⋆ n a ∈ k
@@ -230,17 +231,17 @@ module KindedRenaming where
   -- Weakening preserves kinding of neutral forms.
   Ne∈-weaken : ∀ {n} {Γ : Ctx n} {a b k} →
                Γ ⊢Ne b ∈ k → (a ∷ Γ) ⊢Ne weakenElim b ∈ k
-  Ne∈-weaken b∈k = Ne∈-/Var b∈k (∈-wk tt)
+  Ne∈-weaken b∈k = Ne∈-/Var b∈k (∈-wk _)
 
   -- Weakening preserves spine kinding.
   Sp∈-weaken : ∀ {n} {Γ : Ctx n} {a bs j k} →
                Γ ⊢ j ∋∙ bs ∈ k → (a ∷ Γ) ⊢ j ∋∙ weakenSpine bs ∈ k
-  Sp∈-weaken j∋bs∈k = Sp∈-/Var j∋bs∈k (∈-wk tt)
+  Sp∈-weaken j∋bs∈k = Sp∈-/Var j∋bs∈k (∈-wk _)
 
   -- Weakening preserves simple well-formedness of ascriptions.
   wfs-weaken : ∀ {n} {Γ : Ctx n} {a b} →
                Γ ⊢ b wfs → a ∷ Γ ⊢ weakenElimAsc b wfs
-  wfs-weaken b-wfs = wfs-/Var b-wfs (∈-wk tt)
+  wfs-weaken b-wfs = wfs-/Var b-wfs (∈-wk _)
 
 -- Operations on simply well-formed contexts that require weakening of
 -- well-formedness judgments.
@@ -249,10 +250,10 @@ module WfsCtxOps where
   open ContextConversions using (⌊_⌋Ctx)
   open KindedRenaming using (wfs-weaken)
 
-  wfsWeakenOps : WfWeakenOps ElimCtx.weakenOps
+  wfsWeakenOps : WellFormedWeakenOps ElimCtx.weakenOps
   wfsWeakenOps = record { wf-weaken = λ _ → wfs-weaken }
 
-  private module W = WfWeakenOps wfsWeakenOps
+  private module W = WellFormedWeakenOps wfsWeakenOps
   open W public hiding (wf-weaken)
 
   -- Lookup the kind of a type variable in a well-formed context.
@@ -264,7 +265,7 @@ module WfsCtxOps where
 module KindedHereditarySubstitution where
   open Data.Fin         using (zero; raise; lift)
   open Substitution     hiding (subst; sub; _↑; _↑⋆_)
-  open KindedRenaming   using (_⊢/Var_∈_; Nf∈-/Var; Nf∈-weaken⋆; ∈-wk; ∈-↑⋆)
+  open KindedRenaming   using (_⊢/Var_∈_; Nf∈-/Var; Nf∈-weaken⋆; ∈-wk)
   open RenamingCommutes using (wk-/⟨⟩-↑⋆; /Var-wk-↑⋆-hsub-vanishes)
   open PropEq
   open ≡-Reasoning
@@ -306,18 +307,17 @@ module KindedHereditarySubstitution where
   ?∈-/Var : ∀ {m n Γ k Δ r a} {ρ : Sub Fin m n} →
             Γ ⊢?⟨ k ⟩ r ∈ a → Δ ⊢/Var ρ ∈ Γ → Δ ⊢?⟨ k ⟩ r ?/Var ρ ∈ a
   ?∈-/Var                 (∈-hit a∈k)     ρ∈Γ = ∈-hit (Nf∈-/Var a∈k ρ∈Γ)
-  ?∈-/Var {Γ = Γ} {k} {Δ} (∈-miss y refl) ρ∈Γ = helper refl (TS.lookup ρ∈Γ y)
+  ?∈-/Var {Γ = Γ} {k} {Δ} (∈-miss y refl) ρ∈Γ = helper refl (TV.lookup ρ∈Γ y)
     where
-      module TS = TypedSub KindedRenaming.typedSub
       module TV = TypedVarSubst KindedRenaming.typedVarSubst
 
       helper : ∀ {x a} → a ≡ lookup Γ y → Δ TV.⊢Var x ∈ a →
                Δ ⊢?⟨ k ⟩ miss x ∈ lookup Γ y
-      helper Δ[x]≡Γ[y] (TV.var x _) = ∈-miss x Δ[x]≡Γ[y]
+      helper Δ[x]≡Γ[y] (TV.∈-var x _) = ∈-miss x Δ[x]≡Γ[y]
 
   ?∈-weaken : ∀ {n} {Γ : Ctx n} {k r a b} →
               Γ ⊢?⟨ k ⟩ r ∈ a → (b ∷ Γ) ⊢?⟨ k ⟩ weakenSVRes r ∈ a
-  ?∈-weaken r∈a = ?∈-/Var r∈a (KindedRenaming.∈-wk tt)
+  ?∈-weaken r∈a = ?∈-/Var r∈a (∈-wk _)
 
   -- Look up a variable in a well-kinded hereditary substitution.
 

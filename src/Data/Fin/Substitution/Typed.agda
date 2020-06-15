@@ -6,499 +6,638 @@
 
 module Data.Fin.Substitution.Typed where
 
-open import Data.Fin using (Fin; zero; suc; raise)
+open import Data.Context as Ctx hiding (map)
+open import Data.Context.WellFormed
+open import Data.Context.Properties using (module ContextFormationLemmas)
+open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Context
-open import Data.Fin.Substitution.Context.Properties
-  using (module WellFormedContextLemmas)
-open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Product using (_×_; _,_)
-open import Data.Unit using (⊤; tt)
-open import Data.Vec as Vec using (Vec; []; _∷_)
-open import Data.Vec.Properties using (map-cong; map-id; map-∘; lookup-map)
+open import Data.Nat using (ℕ; suc)
+open import Data.Vec as Vec using (Vec; []; _∷_; map)
+open import Data.Vec.Properties using (map-cong; map-∘; lookup-map)
 open import Data.Vec.Relation.Binary.Pointwise.Inductive as PW
-  using (Pointwise; []; _∷_; map; map⁺)
-open import Data.Vec.Relation.Unary.All as All using (All; []; _∷_)
-open import Function as Fun using (_∘_; flip)
-open import Relation.Binary.PropositionalEquality as PropEq hiding (trans)
-open PropEq.≡-Reasoning
+  using (Pointwise; []; _∷_)
+open import Function as Fun using (_∘_)
+open import Level using (_⊔_) renaming (zero to lzero; suc to lsuc)
+open import Relation.Binary.PropositionalEquality
+open ≡-Reasoning
+open import Relation.Unary using (Pred)
 
 
 ------------------------------------------------------------------------
--- Abstract well-typed substitutions (i.e. substitution lemmas)
-
--- Abstract term relations in a context.
+-- Abstract typing
 --
--- An abtract term relation _⊢_∼_ : CtxTermRel Tp Tm₁ Tm₂ is a ternary
--- relation which, in a given Tp-context, relates Tm₁-terms to
--- Tm₂-terms.
-CtxTermRel : (ℕ → Set) → (ℕ → Set) → (ℕ → Set) → Set₁
-CtxTermRel Tp₁ Tm Tp₂ = ∀ {n} → Ctx Tp₁ n → Tm n → Tp₂ n → Set
+-- Well-typed substitutions are defined over an abstract "type
+-- system", i.e. a pair of formation and typing judgments and
+-- substitution lemmas for raw terms and types.
 
-module _ {Tp Tm₁ Tm₂ : ℕ → Set} where
+-- An abtract typing judgment _⊢_∈_ : Typing Bnd Term Type is a
+-- ternary relation which, in a given Bnd-context, relates Term-terms
+-- to their Type-types.
 
-  -- Term relations lifted pointwise to corresponding substitutions.
-  --
-  -- Given a relation R on Tm₁ and Tm₂ terms in a Tp context, the
-  -- family of relations (LiftCtxTermRel R) relates Tm₁ and Tm₂
-  -- substitutions pointwise.
-  LiftCtxTermRel : ∀ {m} → CtxTermRel Tp Tm₁ Tm₂ →
-                   CtxTermRel Tp (Sub Tm₁ m) (Sub Tm₂ m)
-  LiftCtxTermRel P Γ σ₁ σ₂ = Pointwise (P Γ) σ₁ σ₂
+Typing : ∀ {t₁ t₂ t₃} →
+         Pred ℕ t₁ → Pred ℕ t₂ → Pred ℕ t₃ → ∀ ℓ →
+         Set (t₁ ⊔ t₂ ⊔ t₃ ⊔ lsuc ℓ)
+Typing Bnd Term Type ℓ = ∀ {n} → Ctx Bnd n → Term n → Type n → Set ℓ
 
-  infix 4 _⊢_⟨_⟩_
 
-  -- Syntactic sugar: and infix version of lifting.
-  _⊢_⟨_⟩_ : ∀ {m n} → Ctx Tp n → Sub Tm₁ m n → CtxTermRel Tp Tm₁ Tm₂ →
-            Sub Tm₂ m n → Set
-  Γ ⊢ σ₁ ⟨ R ⟩ σ₂ = LiftCtxTermRel R Γ σ₁ σ₂
+------------------------------------------------------------------------
+-- Abstract well-typed substitutions (aka context morphisms)
 
--- Abstract typings
---
--- An abtract typing relation _⊢_∈_ : Typing Tp₁ Tm Tp₂ is a ternary
--- relation which, in a given Tp₁-context, relates Tm-terms to their
--- Tp₂-types.
-Typing = CtxTermRel
+record TypedSub {t}
+                (Type : Pred ℕ t)      -- Type syntax
+                (Term : Pred ℕ lzero)  -- Term syntax
+                ℓ
+                : Set (lsuc (t ⊔ ℓ)) where
 
--- Abstract typed substitutions (aka context morphisms).
-record TypedSub (Tp₁ Tm Tp₂ : ℕ → Set) : Set₁ where
+  -- The underlying type assignment system
 
   infix 4 _⊢_∈_ _⊢_wf
 
   field
-    _⊢_∈_ : Typing Tp₂ Tm Tp₁   -- the associated typing
-    _⊢_wf : Wf Tp₂              -- (target) Tp₂-well-formedness
+    _⊢_wf : Wf Type Type ℓ            -- Type formation judgment
+    _⊢_∈_ : Typing Type Term Type ℓ   -- Typing judgment
 
-    -- Application of Tm₂-substitutions to (source) Tp₁-types
-    application : Application Tp₁ Tm
+  -- Weakening and term substitutions in types.
 
-    -- Weakening of Tp₁-types.
-    weakenOps : Extension Tp₁
+  field
+    typeExtension       : Extension Type          -- weakening of types
+    typeTermApplication : Application Type Term   -- app. of term subst.
+    termSimple          : Simple Term             -- simple term subst.
 
-  open Application       application       public using (_/_; _⊙_)
-  open WellFormedContext _⊢_wf             public
-  private module C = WeakenOps weakenOps
+  open ContextFormation _⊢_wf          using (_wf)
+  open Application typeTermApplication using (_/_)
 
   infix  4 _⊢/_∈_
-  infixr 4 _,_
+  infixr 5 _∷_
 
   -- Typed substitutions.
   --
   -- A typed substitution Δ ⊢/ σ ∈ Γ is a substitution σ which, when
   -- applied to a well-typed term Γ ⊢ t ∈ a in a source context Γ,
-  -- yield a well-typed term Δ ⊢ t / σ ∈ a / σ in a well-formed target
-  -- context Δ.
+  -- yields a well-typed term Δ ⊢ t / σ ∈ a / σ in a well-formed
+  -- target context Δ.
 
-  data _⊢/_∈_ {m n} (Δ : Ctx Tp₂ n) (σ : Sub Tm m n) (Γ : Ctx Tp₁ m) : Set where
-     _,_ : (Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ σ) → Δ wf → Δ ⊢/ σ ∈ Γ
+  data _⊢/_∈_ {n} (Δ : Ctx Type n) :
+              ∀ {m} → Sub Term m n → Ctx Type m → Set (t ⊔ ℓ) where
+    []  : Δ wf → Δ ⊢/ [] ∈ []
+    _∷_ : ∀ {m t} {a : Type m} {σ : Sub Term m n} {Γ} →
+          Δ ⊢ t ∈ a / σ → Δ ⊢/ σ ∈ Γ → Δ ⊢/ t ∷ σ ∈ a ∷ Γ
 
-  -- Look up an entry in a typed substitution.
+  -- The domains of well-typed substitutions are well-formed.
 
-  lookup : ∀ {m n Δ Γ} {σ : Sub Tm m n} →
-           Δ ⊢/ σ ∈ Γ → (x : Fin m) → Δ ⊢ Vec.lookup σ x ∈ C.lookup Γ x / σ
-  lookup {_} {_} {Δ} {Γ} (σ⟨∈⟩Γ⊙σ , _) x =
-    subst (Δ ⊢ _ ∈_) (lookup-map x _ (C.toVec Γ)) (PW.lookup σ⟨∈⟩Γ⊙σ x)
-
-  -- Context validity of typed substitutions.
-
-  /∈-wf : ∀ {m n Δ Γ} {σ : Sub Tm m n} → Δ ⊢/ σ ∈ Γ → Δ wf
-  /∈-wf (_ , Δ-wf) = Δ-wf
+  /∈-wf : ∀ {m n Δ} {σ : Sub Term m n} {Γ} → Δ ⊢/ σ ∈ Γ → Δ wf
+  /∈-wf ([] Δ-wf) = Δ-wf
+  /∈-wf (_ ∷ σ∈Γ) = /∈-wf σ∈Γ
 
 
 ------------------------------------------------------------------------
--- Operations on abstract well-typed substitutions.
+-- Operations on abstract well-typed substitutions
 
--- Extensions of abstract typed substitutions.
+-- Operations on abstract typed substitutions that require weakening
+-- of well-typed terms
 
-record RawTypedExtension {Tp₁ Tm₁ Tp₂ Tm₂}
-                         (_⊢_wf : Wf Tp₂) (_⊢_∈_ : CtxTermRel Tp₂ Tm₁ Tp₁)
-                         (application : Application Tp₁ Tm₂)
-                         (weakenOps   : Extension Tp₁)
-                         (extension₁  : Extension Tm₁)
-                         (extension₂  : Extension Tm₂)
-                         : Set where
+record TypedWeakenOps {t ℓ} {Type : Pred ℕ t} {Term : Pred ℕ lzero}
+                      (typedSub : TypedSub Type Term ℓ)
+                      : Set (lsuc (t ⊔ ℓ)) where
 
-  open WellFormedContext _⊢_wf
-  open Application application
+  open TypedSub typedSub
+
+  -- Operations on contexts and raw terms that require weakening
+
   private
-    module E₁ = Extension extension₁
-    module E₂ = Extension extension₂
-    module C  = WeakenOps weakenOps
+    termExtension : Extension Term
+    termExtension = record { weaken = Simple.weaken termSimple }
+
+    module E = Extension termExtension
+    module C = WeakenOps typeExtension
+
+  open Simple           termSimple          using (wk)
+  open Application      typeTermApplication using (_/_; _⊙_)
+  open ContextFormation _⊢_wf               using (_wf; _∷_; wf-∷₁)
 
   field
 
-    -- Weakens well-typed Tm-terms.
-    ∈-weaken : ∀ {n} {Δ : Ctx Tp₂ n} {t a b} → Δ ⊢ a wf → Δ ⊢ t ∈ b →
-               (a ∷ Δ) ⊢ E₁.weaken t ∈ C.weaken b
+    -- Weakening preserves well-typed terms.
 
-    -- Weakening commutes with substitutions.
-    weaken-/ : ∀ {m n} {ρ : Sub Tm₂ m n} {t} a →
-               C.weaken (a / ρ) ≡ C.weaken a / (t E₂./∷ ρ)
+    ∈-weaken : ∀ {n} {Δ : Ctx Type n} {t a b} → Δ ⊢ a wf → Δ ⊢ t ∈ b →
+               (a ∷ Δ) ⊢ E.weaken t ∈ C.weaken b
 
     -- Well-typedness implies well-formedness of contexts.
-    ∈-wf : ∀ {n} {Δ : Ctx Tp₂ n} {t a} → Δ ⊢ t ∈ a → Δ wf
 
-  -- A helper lemma.
+    ∈-wf : ∀ {n} {Δ : Ctx Type n} {t a} → Δ ⊢ t ∈ a → Δ wf
 
-  map-weaken-/ : ∀ {m n} (σ : Sub Tp₁ m m) (ρ : Sub Tm₂ m n) t →
-                 Vec.map C.weaken (σ ⊙ ρ) ≡ Vec.map C.weaken σ ⊙ (t E₂./∷ ρ)
-  map-weaken-/ σ ρ t = begin
-      Vec.map C.weaken (σ ⊙ ρ)                  ≡⟨ sym (map-∘ C.weaken _ σ) ⟩
-      Vec.map (C.weaken ∘ (_/ ρ)) σ             ≡⟨ map-cong weaken-/ σ ⟩
-      Vec.map ((_/ (t E₂./∷ ρ)) ∘ C.weaken) σ   ≡⟨ map-∘ _ C.weaken σ ⟩
-      Vec.map C.weaken σ ⊙ (t E₂./∷ ρ)          ∎
+    -- Lemmas relating type weakening to term substitutions
+
+    /-wk : ∀ {n} {a : Type n} → a / wk ≡ C.weaken a
+
+    /-weaken : ∀ {m n} {σ : Sub Term m n} a →
+               a / map E.weaken σ ≡ a / σ / wk
+
+    weaken-/-∷ : ∀ {n m} {t} {σ : Sub Term m n} (a : Type m) →
+                 C.weaken a / (t ∷ σ) ≡ a / σ
+
+  -- Some helper lemmas
+
+  /-map-weaken : ∀ {m n} a (ρ : Sub Term m n) →
+                 C.weaken (a / ρ) ≡ a / map E.weaken ρ
+  /-map-weaken a ρ = begin
+    C.weaken (a / ρ)    ≡⟨ sym /-wk ⟩
+    a / ρ / wk          ≡⟨ sym (/-weaken a) ⟩
+    a / map E.weaken ρ  ∎
+
+  map-weaken-⊙-∷ : ∀ {m n} (σ : Sub Type m m) t (ρ : Sub Term m n) →
+                   σ ⊙ ρ ≡ map C.weaken σ ⊙ (t ∷ ρ)
+  map-weaken-⊙-∷ σ t ρ = sym (begin
+    map C.weaken σ ⊙ (t ∷ ρ)          ≡⟨ sym (map-∘ _ C.weaken σ) ⟩
+    map ((_/ (t ∷ ρ)) ∘ C.weaken) σ   ≡⟨ map-cong weaken-/-∷ σ ⟩
+    map (_/ ρ) σ                      ≡⟨⟩
+    σ ⊙ ρ                             ∎)
+
+  -- Weakening preserves well-typed substitutions.
+
+  /∈-weaken : ∀ {m n Δ a} {σ : Sub Term m n} {Γ} →
+              Δ ⊢ a wf → Δ ⊢/ σ ∈ Γ →
+              (a ∷ Δ) ⊢/ map E.weaken σ ∈ Γ
+  /∈-weaken                         a-wf ([] Δ-wf)     = [] (a-wf ∷ Δ-wf)
+  /∈-weaken {_} {_} {Δ} {a} {t ∷ σ} a-wf (t∈b/σ ∷ σ∈Γ) =
+    subst (a ∷ Δ ⊢ _ ∈_) (/-map-weaken _ σ) (∈-weaken a-wf t∈b/σ) ∷
+    (/∈-weaken a-wf σ∈Γ)
+
+
+  -- A typed substitution consists of pointwise-typed terms.
+
+  toPointwise : ∀ {m n Δ} {σ : Sub Term m n} {Γ} →
+                Δ ⊢/ σ ∈ Γ → Pointwise (Δ ⊢_∈_) σ (C.toVec Γ ⊙ σ)
+  toPointwise                     ([] Δ-wf)     = []
+  toPointwise {_} {_} {Δ} {t ∷ σ} (t∈a/σ ∷ σ∈Γ) =
+    subst (Δ ⊢ t ∈_) (sym (weaken-/-∷ _)) t∈a/σ ∷
+    subst (Pointwise (_⊢_∈_ Δ) σ) (map-weaken-⊙-∷ _ t σ) (toPointwise σ∈Γ)
+
+  -- Look up an entry in a typed substitution.
+
+  lookup : ∀ {m n Δ} {σ : Sub Term m n} {Γ} →
+           Δ ⊢/ σ ∈ Γ → (x : Fin m) → Δ ⊢ Vec.lookup σ x ∈ C.lookup Γ x / σ
+  lookup {_} {_} {Δ} {σ} {Γ} σ∈Γ x =
+    subst (Δ ⊢ _ ∈_) (lookup-map x _ (C.toVec Γ))
+          (PW.lookup (toPointwise σ∈Γ) x)
 
   -- Extension by a typed term.
-  ∈-/∷ : ∀ {m n} {Γ : Ctx Tp₁ m} {Δ : Ctx Tp₂ n} {t u a b σ ρ} →
-         (b ∷ Δ) ⊢ t ∈ C.weaken (a / ρ) → Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ ρ →
-         b ∷ Δ ⊢ t E₁./∷ σ ⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ (u E₂./∷ ρ)
-  ∈-/∷ t∈a/ρ σ⟨∈⟩Γ⊙ρ = σ⟨∈⟩Γ⊙ρ′
+
+  ∈-/∷ : ∀ {m n Δ} {σ : Sub Term m n} {Γ t a b} →
+         (b ∷ Δ) ⊢ t ∈ C.weaken (a / σ) → Δ ⊢/ σ ∈ Γ →
+         b ∷ Δ ⊢/ t E./∷ σ ∈ a ∷ Γ
+  ∈-/∷ t∈a/σ σ∈Γ =
+    subst (_⊢_∈_ _ _) (/-map-weaken _ _) t∈a/σ ∷ /∈-weaken b-wf σ∈Γ
+
     where
-      b∷Δ-wf   = ∈-wf t∈a/ρ
-      b-wf     = wf-∷₁ b∷Δ-wf
-      t∈a/ρ′   = subst (_⊢_∈_ _ _) (weaken-/ _) t∈a/ρ
-      σ⟨∈⟩Γ⊙ρ′ =
-        t∈a/ρ′ ∷ (subst ((LiftCtxTermRel _⊢_∈_) _ _) (map-weaken-/ _ _ _)
-                        (map⁺ (∈-weaken b-wf) σ⟨∈⟩Γ⊙ρ))
+    b∷Δ-wf = ∈-wf t∈a/σ
+    b-wf   = wf-∷₁ b∷Δ-wf
 
-record TypedExtension {Tp₁ Tm Tp₂}
-                      (ext : Extension Tm)
-                      (typedSub : TypedSub Tp₁ Tm Tp₂)
-                      : Set where
+-- Operations on abstract typed substitutions that require simple term
+-- substitutions
 
-  open TypedSub typedSub
+record TypedSimple {t ℓ} {Type : Pred ℕ t} {Term : Pred ℕ lzero}
+                   (typedSub : TypedSub Type Term ℓ)
+                   : Set (lsuc (t ⊔ ℓ)) where
 
-  field rawTypedExtension : RawTypedExtension _⊢_wf _⊢_∈_ application
-                                              weakenOps ext ext
+  -- Operations on abstract typed substitutions that require weakening
+  -- of terms
 
-  private module R = RawTypedExtension rawTypedExtension
-  open R public hiding (∈-/∷)
-  open Extension ext hiding (weaken)
-  open WeakenOps weakenOps hiding (_/∷_)
+  field typedWeakenOps : TypedWeakenOps typedSub
 
-  -- Extension by a typed term.
-  ∈-/∷ : ∀ {m n} {Γ : Ctx Tp₁ m} {Δ : Ctx Tp₂ n} {t a b σ} →
-         b ∷ Δ ⊢ t ∈ weaken (a / σ) → Δ ⊢/ σ ∈ Γ →
-         b ∷ Δ ⊢/ (t /∷ σ) ∈ a ∷ Γ
-  ∈-/∷ {Γ = Γ} t∈a/σ (σ⟨∈⟩Γ⊙σ , _) = R.∈-/∷ {Γ = Γ} t∈a/σ σ⟨∈⟩Γ⊙σ , ∈-wf t∈a/σ
+  open TypedWeakenOps   typedWeakenOps public
+  open TypedSub         typedSub
+  open ContextFormation _⊢_wf using (_wf; _⊢_wfExt; []; _∷_; wf-∷₂)
+  open Application      typeTermApplication using (_/_)
 
--- Abstract typed simple substitutions.
-
-record RawTypedSimple {Tp Tm₁ Tm₂}
-                      (_⊢_wf : Wf Tp) (_⊢_∈_ : CtxTermRel Tp Tm₁ Tp)
-                      (application : Application Tp Tm₂)
-                      (weakenOps   : Extension Tp)
-                      (simple₁ : Simple Tm₁) (simple₂ : Simple Tm₂)
-                      : Set where
-
-  open WellFormedContext _⊢_wf
-  open Application application
   private
-    module S₁ = SimpleExt simple₁
-    module S₂ = SimpleExt simple₂
-    module L₀ = Lemmas₀   (record { simple = simple₁ })
-    module C  = WeakenOps weakenOps
+    module S = Simple    termSimple
+    module C = WeakenOps typeExtension
+  open S using (_↑; _↑⋆_; id; wk; sub)
 
-    ext₁ : Extension Tm₁
-    ext₁ = record { weaken = S₁.weaken }
-    ext₂ : Extension Tm₂
-    ext₂ = record { weaken = S₂.weaken }
+  -- Context operations that require term substitutions in types.
+
+  open SubstOps typeTermApplication termSimple using (_E/_)
 
   field
-    rawTypedExtension : RawTypedExtension _⊢_wf _⊢_∈_ application
-                                          weakenOps ext₁ ext₂
 
     -- Takes variables to well-typed Tms.
-    ∈-var : ∀ {n} {Γ : Ctx Tp n} (x : Fin n) →
-            Γ wf → Γ ⊢ S₁.var x ∈ C.lookup Γ x
 
-    -- Types are invariant under the identity substitution.
-    id-vanishes : ∀ {n} (a : Tp n) → a / S₂.id ≡ a
-
-    -- Relates weakening of types to weakening of Tms.
-    /-wk : ∀ {n} {a : Tp n} → a / S₂.wk ≡ C.weaken a
-
-    -- Single-variable substitution is a left-inverse of weakening.
-    wk-sub-vanishes : ∀ {n t} (a : Tp n) → a / S₂.wk / S₂.sub t ≡ a
+    ∈-var : ∀ {n} {Γ : Ctx Type n} →
+            ∀ x → Γ wf → Γ ⊢ S.var x ∈ C.lookup Γ x
 
     -- Well-formedness of types implies well-formedness of contexts.
-    wf-wf : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → Γ wf
 
-  open RawTypedExtension rawTypedExtension public
+    wf-wf : ∀ {n} {Γ : Ctx Type n} {a} → Γ ⊢ a wf → Γ wf
 
-  -- Context operations that require Tm₂ substitutions in Tp-types.
-  open SubstOps application simple₂ using (_E/_)
+    -- The identity substitution is an identity
 
-  -- Some useful helper lemmas.
-
-  ⊙-id : ∀ {m n} {ρ : Sub Tp m n} → ρ ⊙ S₂.id ≡ ρ
-  ⊙-id {ρ = ρ} = begin
-    Vec.map (_/ S₂.id) ρ  ≡⟨ map-cong id-vanishes ρ ⟩
-    Vec.map Fun.id     ρ  ≡⟨ map-id ρ ⟩
-    ρ                     ∎
-
-  weaken-sub-vanishes : ∀ {n t} (a : Tp n) → C.weaken a / S₂.sub t ≡ a
-  weaken-sub-vanishes {t = t} a = begin
-    C.weaken a / S₂.sub t   ≡⟨ cong (flip _/_ _) (sym /-wk) ⟩
-    a / S₂.wk / S₂.sub t    ≡⟨ wk-sub-vanishes a ⟩
-    a                       ∎
-
-  map-weaken-⊙-sub : ∀ {m n} {ρ : Sub Tp m n} {t} →
-                     Vec.map C.weaken ρ ⊙ S₂.sub t ≡ ρ
-  map-weaken-⊙-sub {ρ = ρ} {t} = begin
-    Vec.map C.weaken ρ ⊙ S₂.sub t          ≡⟨ sym (map-∘ _ C.weaken ρ) ⟩
-    Vec.map ((_/ S₂.sub t) ∘ C.weaken) ρ   ≡⟨ map-cong weaken-sub-vanishes ρ ⟩
-    Vec.map Fun.id ρ                       ≡⟨ map-id ρ ⟩
-    ρ                                  ∎
+    id-vanishes : ∀ {n} (a : Type n) → a / id ≡ a
 
   -- Lifting.
 
-  ∈-↑ : ∀ {m n} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {a σ ρ} →
-        Δ ⊢ a / ρ wf → Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ ρ →
-        a / ρ ∷ Δ ⊢ σ S₁.↑ ⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ ρ S₂.↑
-  ∈-↑ {Γ = Γ} a/ρ-wf σ⟨∈⟩Γ⊙ρ =
-    ∈-/∷ {Γ = Γ} (∈-var zero (a/ρ-wf ∷ wf-wf a/ρ-wf)) σ⟨∈⟩Γ⊙ρ
+  ∈-↑ : ∀ {m n Δ} {σ : Sub Term m n} {a Γ} →
+        Δ ⊢ a / σ wf → Δ ⊢/ σ ∈ Γ → a / σ ∷ Δ ⊢/ σ ↑ ∈ a ∷ Γ
+  ∈-↑ a/σ-wf σ∈Γ = ∈-/∷ (∈-var zero (a/σ-wf ∷ (wf-wf a/σ-wf))) σ∈Γ
 
-  ∈-↑⋆ : ∀ {k m n} {E : CtxExt Tp m k} {Δ : Ctx Tp n} {Γ : Ctx Tp m}
-         {σ ρ} → Δ ⊢ (E E/ ρ) wfExt → Δ ⊢ σ ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ ρ →
-         (E E/ ρ) ++ Δ ⊢ σ S₁.↑⋆ k ⟨ _⊢_∈_ ⟩ C.toVec (E ++ Γ) ⊙ ρ S₂.↑⋆ k
-  ∈-↑⋆ {E = []}            []                        σ⟨∈⟩Γ⊙ρ = σ⟨∈⟩Γ⊙ρ
-  ∈-↑⋆ {E = a ∷ E} {Δ} {Γ} (a/ρ↑⋆1+k-wf ∷ E/ρ-wfExt) σ⟨∈⟩Γ⊙ρ =
-    ∈-↑ {Γ = E ++ Γ} a/ρ↑⋆1+k-wf (∈-↑⋆ {E = E} E/ρ-wfExt σ⟨∈⟩Γ⊙ρ)
+  ∈-↑⋆ : ∀ {k m n Δ} {E : CtxExt Type m k} {σ : Sub Term m n} {Γ} →
+         Δ ⊢ (E E/ σ) wfExt → Δ ⊢/ σ ∈ Γ → (E E/ σ) ++ Δ ⊢/ σ ↑⋆ k ∈ (E ++ Γ)
+  ∈-↑⋆ {E = []}            []                        σ∈Γ = σ∈Γ
+  ∈-↑⋆ {E = a ∷ E} {Δ} {Γ} (a/σ↑⋆1+k-wf ∷ E/σ-wfExt) σ∈Γ =
+    ∈-↑ {Γ = E ++ Γ} a/σ↑⋆1+k-wf (∈-↑⋆ {E = E} E/σ-wfExt σ∈Γ)
 
   -- The identity substitution.
-  ∈-id : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢ S₁.id ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ S₂.id
-  ∈-id             []            = []
-  ∈-id {Γ = a ∷ Γ} (a-wf ∷ Γ-wf) =
-    subst₂ (_⊢_⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ S₂.id)
-           (cong (flip _∷_ Γ) (id-vanishes a)) (L₀.id-↑⋆ 1)
-           (∈-↑ {Γ = Γ} (subst (_⊢_wf Γ) (sym (id-vanishes a)) a-wf)
-                (∈-id Γ-wf))
+
+  ∈-id : ∀ {n} {Γ : Ctx Type n} → Γ wf → Γ ⊢/ id ∈ Γ
+  ∈-id []            = [] []
+  ∈-id (a-wf ∷ Γ-wf) =
+    ∈-/∷ (subst (_ ⊢ S.var zero ∈_) (sym (cong C.weaken (id-vanishes _)))
+                (∈-var zero (a-wf ∷ Γ-wf)))
+         (∈-id Γ-wf)
+
+  -- Weakening.
+
+  ∈-wk : ∀ {n} {Γ : Ctx Type n} {a} → Γ ⊢ a wf → a ∷ Γ ⊢/ wk ∈ Γ
+  ∈-wk a-wf = /∈-weaken a-wf (∈-id (wf-wf a-wf))
+
+  -- A substitution which only replaces the first variable.
+
+  ∈-sub : ∀ {n} {Γ : Ctx Type n} {t a} → Γ ⊢ t ∈ a → Γ ⊢/ sub t ∈ a ∷ Γ
+  ∈-sub t∈a =
+    (subst (_ ⊢ _ ∈_) (sym (id-vanishes _)) t∈a) ∷ (∈-id (∈-wf t∈a))
+
+
+  -- A substitution which only changes the type of the first variable.
+
+  ∈-tsub : ∀ {n} {Γ : Ctx Type n} {a b} → b ∷ Γ ⊢ S.var zero ∈ C.weaken a →
+           b ∷ Γ ⊢/ id ∈ a ∷ Γ
+  ∈-tsub z∈a =
+    ∈-/∷ (subst (_ ⊢ _ ∈_) (cong C.weaken (sym (id-vanishes _))) z∈a)
+         (∈-id (wf-∷₂ (∈-wf z∈a)))
+
+-- Application of typed substitutions to typed terms.
+
+record TypedApplication {t ℓ} {Type : Pred ℕ t} {Term : Pred ℕ lzero}
+                        (typedSub : TypedSub Type Term ℓ)
+                        : Set (lsuc (t ⊔ ℓ)) where
+
+  open TypedSub    typedSub
+  open Application typeTermApplication using (_/_)
+
+  -- Applications of term substitutions to terms
+
+  field termTermApplication : Application Term Term
 
   private
-    ∈-id′ : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢ S₁.id ⟨ _⊢_∈_ ⟩ C.toVec Γ
-    ∈-id′ Γ-wf = subst (_ ⊢ _ ⟨ _⊢_∈_ ⟩_) ⊙-id (∈-id Γ-wf)
+    module C = WeakenOps typeExtension
+    module A = Application termTermApplication
+  open A using (_⊙_)
 
-  -- Weakening.
-  ∈-wk : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf →
-         a ∷ Γ ⊢ S₁.wk ⟨ _⊢_∈_ ⟩ C.toVec Γ ⊙ S₂.wk
-  ∈-wk a-wf = map⁺ (weaken′ a-wf) (∈-id′ (wf-wf a-wf))
-    where
-      weaken′ : ∀ {n} {Γ : Ctx Tp n} {t a b} → Γ ⊢ a wf → Γ ⊢ t ∈ b →
-                (a ∷ Γ) ⊢ S₁.weaken t ∈ (b / S₂.wk)
-      weaken′ a-wf = subst (_⊢_∈_ _ _) (sym /-wk) ∘ ∈-weaken a-wf
+  field
 
-  -- A substitution which only replaces the first variable.
-  ∈-sub : ∀ {n} {Γ : Ctx Tp n} {t u a} →
-          Γ ⊢ t ∈ a → Γ ⊢ S₁.sub t ⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ S₂.sub u
-  ∈-sub t∈a =
-    t∈a′ ∷ subst₂ (_ ⊢_⟨ _⊢_∈_ ⟩_) (map-id _) (map-∘ (_/ S₂.sub _) C.weaken _)
-                  (map⁺ (subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)))
-                        (∈-id′ Γ-wf))
-    where
-      Γ-wf = ∈-wf t∈a
-      t∈a′ = subst (_⊢_∈_ _ _) (sym (weaken-sub-vanishes _)) t∈a
+    -- Post-application of substitutions to things.
 
-  -- A substitution which only changes the type of the first variable.
-  ∈-tsub : ∀ {n} {Γ : Ctx Tp n} {a b} → (b ∷ Γ) ⊢ S₁.var zero ∈ C.weaken a →
-           b ∷ Γ ⊢ S₁.id ⟨ _⊢_∈_ ⟩ C.toVec (a ∷ Γ) ⊙ S₂.id
-  ∈-tsub {Γ = Γ} z∈a = ∈-/∷ {Γ = Γ} z∈a′ (∈-id (wf-∷₂ (∈-wf z∈a)))
-    where
-      z∈a′ = subst (_⊢_∈_ _ _) (cong C.weaken (sym (id-vanishes _))) z∈a
+    ∈-/ : ∀ {m n Δ} {σ : Sub Term m n} {Γ t a} →
+          Γ ⊢ t ∈ a → Δ ⊢/ σ ∈ Γ → Δ ⊢ t A./ σ ∈ a / σ
 
-record TypedSimple {Tp Tm}
-                   (simple : Simple Tm)
-                   (typedSub : TypedSub Tp Tm Tp)
-                   : Set where
+    -- Application of composed substitutions is repeated application.
 
-  open TypedSub typedSub
+    /-⊙ : ∀ {m n k} {σ : Sub Term m n} {ρ : Sub Term n k} a →
+          a / σ ⊙ ρ ≡ a / σ / ρ
 
-  field rawTypedSimple : RawTypedSimple _⊢_wf _⊢_∈_ application
-                                        weakenOps simple simple
+  -- Reverse composition. (Fits well with post-application.)
 
-  private module R = RawTypedSimple rawTypedSimple
-  open R public
-    hiding (rawTypedExtension; ∈-/∷; ∈-↑; ∈-↑⋆; ∈-id; ∈-wk; ∈-sub; ∈-tsub)
-  open Simple    simple             hiding (weaken)
-  open WeakenOps weakenOps
-  open SubstOps  application simple using (_E/_)
-  open WellFormedContextLemmas _⊢_wf
-
-  typedExtension : TypedExtension _ _
-  typedExtension = record { rawTypedExtension = R.rawTypedExtension }
-  open TypedExtension typedExtension public using (∈-/∷)
-
-  -- Lifting.
-
-  ∈-↑ : ∀ {m n} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {a σ} →
-        Δ ⊢ a / σ wf → Δ ⊢/ σ ∈ Γ → a / σ ∷ Δ ⊢/ σ ↑ ∈ a ∷ Γ
-  ∈-↑ {Γ = Γ} a/σ-wf (σ⟨∈⟩Γ⊙σ , Δ-wf) =
-    R.∈-↑ {Γ = Γ} a/σ-wf σ⟨∈⟩Γ⊙σ , a/σ-wf ∷ wf-wf a/σ-wf
-
-  ∈-↑⋆ : ∀ {k m n} {E : CtxExt Tp m k} {Δ : Ctx Tp n} {Γ : Ctx Tp m} {σ} →
-         Δ ⊢ (E E/ σ) wfExt → Δ ⊢/ σ ∈ Γ → (E E/ σ) ++ Δ ⊢/ σ ↑⋆ k ∈ E ++ Γ
-  ∈-↑⋆ {E = E} {Δ} {Γ} E/σ-wfExt (σ⟨∈⟩Γ⊙σ , Δ-wf) =
-    R.∈-↑⋆ E/σ-wfExt σ⟨∈⟩Γ⊙σ , wf-++-wfExt E/σ-wfExt Δ-wf
-
-  -- The identity substitution.
-  ∈-id : ∀ {n} {Γ : Ctx Tp n} → Γ wf → Γ ⊢/ id ∈ Γ
-  ∈-id Γ-wf = R.∈-id Γ-wf , Γ-wf
-
-  -- Weakening.
-  ∈-wk : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → a ∷ Γ ⊢/ wk ∈ Γ
-  ∈-wk a-wf = R.∈-wk a-wf , a-wf ∷ wf-wf a-wf
-
-  -- A substitution which only replaces the first variable.
-  ∈-sub : ∀ {n} {Γ : Ctx Tp n} {t a} →
-          Γ ⊢ t ∈ a → Γ ⊢/ sub t ∈ a ∷ Γ
-  ∈-sub t∈a = R.∈-sub t∈a , ∈-wf t∈a
-
-  -- A substitution which only replaces the m-th variable.
-  ∈-sub-↑⋆ : ∀ {m n} {Δ : CtxExt Tp (suc n) m} {Γ : Ctx Tp n} {t a} →
-             Γ ⊢ Δ E/ sub t wfExt → Γ ⊢ t ∈ a →
-             (Δ E/ sub t) ++ Γ ⊢/ sub t ↑⋆ m ∈ Δ ++ a ∷ Γ
-  ∈-sub-↑⋆ Δ-wfExt t∈a = ∈-↑⋆ Δ-wfExt (∈-sub t∈a)
-
-  -- A substitution which only changes the type of the first variable.
-  ∈-tsub : ∀ {n} {Γ : Ctx Tp n} {a b} → b ∷ Γ ⊢ var zero ∈ weaken a →
-           b ∷ Γ ⊢/ id ∈ a ∷ Γ
-  ∈-tsub z∈a = R.∈-tsub z∈a , ∈-wf z∈a
-
-  -- Helper lemmas.
-
-  id-↑⋆ : ∀ {n} k → id ↑⋆ k ≡ id {k + n}
-  id-↑⋆ zero    = refl
-  id-↑⋆ (suc k) = begin
-    (id ↑⋆ k) ↑   ≡⟨ cong _↑ (id-↑⋆ k) ⟩
-    id        ↑   ∎
-
-  E/-id-vanishes : ∀ {m n} (Δ : CtxExt Tp m n) → Δ E/ id ≡ Δ
-  E/-id-vanishes             []      = refl
-  E/-id-vanishes {n = suc n} (a ∷ Δ) = cong₂ _∷_ (begin
-    a / id ↑⋆ n   ≡⟨ cong (a /_) (id-↑⋆ n) ⟩
-    a / id        ≡⟨ id-vanishes a ⟩
-    a             ∎) (E/-id-vanishes Δ)
-
-  -- A substitution which only changes the type of the m-th variable.
-
-  ∈-tsub-↑⋆ : ∀ {m n} {Δ : CtxExt Tp (suc n) m} {Γ : Ctx Tp n} {a b} →
-              b ∷ Γ ⊢ Δ wfExt → b ∷ Γ ⊢ var zero ∈ weaken a →
-              Δ ++ b ∷ Γ ⊢/ id ∈ Δ ++ a ∷ Γ
-  ∈-tsub-↑⋆ {m} {n} {Δ} Δ-wfExt z∈a =
-    subst₂ (_⊢/_∈ _) (cong (_++ _) (E/-id-vanishes Δ)) (id-↑⋆ m)
-           (∈-↑⋆ {E = Δ} (subst (_ ⊢_wfExt) (sym (E/-id-vanishes Δ)) Δ-wfExt)
-                 (∈-tsub z∈a))
-
--- TODO: applications of well-typed substitutions to well-typed terms.
+  ∈-⊙ : ∀ {m n k Δ Γ E} {σ : Sub Term m n} {ρ : Sub Term n k} →
+        Δ ⊢/ σ ∈ Γ → E ⊢/ ρ ∈ Δ → E ⊢/ σ ⊙ ρ ∈ Γ
+  ∈-⊙ ([] Δ-wf)     ρ∈Δ = [] (/∈-wf ρ∈Δ)
+  ∈-⊙ (t∈a/σ ∷ σ∈Γ) ρ∈Δ =
+    (subst (_ ⊢ _ ∈_) (sym (/-⊙ _)) (∈-/ t∈a/σ ρ∈Δ)) ∷ (∈-⊙ σ∈Γ ρ∈Δ)
 
 
 ------------------------------------------------------------------------
 -- Instantiations and code for facilitating instantiations
 
--- Abstract typed liftings from Tm₁ to Tm₁′.
-record LiftTyped {Tp Tm₁ Tm₂}
-                 (l : Lift Tm₁ Tm₂)
-                 (typedSub : TypedSub Tp Tm₁ Tp)
-                 (_⊢₂_∈_   : Typing Tp Tm₂ Tp) : Set where
+-- Abstract typed liftings from Term₁ to Term₂ terms
 
-  open TypedSub typedSub renaming (_⊢_∈_ to _⊢₁_∈_)
-  private module L = Lift l
+record LiftTyped {t ℓ₁ ℓ₂} {Type : Pred ℕ t} {Term₁ Term₂ : Pred ℕ lzero}
+                 (typeTermSubst : TermLikeSubst Type Term₂)
+                 (_⊢_wf  : Wf Type Type ℓ₁)
+                 (_⊢₁_∈_ : Typing Type Term₁ Type ℓ₁)
+                 (_⊢₂_∈_ : Typing Type Term₂ Type ℓ₂)
+                 : Set (lsuc (t ⊔ ℓ₁ ⊔ ℓ₂)) where
 
-  -- The underlying well-typed simple substitutions.
-  field typedSimple : TypedSimple L.simple typedSub
+  field rawLift : Lift Term₁ Term₂   -- Lifting between raw terms
 
-  open TypedSimple typedSimple public
+  open TermLikeSubst typeTermSubst using (app; weaken; termSubst)
+  private module S₂ = TermSubst termSubst
 
-  -- Lifts well-typed Tm₁-terms to well-typed Tm₂-terms.
-  field lift : ∀ {n} {Γ : Ctx Tp n} {t a} → Γ ⊢₁ t ∈ a → Γ ⊢₂ (L.lift t) ∈ a
+  typedSub : TypedSub Type Term₁ ℓ₁
+  typedSub = record
+    { _⊢_wf               = _⊢_wf
+    ; _⊢_∈_               = _⊢₁_∈_
+    ; typeExtension       = record { weaken = weaken }
+    ; typeTermApplication = record { _/_    = app rawLift }
+    ; termSimple          = Lift.simple rawLift
+    }
+  open TypedSub typedSub public hiding (_⊢_wf; _⊢_∈_; typeExtension)
+
+  -- Simple typed Term₁ substitutions.
+
+  field typedSimple : TypedSimple typedSub
+
+  open Lift        rawLift             public
+  open Application typeTermApplication public
+  open TypedSimple typedSimple         public hiding (_⊢_∈_)
+
+  field
+
+    -- Lifts well-typed Term₁-terms to well-typed Term₂-terms.
+
+    ∈-lift : ∀ {n} {Γ : Ctx Type n} {t a} → Γ ⊢₁ t ∈ a → Γ ⊢₂ (lift t) ∈ a
+
+    -- A usefule lemma: lifting preserves variables.
+
+    lift-var : ∀ {n} (x : Fin n) → lift (var x) ≡ S₂.var x
+
 
 -- Abstract variable typings.
-module VarTyping {Tp} (weakenOps : Extension Tp) (_⊢_wf : Wf Tp) where
-  open WeakenOps weakenOps
-  open WellFormedContext _⊢_wf
+
+module VarTyping {t ℓ} {Type : Pred ℕ t}
+                 (_⊢_wf : Wf Type Type (t ⊔ ℓ))
+                 (typeExtension : Extension Type) where
+
+  open ContextFormation _⊢_wf
+  open WeakenOps        typeExtension
 
   infix 4 _⊢Var_∈_
 
   -- Abstract reflexive variable typings.
-  data _⊢Var_∈_ {n} (Γ : Ctx Tp n) : Fin n → Tp n → Set where
-    var : ∀ x → Γ wf → Γ ⊢Var x ∈ lookup Γ x
+
+  data _⊢Var_∈_ {n} (Γ : Ctx Type n) : Fin n → Type n → Set (t ⊔ ℓ) where
+    ∈-var : ∀ x → Γ wf → Γ ⊢Var x ∈ lookup Γ x
+
+  -- Variable typing together with type formation forms
+  -- a type assignment system.
 
 -- Abstract typed variable substitutions (renamings).
-record TypedVarSubst {Tp} (_⊢_wf : Wf Tp) : Set where
+
+record TypedVarSubst {t} (Type : Pred ℕ t) ℓ : Set (lsuc (t ⊔ ℓ)) where
+
+  infix 4 _⊢_wf
+
   field
-    application : Application Tp Fin
-    weakenOps   : Extension Tp
+    _⊢_wf : Wf Type Type (t ⊔ ℓ)     -- Type formation judgment
 
-  open WellFormedContext   _⊢_wf
-  open VarTyping weakenOps _⊢_wf public
+    -- Generic application of renamings to raw types
 
-  typedSub : TypedSub Tp Fin Tp
-  typedSub = record
-    { _⊢_∈_       = _⊢Var_∈_
-    ; _⊢_wf       = _⊢_wf
-    ; application = application
-    ; weakenOps   = weakenOps
+    typeExtension      : Extension Type
+    typeVarApplication : Application Type Fin
+
+  open VarTyping {t} {t ⊔ ℓ} _⊢_wf typeExtension public
+
+  open WeakenOps        typeExtension      using (weaken; toVec)
+  open Application      typeVarApplication using (_/_)
+  open ContextFormation _⊢_wf              using (_wf; _∷_)
+  open VarSubst                            using (id; wk; _⊙_)
+
+  field
+
+    -- Context validity of type formation.
+
+    wf-wf : ∀ {n} {Γ : Ctx Type n} {a}   → Γ ⊢ a wf  → Γ wf
+
+    -- Lemmas about renamings in types
+
+    /-wk        : ∀ {n} {a : Type n} → a / wk ≡ weaken a
+    id-vanishes : ∀ {n} (a : Type n) → a / id ≡ a
+    /-⊙         : ∀ {m n k} {ρ₁ : Sub Fin m n} {ρ₂ : Sub Fin n k} a →
+                  a / ρ₁ ⊙ ρ₂ ≡ a / ρ₁ / ρ₂
+
+  -- Typed renamings and associated lemmas.
+
+  typedRenaming : TypedSub Type Fin (t ⊔ ℓ)
+  typedRenaming = record
+    { _⊢_wf               = _⊢_wf
+    ; _⊢_∈_               = _⊢Var_∈_
+    ; typeExtension       = typeExtension
+    ; typeTermApplication = typeVarApplication
+    ; termSimple          = VarSubst.simple
     }
 
-  open TypedSub typedSub public using () renaming (_⊢/_∈_ to _⊢/Var_∈_)
-
-  open Application application       using (_/_)
-  open Lemmas₄     VarLemmas.lemmas₄ using (id; wk; _⊙_)
-  private module C = WeakenOps weakenOps
-
-  field
-    /-wk        : ∀ {n} {a : Tp n} → a / wk ≡ C.weaken a
-    id-vanishes : ∀ {n} (a : Tp n) → a / id ≡ a
-    /-⊙         : ∀ {m n k} {σ₁ : Sub Fin m n} {σ₂ : Sub Fin n k} a →
-                  a / σ₁ ⊙ σ₂ ≡ a / σ₁ / σ₂
-    wf-wf       : ∀ {n} {Γ : Ctx Tp n} {a} → Γ ⊢ a wf → Γ wf
-
-  appLemmas : AppLemmas Tp Fin
+  appLemmas : AppLemmas Type Fin
   appLemmas = record
-    { application = application
+    { application = typeVarApplication
     ; lemmas₄     = VarLemmas.lemmas₄
     ; id-vanishes = id-vanishes
     ; /-⊙         = /-⊙
     }
 
-  open ExtAppLemmas appLemmas using (wk-commutes; wk-sub-vanishes)
-  open SimpleExt VarLemmas.simple using (extension; _/∷_)
+  weakenLemmas : WeakenLemmas Type Fin
+  weakenLemmas = record
+    { appLemmas = appLemmas
+    ; /-wk      = /-wk
+    }
+
+  open AppLemmas    appLemmas    using (/-weaken)
+  open WeakenLemmas weakenLemmas using (weaken-/-∷)
 
   -- Simple typed renamings.
-  typedSimple : TypedSimple VarLemmas.simple typedSub
+
+  typedSimple : TypedSimple typedRenaming
   typedSimple = record
-    { rawTypedSimple = record
-        { rawTypedExtension = record
-            { ∈-weaken = ∈-weaken
-            ; weaken-/ = weaken-/
-            ; ∈-wf     = ∈-wf
-            }
-        ; ∈-var             = var
-        ; id-vanishes       = id-vanishes
-        ; /-wk              = /-wk
-        ; wk-sub-vanishes   = wk-sub-vanishes
-        ; wf-wf             = wf-wf
-        }
+    { typedWeakenOps = record
+      { ∈-weaken     = ∈-weaken
+      ; ∈-wf         = ∈-wf
+      ; /-wk         = /-wk
+      ; /-weaken     = /-weaken
+      ; weaken-/-∷   = weaken-/-∷
+      }
+    ; ∈-var          = ∈-var
+    ; wf-wf          = wf-wf
+    ; id-vanishes    = id-vanishes
     }
     where
-      ∈-weaken : ∀ {n} {Γ : Ctx Tp n} {x a b} → Γ ⊢ a wf → Γ ⊢Var x ∈ b →
-                 a ∷ Γ ⊢Var suc x ∈ C.weaken b
-      ∈-weaken {_} {Γ} a-wf (var x Γ-wf) =
-        subst (_ ∷ Γ ⊢Var _ ∈_) (lookup-map x C.weaken (C.toVec Γ))
-              (var (suc x) (a-wf ∷ Γ-wf))
 
-      weaken-/ : ∀ {m n} {σ : Sub Fin m n} {t} a →
-                 C.weaken (a / σ) ≡ C.weaken a / (t /∷ σ)
-      weaken-/ {σ = σ} {t} a = begin
-        C.weaken (a / σ)        ≡⟨ sym /-wk ⟩
-        a / σ / wk              ≡⟨ wk-commutes a ⟩
-        a / wk / (t /∷ σ)       ≡⟨ cong₂ _/_ /-wk refl ⟩
-        C.weaken a / (t /∷ σ)   ∎
+    ∈-weaken : ∀ {n} {Γ : Ctx Type n} {x a b} →
+               Γ ⊢ a wf → Γ ⊢Var x ∈ b →
+               a ∷ Γ ⊢Var suc x ∈ weaken b
+    ∈-weaken {_} {Γ} a-wf (∈-var x Γ-wf) =
+      subst (_ ∷ Γ ⊢Var _ ∈_) (lookup-map x weaken (toVec Γ))
+            (∈-var (suc x) (a-wf ∷ Γ-wf))
 
-      ∈-wf : ∀ {n} {Γ : Ctx Tp n} {x a} → Γ ⊢Var x ∈ a → Γ wf
-      ∈-wf (var x Γ-wf) = Γ-wf
+    ∈-wf : ∀ {n} {Γ : Ctx Type n} {x a} → Γ ⊢Var x ∈ a → Γ wf
+    ∈-wf (∈-var x Γ-wf) = Γ-wf
 
+  open TypedSub typedRenaming public
+    renaming (_⊢/_∈_ to _⊢/Var_∈_) hiding (_⊢_wf; _/_)
   open TypedSimple typedSimple public
-    hiding (/-wk; id-vanishes; wk-sub-vanishes; wf-wf)
+    hiding (typeExtension; _/_; _⊢_∈_; ∈-var; _⊢_wf; wf-wf; /-wk; id-vanishes)
+
+  -- Applications of typed renamings to typed variables
+
+  typedApplication : TypedApplication typedRenaming
+  typedApplication = record
+    { termTermApplication = VarSubst.application
+    ; ∈-/ = ∈-/
+    ; /-⊙ = /-⊙
+    }
+    where
+
+    ∈-/ : ∀ {m n Δ} {ρ : Sub Fin m n} {Γ x a} →
+          Γ ⊢Var x ∈ a → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Var Vec.lookup ρ x ∈ a / ρ
+    ∈-/ (∈-var x Γ-wf) ρ∈Γ = lookup ρ∈Γ x
+
+  open TypedApplication typedApplication public
+    using (_/_; ∈-/; ∈-⊙)
+
+-- Abstract typed term substitutions.
+
+record TypedTermSubst {t h} (Type : Pred ℕ t) (Term : Pred ℕ lzero) ℓ
+                      (Helpers : ∀ {T} → Lift T Term → Set h)
+                      : Set (lsuc (t ⊔ ℓ) ⊔ h) where
+
+  infix 4 _⊢_∈_ _⊢_wf
+
+  field
+    _⊢_wf : Wf Type Type (t ⊔ ℓ)            -- Type formation judgment
+    _⊢_∈_ : Typing Type Term Type (t ⊔ ℓ)   -- Typing judgment
+
+    -- Lemmas about term substitutions in Types
+
+    termLikeLemmas : TermLikeLemmas Type Term
+
+  private
+    module Tp = TermLikeLemmas termLikeLemmas
+    module Tm = TermLemmas Tp.termLemmas
+    module S  = TermSubst Tm.termSubst
+
+  typeExtension : Extension Type
+  typeExtension = record { weaken = Tp.weaken }
+
+  private module C = WeakenOps typeExtension
+
+  typedSub : TypedSub Type Term (t ⊔ ℓ)
+  typedSub = record
+    { _⊢_wf               = _⊢_wf
+    ; _⊢_∈_               = _⊢_∈_
+    ; typeExtension       = typeExtension
+    ; termSimple          = S.simple
+    ; typeTermApplication = Tp.termApplication
+    }
+
+  open ContextFormation _⊢_wf using (_wf)
+
+  field
+
+    -- Custom helper lemmas used to implement application of typed
+    -- substitutions
+
+    varHelpers  : Helpers S.varLift   -- lemmas about renamings
+    termHelpers : Helpers S.termLift  -- lemmas about substitutions
+
+    -- Context validity of type formation and typing.
+
+    wf-wf : ∀ {n} {Γ : Ctx Type n} {a}   → Γ ⊢ a wf  → Γ wf
+    ∈-wf  : ∀ {n} {Γ : Ctx Type n} {t a} → Γ ⊢ t ∈ a → Γ wf
+
+    -- Takes variables to well-typed Tms.
+
+    ∈-var : ∀ {n} {Γ : Ctx Type n} →
+            ∀ x → Γ wf → Γ ⊢ S.var x ∈ C.lookup Γ x
+
+    -- Generic application of typed Term′ substitutions to typed Terms.
+
+    typedApp : ∀ {Term′ : Pred ℕ lzero}
+               (_⊢′_∈_ : Typing Type Term′ Type (t ⊔ ℓ))
+               (liftTyped : LiftTyped Tp.termLikeSubst _⊢_wf _⊢′_∈_ _⊢_∈_) →
+               let open LiftTyped liftTyped using (rawLift; _⊢/_∈_; _/_)
+               in (helpers : Helpers rawLift) →
+                  ∀ {m n Γ Δ t a} {σ : Sub Term′ m n} →
+                  Γ ⊢ t ∈ a → Δ ⊢/ σ ∈ Γ → Δ ⊢ S.app rawLift t σ ∈ a / σ
+
+  typedVarSubst : TypedVarSubst Type (t ⊔ ℓ)
+  typedVarSubst = record
+    { _⊢_wf              = _⊢_wf
+    ; typeVarApplication = Tp.varApplication
+    ; typeExtension      = typeExtension
+    ; wf-wf              = wf-wf
+    ; /-wk               = refl
+    ; id-vanishes        = id-vanishes
+    ; /-⊙                = /-⊙
+    }
+    where
+    open LiftSubLemmas Tp.varLiftSubLemmas using (liftAppLemmas)
+    open LiftAppLemmas liftAppLemmas       using (id-vanishes; /-⊙)
+
+  open TypedVarSubst typedVarSubst public
+    using (_⊢Var_∈_; _⊢/Var_∈_; typedRenaming)
+    renaming
+    ( typedSimple    to varTypedSimple
+    ; ∈-var          to Var∈-var
+    ; ∈-↑            to Var∈-↑
+    ; ∈-id           to Var∈-id
+    ; ∈-wk           to Var∈-wk
+    ; ∈-sub          to Var∈-sub
+    ; ∈-tsub         to Var∈-tsub
+    )
+
+  varLiftTyped : LiftTyped Tp.termLikeSubst _⊢_wf _⊢Var_∈_ _⊢_∈_
+  varLiftTyped = record
+    { rawLift     = S.varLift
+    ; typedSimple = varTypedSimple
+    ; ∈-lift      = ∈-lift
+    ; lift-var    = λ _ → refl
+    }
+    where
+
+    ∈-lift : ∀ {n Γ x} {a : Type n} → Γ ⊢Var x ∈ a → Γ ⊢ S.var x ∈ a
+    ∈-lift (Var∈-var x Γ-wf) = ∈-var x Γ-wf
+
+  ∈-/Var : ∀ {m n} {Γ t a} {ρ : Sub Fin m n} {Δ} →
+           Δ ⊢ t ∈ a → Γ ⊢/Var ρ ∈ Δ → Γ ⊢ t S./Var ρ ∈ a Tp./Var ρ
+  ∈-/Var = typedApp _⊢Var_∈_ varLiftTyped varHelpers
+
+  -- Operations on well-formed contexts that require weakening of
+  -- well-formedness judgments.
+
+  -- Simple typed substitutions.
+
+  typedSimple : TypedSimple typedSub
+  typedSimple = record
+    { typedWeakenOps = record
+      { ∈-weaken     = λ a-wf t∈b → ∈-/Var t∈b (Var∈-wk a-wf)
+      ; ∈-wf         = ∈-wf
+      ; /-wk         = Tp./-wk
+      ; /-weaken     = Tp./-weaken
+      ; weaken-/-∷   = Tp.weaken-/-∷
+      }
+    ; ∈-var          = ∈-var
+    ; wf-wf          = wf-wf
+    ; id-vanishes    = Tp.id-vanishes
+    }
+
+  termLiftTyped : LiftTyped Tp.termLikeSubst _⊢_wf _⊢_∈_ _⊢_∈_
+  termLiftTyped = record
+    { rawLift     = S.termLift
+    ; typedSimple = typedSimple
+    ; ∈-lift      = Fun.id
+    ; lift-var    = λ _ → refl
+    }
+
+  -- Applications of typed term substitutions to typed terms
+
+  typedApplication : TypedApplication typedSub
+  typedApplication = record
+    { termTermApplication = S.application
+    ; ∈-/ = typedApp _⊢_∈_ termLiftTyped termHelpers
+    ; /-⊙ = Tp./-⊙
+    }
+
+  open TypedSub typedSub public hiding (typeExtension)
+  open TypedSimple typedSimple public hiding
+    ( typeExtension; ∈-weaken; ∈-wf; ∈-var; wf-wf
+    ; /-wk; /-weaken; weaken-/-∷; id-vanishes
+    )
+  open TypedApplication typedApplication public hiding (/-⊙)

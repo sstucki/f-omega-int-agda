@@ -33,12 +33,11 @@ Tp∈-η : ∀ {n} {Γ : Ctx n} {a j k} →
 Tp∈-η {k = k} a∈Πjk j-kd k-kd =
   ∈-Π-i j-kd (subst (_ ⊢Tp _ ∈_) k′[z]≡k (∈-Π-e a∈Πjk′ z∈k k-kd′ k[z]-kd)) k-kd
   where
-    module TR = KindedRenaming
     module KL = TermLikeLemmas termLikeLemmasKind
 
     j-wf    = wf-kd j-kd
     j-kd′   = kd-weaken j-wf j-kd
-    k-kd′   = TR.kd-/ k-kd (TR.∈-↑ (wf-kd j-kd′) (TR.∈-wk j-wf))
+    k-kd′   = kd-/Var k-kd (Var∈-↑ (wf-kd j-kd′) (Var∈-wk j-wf))
     z∈k     = ∈-var zero (j-wf ∷ kd-ctx j-kd) refl
     a∈Πjk′  = Tp∈-weaken j-wf a∈Πjk
     k[z]-kd = kd-[] k-kd′ (∈-tp z∈k)

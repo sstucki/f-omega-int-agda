@@ -6,6 +6,7 @@
 
 module FOmegaInt.Syntax.Normalization where
 
+open import Data.Context.WellFormed using (module ⊤-WellFormed)
 open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas using (module VarLemmas)
@@ -15,7 +16,6 @@ open import Data.Maybe using (just; nothing)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.List using ([]; _∷_; _∷ʳ_)
 open import Data.List.Relation.Unary.All using (All; []; _∷_)
-open import Data.Unit using (tt)
 open import Data.Vec as Vec using ([]; _∷_)
 import Data.Vec.Properties as VecProps
 open import Function using (_∘_; flip)
@@ -434,25 +434,26 @@ module RenamingCommutesNorm where
   -- from the source contxt `Γ' to the target context `Δ' in a manner
   -- that is consistent with the renaming, i.e. such that we have
   -- `Δ(ρ(x)) = Γ(x)ρ'.
-  kindedVarSubst : TypedVarSubst (_⊢_wf)
+
+  kindedVarSubst : TypedVarSubst ElimAsc _
   kindedVarSubst = record
-    { application = varApplication
-    ; weakenOps   = weakenOps
-    ; /-wk        = refl
-    ; id-vanishes = AL.id-vanishes
-    ; /-⊙         = AL./-⊙
-    ; wf-wf       = λ _ → ctx-wf _
+    { _⊢_wf              = _⊢_wf
+    ; typeExtension      = weakenOps
+    ; typeVarApplication = varApplication
+    ; wf-wf              = λ _ → ctx-wf _
+    ; /-wk               = refl
+    ; id-vanishes        = AL.id-vanishes
+    ; /-⊙                = AL./-⊙
     }
-  open TypedVarSubst kindedVarSubst
-  private module TS = TypedSub typedSub
+  open TypedVarSubst kindedVarSubst renaming (lookup to /∈-lookup)
 
   -- Extract a "consistency" proof from a well-formed renaming, i.e. a
   -- proof that `Δ(ρ(x)) = Γ(x)ρ'.
   lookup-≡ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} → Δ ⊢/Var ρ ∈ Γ → ∀ x →
              lookup Δ (Vec.lookup ρ x) ≡ lookup Γ x ElimAsc/Var ρ
   lookup-≡ {_} {_} {Δ} {Γ} {ρ} ρ∈Γ x
-    with Vec.lookup ρ x | lookup Γ x ElimAsc/Var ρ | TS.lookup ρ∈Γ x
-  lookup-≡ ρ∈Γ x | y | _ | VarTyping.var .y _ = refl
+    with Vec.lookup ρ x | lookup Γ x ElimAsc/Var ρ | /∈-lookup ρ∈Γ x
+  lookup-≡ ρ∈Γ x | y | _ | VarTyping.∈-var .y _ = refl
 
   mutual
 
@@ -460,7 +461,7 @@ module RenamingCommutesNorm where
     ∈-↑′ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} k → Δ ⊢/Var ρ ∈ Γ →
            kd (nfKind Δ (k Kind/Var ρ)) ∷ Δ ⊢/Var ρ V.↑ ∈ (nfAsc Γ (kd k) ∷ Γ)
     ∈-↑′ k ρ∈Γ =
-      subst (λ k → kd k ∷ _ ⊢/Var _ ∈ _) (nfKind-/Var k ρ∈Γ) (∈-↑ tt ρ∈Γ)
+      subst (λ k → kd k ∷ _ ⊢/Var _ ∈ _) (nfKind-/Var k ρ∈Γ) (∈-↑ _ ρ∈Γ)
 
     -- Normalization commutes with renaming.
 
@@ -502,15 +503,15 @@ module RenamingCommutesNorm where
 
   nf-weaken : ∀ {n} {Γ : Ctx n} a b →
               weakenElim (nf Γ b) ≡ nf (a ∷ Γ) (weaken b)
-  nf-weaken a b = nf-/Var b (∈-wk tt)
+  nf-weaken a b = nf-/Var b (∈-wk _)
 
   nfKind-weaken : ∀ {n} {Γ : Ctx n} a k →
                   weakenKind′ (nfKind Γ k) ≡ nfKind (a ∷ Γ) (weakenKind k)
-  nfKind-weaken a k = nfKind-/Var k (∈-wk tt)
+  nfKind-weaken a k = nfKind-/Var k (∈-wk _)
 
   nfAsc-weaken : ∀ {n} {Γ : Ctx n} a b →
                  weakenElimAsc (nfAsc Γ b) ≡ nfAsc (a ∷ Γ) (weakenTermAsc b)
-  nfAsc-weaken a b = nfAsc-/Var b (∈-wk tt)
+  nfAsc-weaken a b = nfAsc-/Var b (∈-wk _)
 
 open RenamingCommutesNorm
 

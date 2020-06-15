@@ -10,7 +10,6 @@ open import Data.Fin using (Fin; zero; suc; raise; lift)
 open import Data.Fin.Substitution using (module VarSubst)
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
-open import Data.Fin.Substitution.Context.Properties
 open import Data.List using ([]; _∷_; _∷ʳ_; map)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod using (_,_)
@@ -245,7 +244,7 @@ mutual
         P.≡˘⟨ cong kd (⌊⌋-Kind/⟨⟩ (nfKind (nfCtx Γ) j)) ⟩
           kd ⌊ nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ ⌋
         P.∎) ⟩
-      η-exp (nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ) (var∙ y) 
+      η-exp (nfKind (nfCtx Γ) j Kind/⟨ k ⟩ nfSVSub (nfCtx Δ) σ) (var∙ y)
     ≡˘⟨ η-exp-ne-Miss-/⟨⟩ x y [] (nfKind (nfCtx Γ) j) missP-nf-σ ⟩
       η-exp (nfKind (nfCtx Γ) j) (var∙ x) /⟨ k ⟩ nfSVSub (nfCtx Δ) σ
     ∎

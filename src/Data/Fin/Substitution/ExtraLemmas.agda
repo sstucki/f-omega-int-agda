@@ -14,7 +14,7 @@ open import Data.Vec using (Vec; _∷_; lookup; map)
 open import Data.Vec.Properties using (map-cong; map-∘; lookup-map)
 open import Data.Vec.Relation.Unary.All hiding (lookup; map)
 open import Function using (_∘_; _$_; flip)
-open import Level using (_⊔_)
+open import Level using (_⊔_) renaming (zero to lzero; suc to lsuc)
 open import Relation.Binary.Construct.Closure.ReflexiveTransitive
   using (Star; ε; _◅_; _▻_)
 open import Relation.Binary.PropositionalEquality as PropEq hiding (subst)
@@ -121,6 +121,12 @@ module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
   ⊙-wk : ∀ {m n} {ρ : Sub T m n} {t} → ρ ⊙ wk ≡ wk ⊙ (t /∷ ρ)
   ⊙-wk = ⊙-wk-↑⋆ zero
 
+  wk-⊙-∷ : ∀ {n m} t {ρ : Sub T m n} → wk ⊙ (t ∷ ρ) ≡ ρ
+  wk-⊙-∷ t {ρ} = extensionality λ x → begin
+    lookup (wk ⊙ (t ∷ ρ)) x  ≡⟨ lookup-wk-↑⋆-⊙ zero {x} ⟩
+    lookup (t ∷ ρ) (suc x)   ≡⟨⟩
+    lookup ρ       x         ∎
+
   wk-↑⋆-commutes : ∀ {m n} {ρ : Sub T m n} {t′} k t →
                    t / ρ ↑⋆ k / wk ↑⋆ k ≡ t / wk ↑⋆ k / (t′ /∷ ρ) ↑⋆ k
   wk-↑⋆-commutes {ρ = ρ} {t} k =
@@ -150,6 +156,7 @@ module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
     weaken (weaken⋆ k t)     ∎
 
   -- Weakening commutes with substitution.
+
   weaken-/ : ∀ {m n} {ρ : Sub T m n} {t′} t →
              weaken (t / ρ) ≡ weaken t / (t′ /∷ ρ)
   weaken-/ {ρ = ρ} {t′} t = begin
@@ -157,6 +164,13 @@ module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
     t / ρ / wk             ≡⟨ wk-commutes t ⟩
     t / wk / (t′ /∷ ρ)     ≡⟨ cong₂ _/_ /-wk refl ⟩
     weaken t / (t′ /∷ ρ)   ∎
+
+  weaken-/-∷ : ∀ {n m} {t′} {ρ : Sub T m n} t → weaken t / (t′ ∷ ρ) ≡ t / ρ
+  weaken-/-∷ {_} {_} {t′} {ρ} t = begin
+    weaken t / (t′ ∷ ρ)   ≡⟨ cong (_/ (t′ ∷ ρ)) (sym /-wk) ⟩
+    t / wk / (t′ ∷ ρ)     ≡⟨ sym (/-⊙ t) ⟩
+    t / (wk ⊙ (t′ ∷ ρ))   ≡⟨ cong (t /_) (wk-⊙-∷ t′) ⟩
+    t / ρ                 ∎
 
 -- A generalize version of Data.Fin.Lemmas.AppLemmas
 --
@@ -167,6 +181,7 @@ module ExtAppLemmas {ℓ₁ ℓ₂} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ �
   open AppLemmas appLemmas public hiding (wk-commutes)
   open SimpleExt simple           using (_/∷_)
   private module L₄ = ExtLemmas₄ lemmas₄
+  open L₄ public using (wk-⊙-∷)
 
   wk-↑⋆-commutes : ∀ {m n} {ρ : Sub T₂ m n} {t′} k t →
                    t / ρ ↑⋆ k / wk ↑⋆ k ≡ t / wk ↑⋆ k / (t′ /∷ ρ) ↑⋆ k
@@ -262,6 +277,7 @@ record LiftAppLemmas {ℓ₁ ℓ₂ ℓ₃}
     hiding (application; lemmas₂; lemmas₃; var; weaken; subst; simple)
 
 -- Lemmas relating T₂ and T₃ substitutions in T₁.
+
 record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
                      (T₁ : Pred ℕ ℓ₁) (T₂ : Pred ℕ ℓ₂) (T₃ : Pred ℕ ℓ₃)
                      : Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃) where
@@ -429,14 +445,109 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
       /-liftSub₂ s {σ} = /✶-↑✶₂ (ε ▻ σ) (ε ▻ liftSub σ)
                                 (var-/-liftSub-↑⋆ σ) zero s
 
--- Lemmas for a term-like T₁ derived from term lemmas for T₂
-record TermLikeLemmas (T₁ T₂ : ℕ → Set) : Set₁ where
-  field
-    app         : ∀ {T₃} → Lift T₃ T₂ → ∀ {m n} → T₁ m → Sub T₃ m n → T₁ n
-    termLemmas  : TermLemmas T₂
+-- Lemmas relating weakening of T₁ to T₂ substitutions in T₁.
 
-  open TermLemmas termLemmas  using (termSubst)
-  open TermSubst  termSubst   using (var; termLift; varLift; module Lifted)
+record WeakenLemmas {ℓ₁ ℓ₂} (T₁ : Pred ℕ ℓ₁) (T₂ : Pred ℕ ℓ₂)
+                    : Set (ℓ₁ ⊔ ℓ₂) where
+  field
+    weaken : ∀ {n} → T₁ n → T₁ (suc n)    -- Weakening of T₁s.
+
+    -- Lemmas about application of T₂ substitutions in T₁
+
+    appLemmas : AppLemmas T₁ T₂
+
+  open ExtAppLemmas appLemmas hiding (/-wk; weaken; _⊙_)
+  open Lemmas₄ lemmas₄ using (_⊙_) renaming (weaken to weaken′)
+
+  -- A lemma relating weakening to the wk substitution
+
+  field /-wk : ∀ {n} {t : T₁ n} → t / wk ≡ weaken t
+
+  extension : Extension T₁
+  extension = record { weaken = weaken }
+  open Extension extension public using (weaken⋆)
+
+  -- A generalized version of wk-sub-vanishes for T₁s.
+
+  weaken-sub : ∀ {n t′} → (t : T₁ n) → weaken t / sub t′ ≡ t
+  weaken-sub t = begin
+    weaken t / sub _   ≡⟨ cong₂ _/_ (sym /-wk) refl ⟩
+    t / wk / sub _     ≡⟨ wk-sub-vanishes t ⟩
+    t                  ∎
+
+  -- A variants of /-wk⋆ for T₁s.
+
+  /-wk⋆ : ∀ {n} k {t : T₁ n} → t / wk⋆ k ≡ weaken⋆ k t
+  /-wk⋆ zero    {t} = id-vanishes t
+  /-wk⋆ (suc k) {t} = begin
+    t / map weaken′ (wk⋆ k)   ≡⟨ /-weaken t ⟩
+    t / wk⋆ k / wk            ≡⟨ /-wk ⟩
+    weaken (t / wk⋆ k)        ≡⟨ cong weaken (/-wk⋆ k) ⟩
+    weaken (weaken⋆ k t)      ∎
+
+  open SimpleExt simple public using (_/∷_)
+
+  -- Weakening commutes with substitution.
+
+  weaken-/ : ∀ {m n} {σ : Sub T₂ m n} {t′} t →
+             weaken (t / σ) ≡ weaken t / (t′ /∷ σ)
+  weaken-/ {σ = σ} {t′} t = begin
+    weaken (t / σ)         ≡⟨ sym /-wk ⟩
+    t / σ / wk             ≡⟨ wk-commutes t ⟩
+    t / wk / (t′ /∷ σ)     ≡⟨ cong₂ _/_ /-wk refl ⟩
+    weaken t / (t′ /∷ σ)   ∎
+
+  weaken-/-∷ : ∀ {n m} {t′} {σ : Sub T₂ m n} (t : T₁ m) →
+               weaken t / (t′ ∷ σ) ≡ t / σ
+  weaken-/-∷ {_} {_} {t′} {σ} t = begin
+    weaken t / (t′ ∷ σ)   ≡⟨ cong (_/ (t′ ∷ σ)) (sym /-wk) ⟩
+    t / wk / (t′ ∷ σ)     ≡⟨ sym (/-⊙ t) ⟩
+    t / wk ⊙ (t′ ∷ σ)     ≡⟨ cong (t /_) (wk-⊙-∷ t′) ⟩
+    t / σ                 ∎
+
+-- T₂-substitutions in term-like T₁
+--
+-- FIXME: this should go into Data.Fin.Substitution.
+
+record TermLikeSubst {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
+                     : Set (lsuc (ℓ ⊔ lzero)) where
+  field
+    app       : ∀ {T₃} → Lift T₃ T₂ → ∀ {m n} → T₁ m → Sub T₃ m n → T₁ n
+    termSubst : TermSubst T₂
+
+  open TermSubst termSubst public
+    hiding (app; var; weaken; _/Var_; _/_; _/✶_)
+
+  termApplication : Application T₁ T₂
+  termApplication = record { _/_ = app termLift }
+
+  varApplication : Application T₁ Fin
+  varApplication = record { _/_ = app varLift }
+
+  open Application termApplication public using (_/_; _/✶_)
+  open Application varApplication  public using () renaming (_/_ to _/Var_)
+
+  -- Weakening of T₁s.
+
+  weaken : ∀ {n} → T₁ n → T₁ (suc n)
+  weaken t = t /Var VarSubst.wk
+
+-- Lemmas for a term-like T₁ derived from term lemmas for T₂
+
+record TermLikeLemmas {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
+                      : Set (lsuc (ℓ ⊔ lzero)) where
+  field
+    app        : ∀ {T₃} → Lift T₃ T₂ → ∀ {m n} → T₁ m → Sub T₃ m n → T₁ n
+    termLemmas : TermLemmas T₂
+
+  termLikeSubst : TermLikeSubst T₁ T₂
+  termLikeSubst = record
+    { app       = app
+    ; termSubst = TermLemmas.termSubst termLemmas
+    }
+
+  open TermLikeSubst termLikeSubst using (termSubst; termLift; varLift; weaken)
+  open TermSubst     termSubst     using (var; _⊙_; module Lifted)
 
   field /✶-↑✶₁ : ∀ {T₃} {lift : Lift T₃ T₂} →
                  let open Application (record { _/_ = app lift })
@@ -480,7 +591,7 @@ record TermLikeLemmas (T₁ T₂ : ℕ → Set) : Set₁ where
     ; /✶-↑✶         = /✶-↑✶₁
     }
 
-  open LiftAppLemmas termLiftAppLemmas public hiding (/-wk)
+  open LiftAppLemmas termLiftAppLemmas public hiding (/-wk; _⊙_)
 
   -- An instantiation of the above lemmas for variable substitutions
   -- (renamings) in T₁s.
@@ -504,35 +615,22 @@ record TermLikeLemmas (T₁ T₂ : ℕ → Set) : Set₁ where
     }
 
   open Application   varApplication   public using () renaming (_/_ to _/Var_)
-  open LiftSubLemmas varLiftSubLemmas public hiding (/✶-↑✶₁; /✶-↑✶₂)
+  open LiftSubLemmas varLiftSubLemmas public hiding (/✶-↑✶₁; /✶-↑✶₂; _⊙_; /-wk)
     renaming (liftAppLemmas to varLiftAppLemmas)
 
-  -- Weakening of T₁s.
-  weaken : ∀ {n} → T₁ n → T₁ (suc n)
-  weaken t = t /Var VarSubst.wk
+  -- Lemmas relating weakening of T₁s to T₂-substitutions in T₁s.
 
-  extension : Extension T₁
-  extension = record { weaken = weaken }
-  open Extension extension public using (weaken⋆)
+  weakenLemmas : WeakenLemmas T₁ T₂
+  weakenLemmas = record
+    { weaken    = weaken
+    ; appLemmas = appLemmas
+    ; /-wk      = sym /-wk
+    }
+    where open LiftSubLemmas varLiftSubLemmas using (/-wk)
 
-  -- A version of wk-sub-vanishes for T₁s.
-  weaken-sub : ∀ {n t′} → (t : T₁ n) → weaken t / sub t′ ≡ t
-  weaken-sub t = begin
-    weaken t / sub _   ≡⟨ cong₂ _/_ /-wk refl ⟩
-    t / wk / sub _     ≡⟨ wk-sub-vanishes t ⟩
-    t                  ∎
+  open WeakenLemmas weakenLemmas public hiding (appLemmas)
 
-  -- Variants of /-wk⋆ for T₁s.
-
-  /-wk⋆ : ∀ {n} k {t : T₁ n} → t / wk⋆ k ≡ weaken⋆ k t
-  /-wk⋆ zero    {t} = id-vanishes t
-  /-wk⋆ (suc k) {t} = begin
-    t / map weaken′ (wk⋆ k)   ≡⟨ /-weaken t ⟩
-    t / wk⋆ k / wk            ≡⟨ sym /-wk ⟩
-    weaken (t / wk⋆ k)        ≡⟨ cong weaken (/-wk⋆ k) ⟩
-    weaken (weaken⋆ k t)      ∎
-    where
-      open TermSubst termSubst using () renaming (weaken to weaken′)
+  -- Another variant of /-wk⋆ relating VarSubst.wk to weakening of T₁s.
 
   /Var-wk⋆ : ∀ {n} k {t : T₁ n} →
              t /Var VarSubst.wk⋆ k ≡ weaken⋆ k t
@@ -541,14 +639,3 @@ record TermLikeLemmas (T₁ T₂ : ℕ → Set) : Set₁ where
     t / liftSub (VarSubst.wk⋆ k)   ≡⟨ cong (t /_) (liftSub-wk⋆ k) ⟩
     t / wk⋆ k                      ≡⟨ /-wk⋆ k ⟩
     weaken⋆ k t                    ∎
-
-  open SimpleExt (TermLemmas.simple termLemmas) public using (_/∷_)
-
-  -- Weakening commutes with substitution.
-  weaken-/ : ∀ {m n} {σ : Sub T₂ m n} {t′} t →
-             weaken (t / σ) ≡ weaken t / (t′ /∷ σ)
-  weaken-/ {σ = σ} {t′} t = begin
-    weaken (t / σ)         ≡⟨ /-wk ⟩
-    t / σ / wk             ≡⟨ wk-commutes t ⟩
-    t / wk / (t′ /∷ σ)     ≡⟨ cong₂ _/_ (sym /-wk) refl ⟩
-    weaken t / (t′ /∷ σ)   ∎

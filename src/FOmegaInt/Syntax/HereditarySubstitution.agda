@@ -220,7 +220,7 @@ module RenamingCommutes where
         a ∙ (c ∷ cs) ⌜·⌝ b /Var ρ
       ≡⟨ S.⌜·⌝-/Var (a ∙ (c ∷ cs)) b ⟩
         (a ∙ (c ∷ cs) /Var ρ) ⌜·⌝ (b /Var ρ)
-      ≡⟨ sym (cong (λ a → a ∙∙ _ ⌜·⌝ (b /Var ρ)) (S.Head/Var-∙ a)) ⟩
+      ≡˘⟨ cong (λ a → a ∙∙ _ ⌜·⌝ (b /Var ρ)) (S.Head/Var-∙ a) ⟩
         (a Head/Var ρ) ∙ ((c ∷ cs) //Var ρ) ⌜·⌝⟨ j ⇒ k ⟩ (b /Var ρ)
       ≡⟨ cong (λ a → a ∙∙ _ ⌜·⌝⟨ j ⇒ k ⟩ (b /Var ρ)) (S.Head/Var-∙ a) ⟩
         (a ∙ (c ∷ cs) /Var ρ) ⌜·⌝⟨ j ⇒ k ⟩ (b /Var ρ)
@@ -272,7 +272,7 @@ module RenamingCommutes where
       a ∙ (c ∷ cs) ⌜·⌝ b /Var ρ
     ≡⟨ S.⌜·⌝-/Var (a ∙ (c ∷ cs)) b ⟩
       (a ∙ (c ∷ cs) /Var ρ) ⌜·⌝ (b /Var ρ)
-    ≡⟨ sym (cong (λ a → a ∙∙ _ ⌜·⌝ (b /Var ρ)) (S.Head/Var-∙ a)) ⟩
+    ≡˘⟨ cong (λ a → a ∙∙ _ ⌜·⌝ (b /Var ρ)) (S.Head/Var-∙ a) ⟩
       (a Head/Var ρ) ∙ ((c ∷ cs) //Var ρ) ↓⌜·⌝ (b /Var ρ)
     ≡⟨ cong (λ a → a ∙∙ _ ↓⌜·⌝ (b /Var ρ)) (S.Head/Var-∙ a) ⟩
       (a ∙ (c ∷ cs) /Var ρ) ↓⌜·⌝ (b /Var ρ)
@@ -429,21 +429,21 @@ module _ where
                a Elim/ wk⋆ i /⟨ k ⟩ σ ↑⋆ i ≡ a /⟨ k ⟩ σ Elim/ wk⋆ i
   wk⋆-/⟨⟩-↑⋆ zero {k} a {σ} = begin
     a Elim/ id /⟨ k ⟩ σ   ≡⟨ cong (_/⟨ k ⟩ σ) (EL.id-vanishes a) ⟩
-    a /⟨ k ⟩ σ            ≡⟨ sym (EL.id-vanishes (a /⟨ k ⟩ σ)) ⟩
+    a /⟨ k ⟩ σ            ≡˘⟨ EL.id-vanishes (a /⟨ k ⟩ σ) ⟩
     a /⟨ k ⟩ σ Elim/ id   ∎
   wk⋆-/⟨⟩-↑⋆ (suc i) {k} a {σ} = begin
       a Elim/ wk⋆ (suc i) /⟨ k ⟩ (σ ↑⋆ i) ↑
     ≡⟨ cong (_/⟨ k ⟩ (σ ↑⋆ i) ↑) (EL./-weaken a) ⟩
       a Elim/ wk⋆ i Elim/ wk /⟨ k ⟩ (σ ↑⋆ i) ↑
-    ≡⟨ cong (_/⟨ k ⟩ (σ ↑⋆ i) ↑) (sym (EL./-wk {t = a Elim/ wk⋆ i})) ⟩
+    ≡⟨ cong (_/⟨ k ⟩ (σ ↑⋆ i) ↑) (EL./-wk {t = a Elim/ wk⋆ i}) ⟩
       weakenElim (a Elim/ wk⋆ i) /⟨ k ⟩ (σ ↑⋆ i) ↑
     ≡⟨ wk-/⟨⟩-↑⋆ zero (a Elim/ wk⋆ i) ⟩
       weakenElim (a Elim/ wk⋆ i /⟨ k ⟩ σ ↑⋆ i)
     ≡⟨ cong weakenElim (wk⋆-/⟨⟩-↑⋆ i a) ⟩
       weakenElim (a /⟨ k ⟩ σ Elim/ wk⋆ i)
-    ≡⟨ (EL./-wk {t = a /⟨ k ⟩ σ Elim/ wk⋆ i}) ⟩
+    ≡˘⟨ (EL./-wk {t = a /⟨ k ⟩ σ Elim/ wk⋆ i}) ⟩
       a /⟨ k ⟩ σ Elim/ wk⋆ i Elim/ wk
-    ≡⟨ sym (EL./-weaken (a /⟨ k ⟩ σ))  ⟩
+    ≡˘⟨ EL./-weaken (a /⟨ k ⟩ σ)  ⟩
       a /⟨ k ⟩ σ Elim/ wk⋆ (suc i)
     ∎
 
@@ -452,21 +452,21 @@ module _ where
                      j Kind/⟨ k ⟩ σ Kind′/ wk⋆ i
   wk⋆-Kind/⟨⟩-↑⋆ zero {k} j {σ} = begin
     j Kind′/ id Kind/⟨ k ⟩ σ   ≡⟨ cong (_Kind/⟨ k ⟩ σ) (KL.id-vanishes j) ⟩
-    j Kind/⟨ k ⟩ σ             ≡⟨ sym (KL.id-vanishes (j Kind/⟨ k ⟩ σ)) ⟩
+    j Kind/⟨ k ⟩ σ             ≡˘⟨ KL.id-vanishes (j Kind/⟨ k ⟩ σ) ⟩
     j Kind/⟨ k ⟩ σ Kind′/ id   ∎
   wk⋆-Kind/⟨⟩-↑⋆ (suc i) {k} j {σ} = begin
       j Kind′/ wk⋆ (suc i) Kind/⟨ k ⟩ (σ ↑⋆ i) ↑
     ≡⟨ cong (_Kind/⟨ k ⟩ (σ ↑⋆ i) ↑) (KL./-weaken j) ⟩
       j Kind′/ wk⋆ i Kind′/ wk Kind/⟨ k ⟩ (σ ↑⋆ i) ↑
-    ≡⟨ cong (_Kind/⟨ k ⟩ (σ ↑⋆ i) ↑) (sym (KL./-wk {t = j Kind′/ wk⋆ i})) ⟩
+    ≡⟨ cong (_Kind/⟨ k ⟩ (σ ↑⋆ i) ↑) (KL./-wk {t = j Kind′/ wk⋆ i}) ⟩
       weakenKind′ (j Kind′/ wk⋆ i) Kind/⟨ k ⟩ (σ ↑⋆ i) ↑
     ≡⟨ wk-Kind/⟨⟩-↑⋆ zero (j Kind′/ wk⋆ i) ⟩
       weakenKind′ (j Kind′/ wk⋆ i Kind/⟨ k ⟩ σ ↑⋆ i)
     ≡⟨ cong weakenKind′ (wk⋆-Kind/⟨⟩-↑⋆ i j) ⟩
       weakenKind′ (j Kind/⟨ k ⟩ σ Kind′/ wk⋆ i)
-    ≡⟨ (KL./-wk {t = j Kind/⟨ k ⟩ σ Kind′/ wk⋆ i}) ⟩
+    ≡˘⟨ (KL./-wk {t = j Kind/⟨ k ⟩ σ Kind′/ wk⋆ i}) ⟩
       j Kind/⟨ k ⟩ σ Kind′/ wk⋆ i Kind′/ wk
-    ≡⟨ sym (KL./-weaken (j Kind/⟨ k ⟩ σ))  ⟩
+    ≡˘⟨ KL./-weaken (j Kind/⟨ k ⟩ σ)  ⟩
       j Kind/⟨ k ⟩ σ Kind′/ wk⋆ (suc i)
     ∎
 
@@ -567,7 +567,7 @@ module _ where
     ⌞⌟-∙∙-β : ∀ {n} (a : Elim n) k bs → ⌞ a ⌟ ⌞∙⌟ ⌞ bs ⌟Sp →β* ⌞ a ∙∙⟨ k ⟩ bs ⌟
     ⌞⌟-∙∙-β a k       []       = ε
     ⌞⌟-∙∙-β a ★       (b ∷ bs) = begin
-      ⌞ a ⌟ ⌞∙⌟ (⌞ b ⌟ ∷ ⌞ bs ⌟Sp) ≡⟨ sym (⌞⌟-∙∙ a (b ∷ bs)) ⟩
+      ⌞ a ⌟ ⌞∙⌟ (⌞ b ⌟ ∷ ⌞ bs ⌟Sp) ≡˘⟨ ⌞⌟-∙∙ a (b ∷ bs) ⟩
       ⌞ a ∙∙ (b ∷ bs) ⌟            ∎
     ⌞⌟-∙∙-β a (j ⇒ k) (b ∷ bs) = begin
         ⌞ a ⌟ ⌞∙⌟ (⌞ b ⌟ ∷ ⌞ bs ⌟Sp)
@@ -579,10 +579,10 @@ module _ where
 
     ⌞⌟-⌜·⌝-β : ∀ {n} (a : Elim n) k b → ⌞ a ⌟ · ⌞ b ⌟ →β* ⌞ a ⌜·⌝⟨ k ⟩ b ⌟
     ⌞⌟-⌜·⌝-β a ★ b = begin
-      ⌞ a ⌟ · ⌞ b ⌟              ≡⟨ sym (⌞⌟-· a b) ⟩
+      ⌞ a ⌟ · ⌞ b ⌟              ≡˘⟨ ⌞⌟-· a b ⟩
       ⌞ a ⌜·⌝ b ⌟                ∎
     ⌞⌟-⌜·⌝-β (a ∙ (c ∷ cs)) (j ⇒ k) b = begin
-      ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡⟨ sym (⌞⌟-· (a ∙ (c ∷ cs)) b) ⟩
+      ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡˘⟨ ⌞⌟-· (a ∙ (c ∷ cs)) b ⟩
       ⌞ a ∙ (c ∷ cs) ⌜·⌝ b ⌟     ∎
     ⌞⌟-⌜·⌝-β (var x   ∙ []) (j ⇒ k) b = ε
     ⌞⌟-⌜·⌝-β (⊥       ∙ []) (j ⇒ k) b = ε
@@ -600,7 +600,7 @@ module _ where
 
   ⌞⌟-↓⌜·⌝-β : ∀ {n} (a : Elim n) b → ⌞ a ⌟ · ⌞ b ⌟ →β* ⌞ a ↓⌜·⌝ b ⌟
   ⌞⌟-↓⌜·⌝-β (a ∙ (c ∷ cs)) b = begin
-    ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡⟨ sym (⌞⌟-· (a ∙ (c ∷ cs)) b) ⟩
+    ⌞ a ∙ (c ∷ cs) ⌟ · ⌞ b ⌟   ≡˘⟨ ⌞⌟-· (a ∙ (c ∷ cs)) b ⟩
     ⌞ a ∙ (c ∷ cs) ⌜·⌝ b ⌟     ∎
   ⌞⌟-↓⌜·⌝-β (var x   ∙ []) b = ε
   ⌞⌟-↓⌜·⌝-β (⊥       ∙ []) b = ε

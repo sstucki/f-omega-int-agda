@@ -6,6 +6,7 @@
 
 module FOmegaInt.Kinding.Declarative where
 
+open import Data.Context.WellFormed
 open import Data.Fin using (Fin; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
@@ -14,7 +15,9 @@ open import Data.Fin.Substitution.Typed
 open import Data.Fin.Substitution.TypedRelation
 open import Data.Nat using (ℕ)
 open import Data.Product using (_,_; _×_; proj₁)
+import Data.Vec as Vec
 open import Function using (_∘_)
+import Level
 open import Relation.Binary.PropositionalEquality as PropEq hiding ([_])
 
 open import FOmegaInt.Syntax
@@ -86,8 +89,9 @@ module Kinding where
   mutual
 
     -- Well-formed typing contexts.
+
     _ctx : ∀ {n} → Ctx n → Set
-    Γ ctx = WellFormedContext._wf _⊢_wf Γ
+    _ctx = ContextFormation._wf _⊢_wf
 
     -- Well-formed type/kind ascriptions in typing contexts.
     data _⊢_wf {n} (Γ : Ctx n) : TermAsc n → Set where
@@ -197,7 +201,7 @@ module Kinding where
     in ≃-tp (<:-antisym (<:-refl x∈a) (<:-refl x∈a))
   ≃⊎≡-var x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ≃-var x Γ-ctx Γ[x]≡tp-a
 
-  open WellFormedContext (_⊢_wf) public
+  open ContextFormation _⊢_wf public
     hiding (_wf) renaming (_⊢_wfExt to _⊢_ext)
 
 
@@ -378,35 +382,18 @@ wf-ctx (wf-tp a∈*)  = Tp∈-ctx a∈*
 -- A shorthand for kindings and typings of Ts by kind or type
 -- ascriptions.
 TermAscTyping : (ℕ → Set) → Set₁
-TermAscTyping T = Typing TermAsc T TermAsc
-
--- Generic variable substitutions between TermCtx contexts.
-module TermCtxSub {T} (l : Lift T Term) (_⊢T_∈_ : TermAscTyping T) where
-
-  typedSub : TypedSub TermAsc T TermAsc
-  typedSub = record
-    { _⊢_∈_       = _⊢T_∈_
-    ; _⊢_wf       = _⊢_wf
-    ; application = record { _/_    = SubstApp._TermAsc/_ l      }
-    ; weakenOps   = record { weaken = Substitution.weakenTermAsc }
-    }
-
-  open TypedSub typedSub public hiding (_⊢_∈_)
+TermAscTyping T = Typing TermAsc T TermAsc Level.zero
 
 -- Liftings from well-typed Ts to well-typed/kinded terms/types.
-LiftTo-∈ : ∀ {T} → Lift T Term → TermAscTyping T → Set
-LiftTo-∈ l _⊢T_∈_ = LiftTyped l typedSub _⊢_∈_
-  where open TermCtxSub l _⊢T_∈_ using (typedSub)
+LiftTo-∈ : ∀ {T} → TermAscTyping T → Set₁
+LiftTo-∈ _⊢T_∈_ = LiftTyped Substitution.termAscTermSubst _⊢_wf _⊢T_∈_ _⊢_∈_
 
--- Application of "typed" substitutions to types and kinds.
-record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
-                     (lt : LiftTo-∈ l _⊢T_∈_) : Set where
-  open LiftTyped lt hiding (weaken-/)
-  open Substitution using  (_[_]; _Kind[_]; weaken)
-  private
-    module A = SubstApp l
-    module L = Lift l
-    module S = TermCtxSub l _⊢T_∈_
+-- Helper lemmas about untyped T-substitutions in raw terms and kinds.
+
+record TypedSubstAppHelpers {T} (rawLift : Lift T Term) : Set where
+  open Substitution using (weaken; _[_]; _Kind[_])
+  module A = SubstApp rawLift
+  module L = Lift     rawLift
 
   field
     -- Substitutions in kinds and types commute.
@@ -417,19 +404,26 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
     /-sub-↑ : ∀ {m n} b a (σ : Sub T m n) →
               b [ a ] A./ σ ≡ (b A./ σ L.↑) [ a A./ σ ]
 
-    -- Weakening commutes with substitution.
+    -- Weakening of terms commutes with substitution in terms.
+
     weaken-/ : ∀ {m n} {σ : Sub T m n} a →
                weaken (a A./ σ) ≡ weaken a A./ σ L.↑
 
-    -- Lifting preserves variables.
-    lift-var : ∀ {n} (x : Fin n) → L.lift (L.var x) ≡ var x
+-- Application of generic well-typed T-substitutions to all the judgments.
 
-  open S hiding (_⊢_wf; _∷_; []; wf-∷₁)
+module TypedSubstApp {T : ℕ → Set} (_⊢T_∈_ : TermAscTyping T)
+                     (liftTyped : LiftTo-∈ _⊢T_∈_)
+                     (helpers : TypedSubstAppHelpers
+                                  (LiftTyped.rawLift liftTyped))
+                     where
+
+  open LiftTyped liftTyped renaming (lookup to /∈-lookup)
+  open TypedSubstAppHelpers helpers
 
   -- Lift well-kinded Ts to well-kinded types.
   liftTp : ∀ {n} {Γ : Ctx n} {a k kd-k} →
            kd-k ≡ kd k → Γ ⊢T a ∈ kd-k → Γ ⊢Tp L.lift a ∈ k
-  liftTp refl a∈kd-k with lift a∈kd-k
+  liftTp refl a∈kd-k with ∈-lift a∈kd-k
   liftTp refl a∈kd-k | ∈-tp a∈k = a∈k
 
   mutual
@@ -447,7 +441,7 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
     Tp∈-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k σ} →
             Γ ⊢Tp a ∈ k → Δ ⊢/ σ ∈ Γ → Δ ⊢Tp a A./ σ ∈ k A.Kind/ σ
     Tp∈-/ (∈-var x Γ-ctx Γ[x]≡kd-k) σ∈Γ =
-      liftTp (cong (_/ _) Γ[x]≡kd-k) (S.lookup σ∈Γ x)
+      liftTp (cong (_/ _) Γ[x]≡kd-k) (/∈-lookup σ∈Γ x)
     Tp∈-/ (∈-⊥-f Γ-ctx)    σ∈Γ = ∈-⊥-f (/∈-wf σ∈Γ)
     Tp∈-/ (∈-⊤-f Γ-ctx)    σ∈Γ = ∈-⊤-f (/∈-wf σ∈Γ)
     Tp∈-/ (∈-∀-f k-kd a∈*) σ∈Γ =
@@ -600,7 +594,8 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
         Γ ⊢ a ∈ b → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A./ σ ∈ b A.TermAsc/ σ
   ∈-/ (∈-tp a∈b)                σ∈Γ = ∈-tp (Tp∈-/ a∈b σ∈Γ)
   ∈-/ (∈-var x Γ-ctx Γ[x]≡tp-a) σ∈Γ =
-    subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a) (lift (S.lookup σ∈Γ x))
+    subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a)
+          (∈-lift (/∈-lookup σ∈Γ x))
 
   -- Substitutions preserve type and syntactic term equality.
   ≃⊎≡-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b c σ} →
@@ -609,178 +604,109 @@ record TypedSubstApp {T} l {_⊢T_∈_ : TermAscTyping T}
   ≃⊎≡-/ (≃-tp a≃b∈k) σ∈Γ              = ≃-tp (≃-/ a≃b∈k σ∈Γ)
   ≃⊎≡-/ (≃-var x Γ-ctx Γ[x]≡tp-a) σ∈Γ =
     let x/σ∈tp-a/σ = subst (_ ⊢ _ ∈_) (cong (A._TermAsc/ _) Γ[x]≡tp-a)
-                           (lift (S.lookup σ∈Γ x))
+                           (∈-lift (/∈-lookup σ∈Γ x))
     in ≃⊎≡-refl x/σ∈tp-a/σ
 
--- Well-kinded type variable substitutions (renamings).
-module KindedRenaming where
-  open Substitution
-    using (termSubst; termLikeLemmasKind; termLikeLemmasTermAsc)
-  open TermSubst termSubst using (varLift)
+-- Well-kinded type substitutions.
+module KindedSubstitution where
+  open Substitution           using (simple; termSubst)
+  open SimpleExt    simple    using (extension)
+  open TermSubst    termSubst using (varLift; termLift)
+
   private
-    module KL = TermLikeLemmas Substitution.termLikeLemmasKind
-    module AL = TermLikeLemmas Substitution.termLikeLemmasTermAsc
+    module S  = Substitution
+    module KL = TermLikeLemmas S.termLikeLemmasKind
 
-  typedVarSubst : TypedVarSubst (_⊢_wf)
-  typedVarSubst = record
-    { application = AppLemmas.application appLemmas
-    ; weakenOps   = TermCtx.weakenOps
-    ; /-wk        = refl
-    ; id-vanishes = id-vanishes
-    ; /-⊙         = /-⊙
-    ; wf-wf       = wf-ctx
-    }
-    where open LiftAppLemmas AL.varLiftAppLemmas
+  -- Helper lemmas about untyped renamings and substitutions in terms
+  -- and kinds.
 
-  open TypedVarSubst typedVarSubst public hiding (∈-var; ∈-weaken)
-
-  -- Liftings from variables to well-kinded types and well-typed terms.
-  liftTyped : LiftTyped varLift typedSub _⊢_∈_
-  liftTyped = record
-    { typedSimple  = typedSimple
-    ; lift         = lift
-    }
-    where
-      lift : ∀ {n} {Γ : Ctx n} {x a} → Γ ⊢Var x ∈ a → Γ ⊢ var x ∈ a
-      lift (var x Γ-ctx) = ∈-var′ x Γ-ctx
-
-  open Substitution  using (varLiftAppLemmas; varLiftSubLemmas)
-  open LiftAppLemmas varLiftAppLemmas using (wk-commutes)
-  open LiftSubLemmas varLiftSubLemmas using (/-sub-↑)
-
-  typedSubstApp : TypedSubstApp varLift liftTyped
-  typedSubstApp = record
+  varHelpers : TypedSubstAppHelpers varLift
+  varHelpers = record
     { Kind/-sub-↑ = KL./-sub-↑
-    ; /-sub-↑     = /-sub-↑
-    ; weaken-/    = wk-commutes
-    ; lift-var    = λ _ → refl
+    ; /-sub-↑     = LiftSubLemmas./-sub-↑ S.varLiftSubLemmas
+    ; weaken-/    = LiftAppLemmas.wk-commutes S.varLiftAppLemmas
     }
 
-  open TypedSubstApp typedSubstApp public hiding (weaken-/)
+  termHelpers : TypedSubstAppHelpers termLift
+  termHelpers = record
+    { Kind/-sub-↑ = λ k _ _ → KL.sub-commutes k
+    ; /-sub-↑     = λ a _ _ → S.sub-commutes a
+    ; weaken-/    = S.weaken-/
+    }
+
+  -- Kinded type substitutions.
+
+  typedTermSubst : TypedTermSubst TermAsc Term Level.zero TypedSubstAppHelpers
+  typedTermSubst = record
+    { _⊢_wf = _⊢_wf
+    ; _⊢_∈_ = _⊢_∈_
+    ; termLikeLemmas = S.termLikeLemmasTermAsc
+    ; varHelpers     = varHelpers
+    ; termHelpers    = termHelpers
+    ; wf-wf    = wf-ctx
+    ; ∈-wf     = ∈-ctx
+    ; ∈-var    = ∈-var′
+    ; typedApp = TypedSubstApp.∈-/
+    }
+  open TypedTermSubst typedTermSubst public
+    hiding (_⊢_wf; _⊢_∈_; varHelpers; termHelpers; ∈-var; ∈-/Var; ∈-/)
+    renaming (lookup to /∈-lookup)
+  open TypedSubstApp _⊢Var_∈_ varLiftTyped varHelpers public using () renaming
+    ( wf-/  to wf-/Var
+    ; kd-/  to kd-/Var
+    ; Tp∈-/ to Tp∈-/Var
+    ; <∷-/  to <∷-/Var
+    ; <:-/  to <:-/Var
+    ; ∈-/   to ∈-/Var
+    ; ≃⊎≡-/ to ≃⊎≡-/Var
+    )
   open Substitution using (weaken; weakenKind; weakenTermAsc)
 
-  -- Weakening preserves well-formedness of ascriptions.
+  -- Weakening preserves the various judgments.
+
   wf-weaken : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a wf → Γ ⊢ b wf →
               (a ∷ Γ) ⊢ weakenTermAsc b wf
-  wf-weaken a-wf b-wf = wf-/ b-wf (∈-wk a-wf)
+  wf-weaken a-wf b-wf = wf-/Var b-wf (Var∈-wk a-wf)
 
-  -- Weakening preserves well-formedness of kinds.
   kd-weaken : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢ a wf → Γ ⊢ k kd →
               (a ∷ Γ) ⊢ weakenKind k kd
-  kd-weaken a-wf k-kd = kd-/ k-kd (∈-wk a-wf)
+  kd-weaken a-wf k-kd = kd-/Var k-kd (Var∈-wk a-wf)
 
-  -- Weakening preserves well-kindedness of types.
   Tp∈-weaken : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a wf → Γ ⊢Tp b ∈ k →
                (a ∷ Γ) ⊢Tp weaken b ∈ weakenKind k
-  Tp∈-weaken a-wf b∈k = Tp∈-/ b∈k (∈-wk a-wf)
+  Tp∈-weaken a-wf b∈k = Tp∈-/Var b∈k (Var∈-wk a-wf)
 
-  -- Weakening preserves subkinding.
   <∷-weaken : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢ a wf → Γ ⊢ j <∷ k →
               (a ∷ Γ) ⊢ weakenKind j <∷ weakenKind k
-  <∷-weaken a-wf j<∷k = <∷-/ j<∷k (∈-wk a-wf)
+  <∷-weaken a-wf j<∷k = <∷-/Var j<∷k (Var∈-wk a-wf)
 
-  -- Weakening preserves subtyping.
   <:-weaken : ∀ {n} {Γ : Ctx n} {a b c k} → Γ ⊢ a wf → Γ ⊢ b <: c ∈ k →
               (a ∷ Γ) ⊢ weaken b <: weaken c ∈ weakenKind k
-  <:-weaken a-wf b<:c∈k = <:-/ b<:c∈k (∈-wk a-wf)
+  <:-weaken a-wf b<:c∈k = <:-/Var b<:c∈k (Var∈-wk a-wf)
 
-  -- Weakening preserves well-kindedness and well-typedness.
   ∈-weaken : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a wf → Γ ⊢ b ∈ c →
              (a ∷ Γ) ⊢ weaken b ∈ weakenTermAsc c
-  ∈-weaken a-wf b∈c = ∈-/ b∈c (∈-wk a-wf)
+  ∈-weaken a-wf b∈c = ∈-/Var b∈c (Var∈-wk a-wf)
 
   -- Weakening preserves type and syntactic term equality.
   ≃⊎≡-weaken : ∀ {n} {Γ : Ctx n} {a b c d} → Γ ⊢ a wf → Γ ⊢ b ≃⊎≡ c ∈ d →
                (a ∷ Γ) ⊢ weaken b ≃⊎≡ weaken c ∈ weakenTermAsc d
-  ≃⊎≡-weaken a-wf b≃⊎≡c∈d = ≃⊎≡-/ b≃⊎≡c∈d (∈-wk a-wf)
+  ≃⊎≡-weaken a-wf b≃⊎≡c∈d = ≃⊎≡-/Var b≃⊎≡c∈d (Var∈-wk a-wf)
 
--- Operations on well-formed contexts that require weakening of
--- well-formedness judgments.
-module WfCtxOps where
-  wfWeakenOps : WfWeakenOps weakenOps
-  wfWeakenOps = record { wf-weaken = KindedRenaming.wf-weaken }
-
-  private module W = WfWeakenOps wfWeakenOps
-  open W public
-
-  -- Lookup the kind of a type variable in a well-formed context.
-  lookup-kd : ∀ {m} {Γ : Ctx m} {k} x →
-              Γ ctx → TermCtx.lookup Γ x ≡ kd k → Γ ⊢ k kd
-  lookup-kd x Γ-ctx Γ[x]≡kd-k =
-    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-k (W.lookup Γ-ctx x))
-
--- Well-kinded type substitutions.
-module KindedSubstitution where
-  open Substitution                     hiding (subst)
-  open SimpleExt  simple                using (extension)
-  open TermSubst  termSubst             using (termLift)
-  open TermCtxSub termLift _⊢_∈_ public using (typedSub; _⊢/_∈_)
-  open KindedRenaming public using
-    ( wf-weaken; kd-weaken; Tp∈-weaken; ∈-weaken
-    ; <∷-weaken; <:-weaken; ≃⊎≡-weaken
-    )
-  private
-    module S  = Substitution
-    module KL = TermLikeLemmas termLikeLemmasKind
-    module AL = TermLikeLemmas termLikeLemmasTermAsc
-
-  -- Extensions of typed term substitutions.
-  typedExtension : TypedExtension extension typedSub
-  typedExtension = record
-    { rawTypedExtension = record
-      { ∈-weaken = ∈-weaken
-      ; weaken-/ = AL.weaken-/
-      ; ∈-wf     = ∈-ctx
-      }
-    }
-
-  -- Simple typed term substitutions.
-  typedSimple : TypedSimple simple typedSub
-  typedSimple = record
-    { rawTypedSimple = record
-      { rawTypedExtension = TypedExtension.rawTypedExtension typedExtension
-      ; ∈-var             = ∈-var′
-      ; id-vanishes       = AL.id-vanishes
-      ; /-wk              = sym (AL./-wk)
-      ; wk-sub-vanishes   = AL.wk-sub-vanishes
-      ; wf-wf             = wf-ctx
-      }
-    }
-
-  -- Liftings from terms to terms.
-  liftTyped : LiftTyped termLift typedSub _⊢_∈_
-  liftTyped = record
-    { typedSimple  = typedSimple
-    ; lift         = λ x → x
-    }
-
-  open LiftTyped liftTyped public hiding
-    (typedExtension; typedSimple; ∈-var; ∈-weaken; ∈-wf; wf-wf; ∈-sub-↑⋆)
-
-  typedSubstApp : TypedSubstApp termLift liftTyped
-  typedSubstApp = record
-    { Kind/-sub-↑ = λ a _ _ → KL.sub-commutes a
-    ; /-sub-↑     = λ a _ _ → S.sub-commutes a
-    ; weaken-/    = S.weaken-/
-    ; lift-var    = λ _ → refl
-    }
-  open TypedSubstApp typedSubstApp public hiding (weaken-/)
-
+  open TypedSubstApp _⊢_∈_ termLiftTyped termHelpers public
   open Substitution using (_/_; _Kind/_; id; sub; _↑⋆_; _[_]; _Kind[_])
 
-  -- Lemmas about single variable substitutions.
+  -- Substitution of a single well-typed term or well-kinded type
+  -- preserves the various judgments.
 
-  -- Single-variable substitutions preserve well-formedness of kinds.
-  kd-[] : ∀ {n} {Γ : Ctx n} {k a b} →
+  kd-[] : ∀ {n} {Γ : Ctx n} {a b k} →
           b ∷ Γ ⊢ k kd → Γ ⊢ a ∈ b → Γ ⊢ k Kind[ a ] kd
   kd-[] k-kd a∈b = kd-/ k-kd (∈-sub a∈b)
 
-  -- Single-variable substitutions preserve kind equations.
   ≅-[] : ∀ {n} {Γ : Ctx n} {j k a b} →
          b ∷ Γ ⊢ j ≅ k → Γ ⊢ a ∈ b → Γ ⊢ j Kind[ a ] ≅ k Kind[ a ]
   ≅-[] j≅k a∈b = ≅-/ j≅k (∈-sub a∈b)
 
-  -- Single-variable substitutions preserve well-kindedness.
   Tp∈-[] : ∀ {n} {Γ : Ctx n} {a b k c} →
            c ∷ Γ ⊢Tp a ∈ k → Γ ⊢ b ∈ c → Γ ⊢Tp a [ b ] ∈ k Kind[ b ]
   Tp∈-[] a∈k b∈c = Tp∈-/ a∈k (∈-sub b∈c)
@@ -829,8 +755,23 @@ module KindedSubstitution where
           (subst₂ (_ ⊢_<:_∈ _) (S.id-vanishes _) (S.id-vanishes _)
                   (<:-/ a₁<:a₂∈k (∈-<∷-sub j₁-kd j₁<∷j₂)))
 
-open WfCtxOps
+-- Operations on well-formed contexts that require weakening of
+-- well-formedness judgments.
+
+module WfCtxOps where
+  wfWeakenOps : WellFormedWeakenOps weakenOps
+  wfWeakenOps = record { wf-weaken = KindedSubstitution.wf-weaken }
+
+  open WellFormedWeakenOps wfWeakenOps public renaming (lookup to lookup-wf)
+
+  -- Lookup the kind of a type variable in a well-formed context.
+  lookup-kd : ∀ {m} {Γ : Ctx m} {k} x →
+              Γ ctx → TermCtx.lookup Γ x ≡ kd k → Γ ⊢ k kd
+  lookup-kd x Γ-ctx Γ[x]≡kd-k =
+    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-k (lookup-wf Γ-ctx x))
+
 open KindedSubstitution
+open WfCtxOps
 
 -- Transitivity of subkinding.
 <∷-trans : ∀ {n} {Γ : Ctx n} {j k l} → Γ ⊢ j <∷ k → Γ ⊢ k <∷ l → Γ ⊢ j <∷ l
@@ -853,9 +794,9 @@ open KindedSubstitution
 
 module WfSubstitutionEquality where
   open Substitution        hiding (subst)
-  open SimpleExt simple    using  (extension)
   open TermSubst termSubst using  (termLift)
   open ZipUnzipSimple simple simple
+  open TypedSubstAppHelpers KindedSubstitution.termHelpers
   private
     module KL = TermLikeLemmas termLikeLemmasKind
     module AL = TermLikeLemmas termLikeLemmasTermAsc
@@ -864,55 +805,58 @@ module WfSubstitutionEquality where
 
   -- Well-formed equal substitutions: pairs of substitutions that are
   -- point-wise equal.
-  wfEqSub : TypedSubRel TermAsc Term Term TermAsc
+
+  wfEqSub : TypedSubRel TermAsc Term Level.zero
   wfEqSub = record
-    { _⊢_∼_∈_     = _⊢_≃⊎≡_∈_
-    ; _⊢_wf       = _⊢_wf
-    ; application = record { _/_ = λ a ρσ → a TermAsc/ (π₁ ρσ) }
-    ; weakenOps   = record { weaken = weakenTermAsc }
+    { typedRelation       = record { _⊢_wf = _⊢_wf ; _⊢_∼_∈_ = _⊢_≃⊎≡_∈_ }
+    ; typeExtension       = TermCtx.weakenOps
+    ; typeTermApplication = record { _/_ = λ a ρσ → a TermAsc/ (π₁ ρσ) }
+    ; termSimple          = simple
     }
-
   open TypedSubRel wfEqSub public using ()
-    renaming (_⊢/_∼_∈_ to _⊢/_≃_∈_; lookup to ≃-lookup)
-  open TypedSub KindedSubstitution.typedSub using (/∈-wf)
+    renaming (_⊢/_∼_∈_ to _⊢/_≃_∈_)
 
-  -- Extensions of equal type and term substitutions.
-  wfEqExtension : TypedRelExtension extension extension wfEqSub
-  wfEqExtension = record
-    { rawTypedExtension = record
-      { ∈-weaken = ≃⊎≡-weaken
-      ; weaken-/ = λ{ {_} {_} {ρσ} {b , c} a → weaken-/-π₁ ρσ a b c }
-      ; ∈-wf     = ≃⊎≡-ctx
-      }
+  -- Simple substitutions of well-formed equal terms and types.
+
+  wfEqWeakenOps : TypedRelWeakenOps wfEqSub
+  wfEqWeakenOps = record
+    { ∼∈-weaken  = ≃⊎≡-weaken
+    ; ∼∈-wf      = ≃⊎≡-ctx
+    ; /-wk       = /-wk-π₁
+    ; /-weaken   = λ {m} {n} {στ} a → /-weaken-π₁ {m} {n} {στ} a
+    ; weaken-/-∷ = AL.weaken-/-∷
     }
     where
       open ≡-Reasoning
 
-      weaken-/-π₁ : ∀ {m n} (ρσ : Sub (Term ⊗ Term) m n) a b c →
-                    weakenTermAsc (a TermAsc/ π₁ ρσ) ≡
-                      weakenTermAsc a TermAsc/ π₁ ((b , c) Z./∷ ρσ)
-      weaken-/-π₁ {_} {_} ρσ a b c = begin
-          weakenTermAsc (a TermAsc/ π₁ ρσ)
-        ≡⟨ AL.weaken-/ a ⟩
-          weakenTermAsc a TermAsc/ (b S./∷ (π₁ ρσ))
-        ≡⟨ cong ((weakenTermAsc a TermAsc/_) ∘ proj₁) (/∷-unzip {t = c} ρσ) ⟩
-          weakenTermAsc a TermAsc/ π₁ ((b , c) Z./∷ ρσ)
+      /-wk-π₁ : ∀ {n} {a : TermAsc n} → a TermAsc/ π₁ Z.wk ≡ weakenTermAsc a
+      /-wk-π₁ {_} {a} = begin
+        a TermAsc/ π₁ Z.wk   ≡⟨ cong ((a TermAsc/_) ∘ proj₁) (sym wk-unzip) ⟩
+        a TermAsc/ wk        ≡⟨ AL./-wk ⟩
+        weakenTermAsc a      ∎
+
+      /-weaken-π₁ : ∀ {m n} {στ : Sub (Term ⊗ Term) m n} a →
+                    a TermAsc/ π₁ (Vec.map Z.weaken στ) ≡
+                      a TermAsc/ π₁ στ TermAsc/ π₁ Z.wk
+      /-weaken-π₁ {_} {_} {στ} a = begin
+          a TermAsc/ π₁ (Vec.map Z.weaken στ)
+        ≡˘⟨ cong ((a TermAsc/_) ∘ proj₁) (map-weaken-unzip στ) ⟩
+          a TermAsc/ Vec.map S.weaken (π₁ στ)
+        ≡⟨ AL./-weaken a ⟩
+          a TermAsc/ π₁ στ TermAsc/ S.wk
+        ≡⟨ cong ((a TermAsc/ π₁ στ TermAsc/_) ∘ proj₁) wk-unzip ⟩
+          a TermAsc/ π₁ στ TermAsc/ π₁ Z.wk
         ∎
 
-  -- Simple typed term substitutions.
-  wfEqSimple : TypedRelSimple simple simple wfEqSub
+  wfEqSimple : TypedRelSimple wfEqSub
   wfEqSimple = record
-    { rawTypedSimple = record
-      { rawTypedExtension = rawTypedExtension
-      ; ∈-var             = ≃⊎≡-var
-      ; id-vanishes       = id-vanishes-π₁
-      ; /-wk              = /-wk-π₁
-      ; wk-sub-vanishes   = λ{ {_} {b , c} a → wk-sub-vanishes-π₁ a b c }
-      ; wf-wf             = wf-ctx
-      }
+    { typedRelWeakenOps = wfEqWeakenOps
+    ; ∼∈-var            = ≃⊎≡-var
+    ; wf-wf             = wf-ctx
+    ; id-vanishes       = id-vanishes-π₁
     }
     where
-      open TypedRelExtension wfEqExtension
+      open TypedRelWeakenOps wfEqWeakenOps
       open ≡-Reasoning
 
       id-vanishes-π₁ : ∀ {n} (a : TermAsc n) → a TermAsc/ π₁ Z.id ≡ a
@@ -921,26 +865,9 @@ module WfSubstitutionEquality where
         a TermAsc/ id        ≡⟨ AL.id-vanishes a ⟩
         a                    ∎
 
-      /-wk-π₁ : ∀ {n} {a : TermAsc n} → a TermAsc/ π₁ Z.wk ≡ weakenTermAsc a
-      /-wk-π₁ {_} {a} = begin
-        a TermAsc/ π₁ Z.wk   ≡⟨ cong ((a TermAsc/_) ∘ proj₁) (sym wk-unzip) ⟩
-        a TermAsc/ wk        ≡⟨ sym (AL./-wk) ⟩
-        weakenTermAsc a      ∎
-
-      wk-sub-vanishes-π₁ : ∀ {n} (a : TermAsc n) b c →
-                           a TermAsc/ π₁ Z.wk TermAsc/ π₁ (Z.sub (b , c)) ≡ a
-      wk-sub-vanishes-π₁ a b c = begin
-          a TermAsc/ π₁ Z.wk TermAsc/ π₁ (Z.sub (b , c))
-        ≡⟨ cong ((a TermAsc/ π₁ Z.wk TermAsc/_) ∘ proj₁) (sym (sub-unzip b c)) ⟩
-          a TermAsc/ π₁ Z.wk TermAsc/ sub b
-        ≡⟨ cong (λ ρ,σ → a TermAsc/ proj₁ ρ,σ TermAsc/ sub b) (sym wk-unzip) ⟩
-          a TermAsc/ wk TermAsc/ sub b
-        ≡⟨ AL.wk-sub-vanishes a ⟩
-          a
-        ∎
-
   open TypedRelSimple wfEqSimple public
-    hiding (typedRelExtension; ∼∈-var; ∼∈-weaken; ∼∈-wf; wf-wf)
+    hiding (typedRelWeakenOps; ∼∈-var; ∼∈-weaken; ∼∈-wf; wf-wf)
+    renaming (lookup to ≃-lookup)
 
   infixl 4  _⊢/_≃′_∈_
 

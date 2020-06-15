@@ -154,14 +154,12 @@ _⊢?⟨_⟩_⇇_ : ∀ {n} → Ctx n → SKind → SVRes n → ElimAsc n → Se
 ?≃-/Var (≃-hit a≃b∈k ⌊j⌋≡k) ρ∈Γ =
   ≃-hit (≃-/Var a≃b∈k ρ∈Γ) (⌊⌋≡-/Var ⌊j⌋≡k)
 ?≃-/Var {Γ = Γ} {k} {Δ} {ρ = ρ} (≃-miss y {a} {b} _ Γ[x]≡a a≤b) ρ∈Γ =
-  helper (cong (_ElimAsc/Var ρ) Γ[x]≡a) (TS.lookup ρ∈Γ y)
+  helper (cong (_ElimAsc/Var ρ) Γ[x]≡a) (TV.lookup ρ∈Γ y)
   where
-    module TS = TypedSub TV.typedSub
-
     helper : ∀ {x c} → c ≡ a ElimAsc/Var ρ → Δ TV.⊢Var x ∈ c →
              Δ ⊢?⟨ k ⟩ miss x ≃ miss x ⇇ b ElimAsc/Var ρ
-    helper Δ[x]≡a/ρ (TV.var x Δ-ctx) =
-      ≃-miss x (TS./∈-wf ρ∈Γ) Δ[x]≡a/ρ (≤-/Var a≤b ρ∈Γ)
+    helper Δ[x]≡a/ρ (TV.∈-var x Δ-ctx) =
+      ≃-miss x (TV./∈-wf ρ∈Γ) Δ[x]≡a/ρ (≤-/Var a≤b ρ∈Γ)
 
 ?≃-weaken : ∀ {n} {Γ : Ctx n} {k r₁ r₂ a b} →
             Γ ⊢ a wf → Γ ⊢?⟨ k ⟩ r₁ ≃ r₂ ⇇ b →
