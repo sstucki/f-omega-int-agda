@@ -110,6 +110,20 @@ open import FOmegaInt.Typing.Progress
 -- kinds and bounded quantifiers.
 open import FOmegaInt.Typing.Encodings
 
+-- A reduced variant of the canonical system to be used in the
+-- undecidability proof.
+open import FOmegaInt.Kinding.Canonical.Reduced
+
+-- Setup for the undecidability proof: syntax and lemmas for the SK
+-- combinator calculus, and support for encoding/decoding SK terms and
+-- equality proofs into types and subtyping derivations.
+open import FOmegaInt.Undecidable.SK
+open import FOmegaInt.Undecidable.Encoding
+open import FOmegaInt.Undecidable.Decoding
+
+-- Undecidability of subtyping
+open import FOmegaInt.Undecidable
+
 
 ------------------------------------------------------------------------
 -- Modules containing generic functionality

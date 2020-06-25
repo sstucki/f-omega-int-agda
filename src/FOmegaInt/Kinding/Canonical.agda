@@ -406,6 +406,11 @@ Var′∈-ctx : ∀ {n} {Γ : Ctx n} {x a} → Γ ⊢Var′ x ∈ a → Γ ctx
 Var′∈-ctx (∈-tp x∈k)       = Var∈-ctx x∈k
 Var′∈-ctx (∈-tm _ Γ-ctx _) = Γ-ctx
 
+-- An admissible formation rule for the kind of proper types.
+
+kd-⌜*⌝ : ∀ {n} {Γ : Ctx n} → Γ ctx → Γ ⊢ ⌜*⌝ kd
+kd-⌜*⌝ Γ-ctx = kd-⋯ (⇉-⊥-f Γ-ctx) (⇉-⊤-f Γ-ctx)
+
 -- Admissible formation rules for canonically kinded proper types.
 
 Nf⇇-∀-f : ∀ {n} {Γ : Ctx n} {k a} →
@@ -836,10 +841,10 @@ module WfCtxOps where
 
   -- Lookup the kind of a type variable in a well-formed context.
 
-  lookup-kd : ∀ {m} {Γ : Ctx m} {a} x →
-              Γ ctx → ElimCtx.lookup Γ x ≡ kd a → Γ ⊢ a kd
-  lookup-kd x Γ-ctx Γ[x]≡kd-a =
-    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-a (lookup-wf Γ-ctx x))
+  lookup-kd : ∀ {m} {Γ : Ctx m} {k} x →
+              Γ ctx → ElimCtx.lookup Γ x ≡ kd k → Γ ⊢ k kd
+  lookup-kd x Γ-ctx Γ[x]≡kd-k =
+    wf-kd-inv (subst (_ ⊢_wf) Γ[x]≡kd-k (lookup-wf Γ-ctx x))
 
 open WfCtxOps
 

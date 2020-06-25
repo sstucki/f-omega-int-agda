@@ -129,6 +129,56 @@ module _ where
   ++-//⟨⟩ []       bs     = refl
   ++-//⟨⟩ (a ∷ as) bs {σ} = cong (a /⟨ _ ⟩ σ ∷_) (++-//⟨⟩ as bs)
 
+  open Substitution using (_Elim/_; _Kind′/_; _//_)
+
+  -- Hereditary substitutions and reducing applications at ★
+  -- degenerate to ordinary substitutions and applications.
+
+  mutual
+
+    /⟨★⟩-/ : ∀ {m n} (a : Elim m) {σ : SVSub m n} →
+             a /⟨ ★ ⟩ σ ≡ a Elim/ toSub σ
+    /⟨★⟩-/ (var x   ∙ as) {σ} = begin
+        lookupSV σ x ?∙∙⟨ ★ ⟩ (as //⟨ ★ ⟩ σ)
+      ≡⟨ ?∙∙⟨★⟩-∙∙ (lookupSV σ x) ⟩
+        toElim (lookupSV σ x) ∙∙ (as //⟨ ★ ⟩ σ)
+      ≡⟨ cong₂ _∙∙_ (sym (⌜⌝∘⌞⌟-id _)) (//⟨★⟩-// as) ⟩
+        ⌜ ⌞ toElim (lookupSV σ x) ⌟ ⌝ ∙∙ (as // toSub σ)
+      ≡˘⟨ cong (_∙∙ _) (cong ⌜_⌝ (lookup-toSub σ x)) ⟩
+        var x ∙ as Elim/ toSub σ
+      ∎
+      where open ≡-Reasoning
+    /⟨★⟩-/ (⊥       ∙ as) = cong (⊥ ∙_) (//⟨★⟩-// as)
+    /⟨★⟩-/ (⊤       ∙ as) = cong (⊤ ∙_) (//⟨★⟩-// as)
+    /⟨★⟩-/ (Π k b   ∙ as) =
+      cong₂ _∙_ (cong₂ Π (Kind/⟨★⟩-/ k) (/⟨★⟩-/ b)) (//⟨★⟩-// as)
+    /⟨★⟩-/ ((b ⇒ c) ∙ as) =
+      cong₂ _∙_ (cong₂ _⇒_ (/⟨★⟩-/ b) (/⟨★⟩-/ c)) (//⟨★⟩-// as)
+    /⟨★⟩-/ (Λ k b   ∙ as) =
+      cong₂ _∙_ (cong₂ Λ (Kind/⟨★⟩-/ k) (/⟨★⟩-/ b)) (//⟨★⟩-// as)
+    /⟨★⟩-/ (ƛ b c   ∙ as) =
+      cong₂ _∙_ (cong₂ ƛ (/⟨★⟩-/ b) (/⟨★⟩-/ c)) (//⟨★⟩-// as)
+    /⟨★⟩-/ (b ⊡ c   ∙ as) =
+      cong₂ _∙_ (cong₂ _⊡_ (/⟨★⟩-/ b) (/⟨★⟩-/ c)) (//⟨★⟩-// as)
+
+    //⟨★⟩-// : ∀ {m n} (as : Spine m) {σ : SVSub m n} →
+               as //⟨ ★ ⟩ σ ≡ as // toSub σ
+    //⟨★⟩-// []       = refl
+    //⟨★⟩-// (a ∷ as) = cong₂ _∷_ (/⟨★⟩-/ a) (//⟨★⟩-// as)
+
+    Kind/⟨★⟩-/ : ∀ {m n} (k : Kind Elim m) {σ : SVSub m n} →
+                 k Kind/⟨ ★ ⟩ σ ≡ k Kind′/ toSub σ
+    Kind/⟨★⟩-/ (a ⋯ b) = cong₂ _⋯_ (/⟨★⟩-/ a) (/⟨★⟩-/ b)
+    Kind/⟨★⟩-/ (Π j k) = cong₂ Π (Kind/⟨★⟩-/ j) (Kind/⟨★⟩-/ k)
+
+    ?∙∙⟨★⟩-∙∙ : ∀ {n} (r : SVRes n) {as} → r ?∙∙⟨ ★ ⟩ as ≡ toElim r ∙∙ as
+    ?∙∙⟨★⟩-∙∙ (hit a)  = ∙∙⟨★⟩-∙∙ a
+    ?∙∙⟨★⟩-∙∙ (miss y) = refl
+
+    ∙∙⟨★⟩-∙∙ : ∀ {n} (a : Elim n) {bs} → a ∙∙⟨ ★ ⟩ bs ≡ a ∙∙ bs
+    ∙∙⟨★⟩-∙∙ a {[]}     = sym (∙∙-[] a)
+    ∙∙⟨★⟩-∙∙ a {b ∷ bs} = refl
+
 module RenamingCommutes where
   open Substitution
     hiding (_↑; _↑⋆_; sub; _/Var_) renaming (_Elim/Var_ to _/Var_)
