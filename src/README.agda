@@ -26,7 +26,8 @@
 --
 --  * weak normalization of types (and kinds) via hereditary substitution,
 --  * subject reduction for types (w.r.t. full β-reduction),
---  * type safety (progress & preservation) w.r.t. to the CBV semantics.
+--  * type safety (progress & preservation) w.r.t. to the CBV semantics,
+--  * undecidability of subtyping.
 --
 -- For more details on Fω with interval kinds, see my PhD thesis
 -- "Higher-Order Subtyping with Type Intervals", which is available at
@@ -54,7 +55,7 @@ open import FOmegaInt.Syntax.SingleVariableSubstitution
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 
--- Weak equaity of (untyped) terms up to kind ascriptions in
+-- Weak equality of (untyped) terms up to kind annotations in
 -- abstractions.
 open import FOmegaInt.Syntax.WeakEquality
 
@@ -67,7 +68,7 @@ open import FOmegaInt.Reduction.Full
 open import FOmegaInt.Typing
 
 -- An alternate presentation of kinding and subtyping that is better
--- suited for proving funcionality and validity lemmas, along with a
+-- suited for proving functionality and validity lemmas, along with a
 -- proof that the two presentations are equivalent.
 open import FOmegaInt.Kinding.Declarative
 open import FOmegaInt.Kinding.Declarative.Validity

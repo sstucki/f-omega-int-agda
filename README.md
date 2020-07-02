@@ -13,7 +13,8 @@ The mechanization includes a small-step operational call-by-value semantics, dec
 
  * weak normalization of types (and kinds) via hereditary substitution,
  * subject reduction for types (w.r.t. full β-reduction),
- * type safety (progress & preservation) w.r.t. to the CBV semantics.
+ * type safety (progress & preservation) w.r.t. to the CBV semantics,
+ * undecidability of subtyping.
 
 The metatheory of Fω with interval kinds is described in detail in my PhD thesis [Higher-Order Subtyping with Type Intervals](http://dx.doi.org/10.5075/epfl-thesis-8014).
 
@@ -21,7 +22,7 @@ The metatheory of Fω with interval kinds is described in detail in my PhD thesi
 The Agda mechanization
 ----------------------
 
-The file `src/README.agda` contains a more detailed overview of the formalization.
+The file `src/README.agda` contains a detailed overview of the formalization.
 
 The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes heavy use of the [Agda standard library](https://github.com/agda/agda-stdlib).  The code in this repository has been type-checked using Agda 2.6.1 and version 1.3 of the Agda standard library.  The latest versions of the Agda distribution and standard library, along with setup instructions, can be found at
 
