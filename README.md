@@ -16,8 +16,6 @@ The mechanization includes a small-step operational call-by-value semantics, dec
  * type safety (progress & preservation) w.r.t. to the CBV semantics,
  * undecidability of subtyping.
 
-The metatheory of Fω with interval kinds is described in detail in my PhD thesis [Higher-Order Subtyping with Type Intervals](http://dx.doi.org/10.5075/epfl-thesis-8014).
-
 
 The Agda mechanization
 ----------------------
@@ -36,19 +34,7 @@ The easiest way to check all the code is to compile the `README.agda` file from 
 in the console, or simply open the file using the [Agda Emacs mode](https://github.com/agda/agda#configuring-the-emacs-mode) and type `C-c C-l`.
 
 
-Source code
------------
-
-The Agda sources are freely available on GitHub:
-
- * https://github.com/sstucki/f-omega-int-agda
-
-
-License and copyright
----------------------
+License
+-------
 
 The source code is released under the MIT License.  See the `LICENSE` file for details.
-
-
-------------------------------------------------------------------------
-Sandro Stucki — Copyright (c) 2017–2021 EPFL

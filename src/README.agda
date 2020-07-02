@@ -4,9 +4,6 @@
 
 {-# OPTIONS --safe --without-K #-}
 
--- Author: Sandro Stucki
--- Copyright (c) 2017-2021 EPFL
-
 -- The code in this repository contains an Agda mechanization of the
 -- type system Fω extended with interval kinds ("F omega int").  An
 -- interval kind `A..B' represents a type interval bounded by a pair
@@ -28,11 +25,6 @@
 --  * subject reduction for types (w.r.t. full β-reduction),
 --  * type safety (progress & preservation) w.r.t. to the CBV semantics,
 --  * undecidability of subtyping.
---
--- For more details on Fω with interval kinds, see my PhD thesis
--- "Higher-Order Subtyping with Type Intervals", which is available at
---
---   http://dx.doi.org/10.5075/epfl-thesis-8014
 --
 -- The code makes heavy use of the Agda standard library, which is
 -- freely available at
