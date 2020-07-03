@@ -66,11 +66,6 @@ data SK?Term : Set where
   S   : SK?Term
   K   : SK?Term
   _·_ : SK?Term → SK?Term → SK?Term
-  Sᵣ  : SK?Term → SK?Term → SK?Term → SK?Term   -- intermediate term
-  Kᵣ  : SK?Term → SK?Term → SK?Term             -- intermediate term
-  Sₑ  : SK?Term → SK?Term → SK?Term → SK?Term   -- intermediate term
-  Kₑ  : SK?Term → SK?Term → SK?Term             -- intermediate term
-
 
 -- An SK? term is pure if it is an SK term.
 
@@ -86,24 +81,12 @@ data _≤SK?_ : SK?Term → SK?Term → Set where
   ≤?-trans : ∀ {s t u} → s ≤SK? t → t ≤SK? u → s ≤SK? u
   ≤?-⊥     : ∀ {t} → ⊥ ≤SK? t
   ≤?-⊤     : ∀ {t} → t ≤SK? ⊤
-  ≤?-Sred₁ : ∀ {s t u} →   S · s · t · u ≤SK? Sᵣ s t u
-  ≤?-Sred₂ : ∀ {s t u} →        Sᵣ s t u ≤SK? s · u · (t · u)
-  ≤?-Kred₁ : ∀ {s t}   →       K · s · t ≤SK? Kᵣ s t
-  ≤?-Kred₂ : ∀ {s t}   →          Kᵣ s t ≤SK? s
-  ≤?-Sexp₁ : ∀ {s t u} → s · u · (t · u) ≤SK? Sₑ s t u
-  ≤?-Sexp₂ : ∀ {s t u} →        Sₑ s t u ≤SK? S · s · t · u
-  ≤?-Kexp₁ : ∀ {s t}   →               s ≤SK? Kₑ s t
-  ≤?-Kexp₂ : ∀ {s t}   →          Kₑ s t ≤SK? K · s · t
+  ≤?-Sred  : ∀ {s t u} →   S · s · t · u ≤SK? s · u · (t · u)
+  ≤?-Kred  : ∀ {s t}   →       K · s · t ≤SK? s
+  ≤?-Sexp  : ∀ {s t u} → s · u · (t · u) ≤SK? S · s · t · u
+  ≤?-Kexp  : ∀ {s t}   →               s ≤SK? K · s · t
   ≤?-·     : ∀ {s₁ s₂ t₁ t₂} →
              s₁ ≤SK? s₂ → t₁ ≤SK? t₂ → s₁ · t₁ ≤SK? s₂ · t₂
-  ≤?-Sᵣ    : ∀ {s₁ s₂ t₁ t₂ u₁ u₂} → s₁ ≤SK? s₂ → t₁ ≤SK? t₂ → u₁ ≤SK? u₂ →
-             Sᵣ s₁ t₁ u₁ ≤SK? Sᵣ s₂ t₂ u₂
-  ≤?-Kᵣ    : ∀ {s₁ s₂ t₁ t₂} →
-             s₁ ≤SK? s₂ → t₁ ≤SK? t₂ → Kᵣ s₁ t₁ ≤SK? Kᵣ s₂ t₂
-  ≤?-Sₑ    : ∀ {s₁ s₂ t₁ t₂ u₁ u₂} → s₁ ≤SK? s₂ → t₁ ≤SK? t₂ → u₁ ≤SK? u₂ →
-             Sₑ s₁ t₁ u₁ ≤SK? Sₑ s₂ t₂ u₂
-  ≤?-Kₑ    : ∀ {s₁ s₂ t₁ t₂} →
-             s₁ ≤SK? s₂ → t₁ ≤SK? t₂ → Kₑ s₁ t₁ ≤SK? Kₑ s₂ t₂
 
 -- Parallel one-step and multi-step reduction of SK? terms, possibly
 -- containing instances of ⊥-elim and ⊤-intro.
@@ -187,36 +170,17 @@ mutual
   ≡SK-≤SK? ≡-refl            = ≤?-refl
   ≡SK-≤SK? (≡-trans s≡t t≡u) = ≤?-trans (≡SK-≤SK? s≡t) (≡SK-≤SK? t≡u)
   ≡SK-≤SK? (≡-sym s≡t)       = ≡SK-≥SK? s≡t
-  ≡SK-≤SK? ≡-Sred            = ≤?-trans ≤?-Sred₁ ≤?-Sred₂
-  ≡SK-≤SK? ≡-Kred            = ≤?-trans ≤?-Kred₁ ≤?-Kred₂
+  ≡SK-≤SK? ≡-Sred            = ≤?-Sred
+  ≡SK-≤SK? ≡-Kred            = ≤?-Kred
   ≡SK-≤SK? (≡-· s₁≡t₁ s₂≡t₂) = ≤?-· (≡SK-≤SK? s₁≡t₁) (≡SK-≤SK? s₂≡t₂)
 
   ≡SK-≥SK? : ∀ {s t} → s ≡SK t → inject t ≤SK? inject s
   ≡SK-≥SK? ≡-refl            = ≤?-refl
   ≡SK-≥SK? (≡-trans s≡t t≡u) = ≤?-trans (≡SK-≥SK? t≡u) (≡SK-≥SK? s≡t)
   ≡SK-≥SK? (≡-sym s≡t)       = ≡SK-≤SK? s≡t
-  ≡SK-≥SK? ≡-Sred            = ≤?-trans ≤?-Sexp₁ ≤?-Sexp₂
-  ≡SK-≥SK? ≡-Kred            = ≤?-trans ≤?-Kexp₁ ≤?-Kexp₂
+  ≡SK-≥SK? ≡-Sred            = ≤?-Sexp
+  ≡SK-≥SK? ≡-Kred            = ≤?-Kexp
   ≡SK-≥SK? (≡-· s₁≡t₁ s₂≡t₂) = ≤?-· (≡SK-≥SK? s₁≡t₁) (≡SK-≥SK? s₂≡t₂)
-
--- Squash the intermediate terms to the LHS of the reduction/expansion
--- law they correspond to.
-
-squash : SK?Term → SK?Term
-squash ⊥ = ⊥
-squash ⊤ = ⊤
-squash S = S
-squash K = K
-squash (s · t)    = squash s · squash t
-squash (Sᵣ s t u) = S · squash s · squash t · squash u
-squash (Kᵣ s t)   = K · squash s · squash t
-squash (Sₑ s t u) = S · squash s · squash t · squash u
-squash (Kₑ s t)   = K · squash s · squash t
-
-squash-inject : ∀ {t} → squash (inject t) ≡ inject t
-squash-inject {S}     = refl
-squash-inject {K}     = refl
-squash-inject {s · t} = cong₂ _·_ squash-inject squash-inject
 
 -- Admissible constructors for multi-step reduction
 
@@ -326,46 +290,20 @@ squash-inject {s · t} = cong₂ _·_ squash-inject squash-inject
 -- the two relations are both equivalent to _≡SK_ on pure SK terms
 -- (see inject-⇛≤*≤⇚-≡SK below).
 
-≤SK?--⇛≤*≤⇚ : ∀ {s t} → s ≤SK? t → squash s ⇛≤*≤⇚ squash t
+≤SK?--⇛≤*≤⇚ : ∀ {s t} → s ≤SK? t → s ⇛≤*≤⇚ t
 ≤SK?--⇛≤*≤⇚ ≤?-refl = (_ , ε , ε)
 ≤SK?--⇛≤*≤⇚ (≤?-trans s≤t t≤u) =
   ⇛≤*≤⇚-trans (≤SK?--⇛≤*≤⇚ s≤t) (≤SK?--⇛≤*≤⇚ t≤u)
 ≤SK?--⇛≤*≤⇚ ≤?-⊥ = (_ , ⇛-⊥ ◅ ε , ε)
 ≤SK?--⇛≤*≤⇚ ≤?-⊤ = (_ , ε , ⇛-⊤ ◅ ε)
-≤SK?--⇛≤*≤⇚ ≤?-Sred₁ = _ , ε , ε
-≤SK?--⇛≤*≤⇚ ≤?-Sred₂ = _ , ⇛-Sred ⇛-refl ⇛-refl ⇛-refl ◅ ε , ε
-≤SK?--⇛≤*≤⇚ ≤?-Kred₁ = _ , ε , ε
-≤SK?--⇛≤*≤⇚ ≤?-Kred₂ = _ , ⇛-Kred ⇛-refl ◅ ε , ε
-≤SK?--⇛≤*≤⇚ ≤?-Sexp₁ = _ , ε , ⇛-Sred ⇛-refl ⇛-refl ⇛-refl ◅ ε
-≤SK?--⇛≤*≤⇚ ≤?-Sexp₂ = _ , ε , ε
-≤SK?--⇛≤*≤⇚ ≤?-Kexp₁ = _ , ε , ⇛-Kred ⇛-refl ◅ ε
-≤SK?--⇛≤*≤⇚ ≤?-Kexp₂ = _ , ε , ε
+≤SK?--⇛≤*≤⇚ ≤?-Sred = _ , ⇛-Sred ⇛-refl ⇛-refl ⇛-refl ◅ ε , ε
+≤SK?--⇛≤*≤⇚ ≤?-Kred = _ , ⇛-Kred ⇛-refl ◅ ε , ε
+≤SK?--⇛≤*≤⇚ ≤?-Sexp = _ , ε , ⇛-Sred ⇛-refl ⇛-refl ⇛-refl ◅ ε
+≤SK?--⇛≤*≤⇚ ≤?-Kexp = _ , ε , ⇛-Kred ⇛-refl ◅ ε
 ≤SK?--⇛≤*≤⇚ (≤?-· s₁≤t₁ s₂≤t₂) =
   let u₁ , s₁⇛u₁ , t₁⇛u₁ = ≤SK?--⇛≤*≤⇚ s₁≤t₁
       u₂ , s₂⇛u₂ , t₂⇛u₂ = ≤SK?--⇛≤*≤⇚ s₂≤t₂
   in u₁ · u₂ , ⇛*-· s₁⇛u₁ s₂⇛u₂ , ⇛*-· t₁⇛u₁ t₂⇛u₂
-≤SK?--⇛≤*≤⇚ (≤?-Sᵣ s₁≤t₁ s₂≤t₂ s₃≤t₃) =
-  let u₁ , s₁⇛u₁ , t₁⇛u₁ = ≤SK?--⇛≤*≤⇚ s₁≤t₁
-      u₂ , s₂⇛u₂ , t₂⇛u₂ = ≤SK?--⇛≤*≤⇚ s₂≤t₂
-      u₃ , s₃⇛u₃ , t₃⇛u₃ = ≤SK?--⇛≤*≤⇚ s₃≤t₃
-  in S · u₁ · u₂ · u₃ ,
-     ⇛*-· (⇛*-· (⇛*-· ε s₁⇛u₁) s₂⇛u₂) s₃⇛u₃ ,
-     ⇛*-· (⇛*-· (⇛*-· ε t₁⇛u₁) t₂⇛u₂) t₃⇛u₃
-≤SK?--⇛≤*≤⇚ (≤?-Kᵣ s₁≤t₁ s₂≤t₂) =
-  let u₁ , s₁⇛u₁ , t₁⇛u₁ = ≤SK?--⇛≤*≤⇚ s₁≤t₁
-      u₂ , s₂⇛u₂ , t₂⇛u₂ = ≤SK?--⇛≤*≤⇚ s₂≤t₂
-  in K · u₁ · u₂ , ⇛*-· (⇛*-· ε s₁⇛u₁) s₂⇛u₂ , ⇛*-· (⇛*-· ε t₁⇛u₁) t₂⇛u₂
-≤SK?--⇛≤*≤⇚ (≤?-Sₑ s₁≤t₁ s₂≤t₂ s₃≤t₃) =
-  let u₁ , s₁⇛u₁ , t₁⇛u₁ = ≤SK?--⇛≤*≤⇚ s₁≤t₁
-      u₂ , s₂⇛u₂ , t₂⇛u₂ = ≤SK?--⇛≤*≤⇚ s₂≤t₂
-      u₃ , s₃⇛u₃ , t₃⇛u₃ = ≤SK?--⇛≤*≤⇚ s₃≤t₃
-  in S · u₁ · u₂ · u₃ ,
-     ⇛*-· (⇛*-· (⇛*-· ε s₁⇛u₁) s₂⇛u₂) s₃⇛u₃ ,
-     ⇛*-· (⇛*-· (⇛*-· ε t₁⇛u₁) t₂⇛u₂) t₃⇛u₃
-≤SK?--⇛≤*≤⇚ (≤?-Kₑ s₁≤t₁ s₂≤t₂) =
-  let u₁ , s₁⇛u₁ , t₁⇛u₁ = ≤SK?--⇛≤*≤⇚ s₁≤t₁
-      u₂ , s₂⇛u₂ , t₂⇛u₂ = ≤SK?--⇛≤*≤⇚ s₂≤t₂
-  in K · u₁ · u₂ , ⇛*-· (⇛*-· ε s₁⇛u₁) s₂⇛u₂ , ⇛*-· (⇛*-· ε t₁⇛u₁) t₂⇛u₂
 
 -- Reduction preserves pure terms.
 
@@ -415,6 +353,4 @@ inject-⇛≤*≤⇚-≡SK {s} {t} (u , s⇛≤*u , t⇛≥*u) =
 -- on (pure) SK terms from typing derivations.
 
 inject-≤SK?-≡SK : ∀ {s t} → inject s ≤SK? inject t → s ≡SK t
-inject-≤SK?-≡SK {s} {t} s≤t =
-  inject-⇛≤*≤⇚-≡SK (subst₂ (_⇛≤*≤⇚_) squash-inject squash-inject
-                           (≤SK?--⇛≤*≤⇚ s≤t))
+inject-≤SK?-≡SK {s} {t} s≤t = inject-⇛≤*≤⇚-≡SK (≤SK?--⇛≤*≤⇚ s≤t)

@@ -36,10 +36,10 @@ module ELV = LiftAppLemmas EL.varLiftAppLemmas
 -- Decoding of types into SK? terms
 
 decode : Elim |Γ| → SK?Term
-decode (var x₀ ∙ (a ∷ b ∷ _))     = Kₑ (decode a) (decode b)
-decode (var x₁ ∙ (a ∷ b ∷ c ∷ _)) = Sₑ (decode a) (decode b) (decode c)
-decode (var x₂ ∙ (a ∷ b ∷ _))     = Kᵣ (decode a) (decode b)
-decode (var x₃ ∙ (a ∷ b ∷ c ∷ _)) = Sᵣ (decode a) (decode b) (decode c)
+decode (var x₀ ∙ (a ∷ b ∷ _))     = K · (decode a) · (decode b)
+decode (var x₁ ∙ (a ∷ b ∷ c ∷ _)) = S · (decode a) · (decode b) · (decode c)
+decode (var x₂ ∙ (a ∷ b ∷ _))     = K · (decode a) · (decode b)
+decode (var x₃ ∙ (a ∷ b ∷ c ∷ _)) = S · (decode a) · (decode b) · (decode c)
 decode (var x₄ ∙ (a ∷ b ∷ _))     = decode a · decode b
 decode (var x₅ ∙ _)               = K
 decode (var x₆ ∙ _)               = S
@@ -65,23 +65,23 @@ decode-squash : ∀ (a : Elim |Γ|) → decode (squashElim a) ≡ decode a
 decode-squash (var x₀ ∙ [])              = refl   -- degenerate case
 decode-squash (var x₀ ∙ (_ ∷ []))        = refl   -- degenerate case
 decode-squash (var x₀ ∙ (a ∷ b ∷ _))     =
-  cong₂ Kₑ (decode-squash a) (decode-squash b)
+  cong₂ (λ a b → K · a · b) (decode-squash a) (decode-squash b)
 decode-squash (var x₁ ∙ [])              = refl   -- degenerate case
 decode-squash (var x₁ ∙ (_ ∷ []))        = refl   -- degenerate case
 decode-squash (var x₁ ∙ (_ ∷ _ ∷ []))    = refl   -- degenerate case
 decode-squash (var x₁ ∙ (a ∷ b ∷ c ∷ _)) =
-  trans (cong (Sₑ _ _) (decode-squash c))
-        (cong₂ (λ a b → Sₑ a b _) (decode-squash a) (decode-squash b))
+  trans (cong (S · _ · _ ·_) (decode-squash c))
+        (cong₂ (λ a b → S · a · b · _) (decode-squash a) (decode-squash b))
 decode-squash (var x₂ ∙ [])              = refl   -- degenerate case
 decode-squash (var x₂ ∙ (_ ∷ []))        = refl   -- degenerate case
 decode-squash (var x₂ ∙ (a ∷ b ∷ _))     =
-  cong₂ Kᵣ (decode-squash a) (decode-squash b)
+  cong₂ (λ a b → K · a · b) (decode-squash a) (decode-squash b)
 decode-squash (var x₃ ∙ [])              = refl   -- degenerate case
 decode-squash (var x₃ ∙ (_ ∷ []))        = refl   -- degenerate case
 decode-squash (var x₃ ∙ (_ ∷ _ ∷ []))    = refl   -- degenerate case
 decode-squash (var x₃ ∙ (a ∷ b ∷ c ∷ _)) =
-  trans (cong (Sᵣ _ _) (decode-squash c))
-        (cong₂ (λ a b → Sᵣ a b _) (decode-squash a) (decode-squash b))
+  trans (cong (S · _ · _ ·_) (decode-squash c))
+        (cong₂ (λ a b → S · a · b · _) (decode-squash a) (decode-squash b))
 decode-squash (var x₄ ∙ [])              = refl   -- degenerate case
 decode-squash (var x₄ ∙ (_ ∷ []))        = refl   -- degenerate case
 decode-squash (var x₄ ∙ (a ∷ b ∷ _))     =
@@ -144,15 +144,17 @@ mutual
   decode-∼ (∼-⊥ b⇉b⋯b)       = ≤?-⊥
   decode-∼ (∼-⊤ a⇉a⋯a)       = ≤?-⊤
   decode-∼ (∼-∙ (⇉-var x₀ _ refl) (∼-∷ _ _ a₁∼b₁ (∼-∷ _ _ a₂∼b₂ ∼-[]))) =
-    ≤?-Kₑ (decode-∼ a₁∼b₁) (decode-∼ a₂∼b₂)
+    ≤?-· (≤?-· ≤?-refl (decode-∼ a₁∼b₁)) (decode-∼ a₂∼b₂)
   decode-∼ (∼-∙ (⇉-var x₁ _ refl)
            (∼-∷ _ _ a₁∼b₁ (∼-∷ _ _ a₂∼b₂ (∼-∷ _ _ a₃∼b₃ ∼-[])))) =
-    ≤?-Sₑ (decode-∼ a₁∼b₁) (decode-∼ a₂∼b₂) (decode-∼ a₃∼b₃)
+    ≤?-· (≤?-· (≤?-· ≤?-refl (decode-∼ a₁∼b₁)) (decode-∼ a₂∼b₂))
+         (decode-∼ a₃∼b₃)
   decode-∼ (∼-∙ (⇉-var x₂ _ refl) (∼-∷ _ _ a₁∼b₁ (∼-∷ _ _ a₂∼b₂ ∼-[]))) =
-    ≤?-Kᵣ (decode-∼ a₁∼b₁) (decode-∼ a₂∼b₂)
+    ≤?-· (≤?-· ≤?-refl (decode-∼ a₁∼b₁)) (decode-∼ a₂∼b₂)
   decode-∼ (∼-∙ (⇉-var x₃ _ refl)
            (∼-∷ _ _ a₁∼b₁ (∼-∷ _ _ a₂∼b₂ (∼-∷ _ _ a₃∼b₃ ∼-[])))) =
-    ≤?-Sᵣ (decode-∼ a₁∼b₁) (decode-∼ a₂∼b₂) (decode-∼ a₃∼b₃)
+    ≤?-· (≤?-· (≤?-· ≤?-refl (decode-∼ a₁∼b₁)) (decode-∼ a₂∼b₂))
+         (decode-∼ a₃∼b₃)
   decode-∼ (∼-∙ (⇉-var x₄ _ refl) (∼-∷ _ _ a₁∼b₁ (∼-∷ _ _ a₂∼b₂ ∼-[]))) =
     ≤?-· (decode-∼ a₁∼b₁) (decode-∼ a₂∼b₂)
   decode-∼ (∼-∙ (⇉-var x₅ _ refl) ∼-[]) = ≤?-refl
@@ -163,46 +165,46 @@ mutual
   decode-Ne⇉ : ∀ {a b c} → Γ-SK? ⊢Ne a ⇉ b ⋯ c →
                decode b ≤SK? decode a × decode a ≤SK? decode c
   decode-Ne⇉ (⇉-∙ (⇉-var x₀ _ refl) (⇉-∷ {a} a∈* (⇉-∷ {b} b∈* ⇉-[]))) =
-    subst (λ a′ → decode a′ ≤SK? Kₑ (decode a) (decode b))
-          (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) ≤?-Kexp₁ ,
-    subst₂ (λ a′ b′ → Kₑ (decode a) (decode b) ≤SK?
-                      K · (decode a′) · (decode b′))
-           (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) (sym (⌜⌝-⌞⌟-∙∙ b)) ≤?-Kexp₂
+    subst (λ a′ → decode a′ ≤SK? K · (decode a) · (decode b))
+          (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) ≤?-Kexp ,
+    subst₂ (λ a′ b′ → K · decode a  · decode b ≤SK?
+                      K · decode a′ · decode b′)
+           (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) (sym (⌜⌝-⌞⌟-∙∙ b)) ≤?-refl
   decode-Ne⇉ (⇉-∙ (⇉-var x₁ _ refl)
                   (⇉-∷ {a} a∈* (⇉-∷ {b} b∈* (⇉-∷ {c} c∈* ⇉-[])))) =
     subst₂ (λ a′ b′ → decode a′ · decode c′ · (decode b′ · decode c′) ≤SK?
-                      Sₑ (decode a) (decode b) (decode c))
+                      S · decode a · decode b · decode c)
       (sym (⌜⌝-⌞⌟-weaken-sub₂ a b c)) (sym (⌜⌝-⌞⌟-weaken-sub₁ b c))
       (subst (λ c′ → decode a · decode c′ · (decode b · decode c′) ≤SK?
-                     Sₑ (decode a) (decode b) (decode c))
-        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-Sexp₁) ,
-    subst₂ (λ a′ b′ → Sₑ (decode a) (decode b) (decode c) ≤SK?
+                     S · decode a · decode b · decode c)
+        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-Sexp) ,
+    subst₂ (λ a′ b′ → S · decode a  · decode b  · decode c ≤SK?
                       S · decode a′ · decode b′ · decode c′)
       (sym (⌜⌝-⌞⌟-weaken-sub₂ a b c)) (sym (⌜⌝-⌞⌟-weaken-sub₁ b c))
-      (subst (λ c′ → Sₑ (decode a) (decode b) (decode c) ≤SK?
+      (subst (λ c′ → S · decode a · decode b · decode c ≤SK?
                      S · decode a · decode b · decode c′)
-        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-Sexp₂)
+        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-refl)
     where c′ = ⌜ ⌞ c ⌟ ⌝ ∙∙ []
   decode-Ne⇉ (⇉-∙ (⇉-var x₂ _ refl) (⇉-∷ {a} a∈* (⇉-∷ {b} b∈* ⇉-[]))) =
-    subst₂ (λ a′ b′ → K · (decode a′) · (decode b′) ≤SK?
-                      Kᵣ (decode a) (decode b))
-           (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) (sym (⌜⌝-⌞⌟-∙∙ b)) ≤?-Kred₁ ,
-    subst (λ a′ → Kᵣ (decode a) (decode b) ≤SK? decode a′)
-          (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) ≤?-Kred₂
+    subst₂ (λ a′ b′ → K · decode a′ · decode b′ ≤SK?
+                      K · decode a  · decode b)
+           (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) (sym (⌜⌝-⌞⌟-∙∙ b)) ≤?-refl ,
+    subst (λ a′ → K · decode a · decode b ≤SK? decode a′)
+          (sym (⌜⌝-⌞⌟-weaken-sub₁ a b)) ≤?-Kred
   decode-Ne⇉ (⇉-∙ (⇉-var x₃ _ refl)
              (⇉-∷ {a} a∈* (⇉-∷ {b} b∈* (⇉-∷ {c} c∈* ⇉-[])))) =
     subst₂ (λ a′ b′ → S · decode a′ · decode b′ · decode c′ ≤SK?
-                      Sᵣ (decode a) (decode b) (decode c))
+                      S · decode a  · decode b  · decode c)
       (sym (⌜⌝-⌞⌟-weaken-sub₂ a b c)) (sym (⌜⌝-⌞⌟-weaken-sub₁ b c))
       (subst (λ c′ → S · decode a · decode b · decode c′ ≤SK?
-                     Sᵣ (decode a) (decode b) (decode c))
-        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-Sred₁) ,
-    subst₂ (λ a′ b′ → Sᵣ (decode a) (decode b) (decode c) ≤SK?
+                     S · decode a · decode b · decode c)
+        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-refl) ,
+    subst₂ (λ a′ b′ → S · decode a · decode b · decode c ≤SK?
                       decode a′ · decode c′ · (decode b′ · decode c′))
       (sym (⌜⌝-⌞⌟-weaken-sub₂ a b c)) (sym (⌜⌝-⌞⌟-weaken-sub₁ b c))
-      (subst (λ c′ → Sᵣ (decode a) (decode b) (decode c) ≤SK?
+      (subst (λ c′ → S · decode a · decode b · decode c ≤SK?
                      decode a · decode c′ · (decode b · decode c′))
-        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-Sred₂)
+        (sym (⌜⌝-⌞⌟-∙∙ c)) ≤?-Sred)
     where c′ = ⌜ ⌞ c ⌟ ⌝ ∙∙ []
   decode-Ne⇉ (⇉-∙ (⇉-var x₄ _ refl) (⇉-∷ a∈* (⇉-∷ b∈* ⇉-[]))) = ≤?-⊥ , ≤?-⊤
   decode-Ne⇉ (⇉-∙ (⇉-var x₅ _ refl) ⇉-[]) = ≤?-⊥ , ≤?-⊤
