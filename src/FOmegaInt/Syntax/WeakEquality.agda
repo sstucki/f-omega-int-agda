@@ -601,28 +601,14 @@ module WeakEqEtaExpansion where
   ≈-η-exp′ : ∀ {n k j₁ j₂} {a₁ a₂ : Elim n}
              (hyp₁ : ⌊ j₁ ⌋≡ k) (hyp₂ : ⌊ j₂ ⌋≡ k) → a₁ ≈ a₂ →
              TK.η-exp j₁ hyp₁ a₁ ≈ TK.η-exp j₂ hyp₂ a₂
-  ≈-η-exp′ (is-★) (is-★) c₁≈c₂ = c₁≈c₂
-  ≈-η-exp′ (is-⇒ ⌊j₁⌋≡l₁ ⌊k₁⌋≡l₂) (is-⇒ ⌊j₂⌋≡l₁ ⌊k₂⌋≡l₂)
-           (≈-∙ (≈-var x) as₁≈as₂) =
-    ≈-Λ∙ ⌊j₁⌋≡⌊j₂⌋ (≈-η-exp′ ⌊k₁⌋≡l₂ ⌊k₂⌋≡l₂ x∙as₁≈x∙as₂′)
+  ≈-η-exp′ (is-★) (is-★) a₁≈a₂ = a₁≈a₂
+  ≈-η-exp′ (is-⇒ ⌊j₁⌋≡l₁ ⌊k₁⌋≡l₂) (is-⇒ ⌊j₂⌋≡l₁ ⌊k₂⌋≡l₂) a₁≈a₂ =
+    ≈-Λ∙ ⌊j₁⌋≡⌊j₂⌋ (≈-η-exp′ ⌊k₁⌋≡l₂ ⌊k₂⌋≡l₂ a₁·ηz≈a₂·ηz)
     where
-      ⌊j₁⌋≡⌊j₂⌋    = trans (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡l₁) (sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₂⌋≡l₁))
-      x∙as₁≈x∙as₂′ =
-        ≈-⌜·⌝ (≈-weakenElim (≈-∙ (≈-var x) as₁≈as₂))
+      ⌊j₁⌋≡⌊j₂⌋   = trans (⌊⌋≡⇒⌊⌋-≡ ⌊j₁⌋≡l₁) (sym (⌊⌋≡⇒⌊⌋-≡ ⌊j₂⌋≡l₁))
+      a₁·ηz≈a₂·ηz =
+        ≈-⌜·⌝ (≈-weakenElim a₁≈a₂)
               (≈-η-exp′ (⌊⌋≡-weaken ⌊j₁⌋≡l₁) (⌊⌋≡-weaken ⌊j₂⌋≡l₁) (≈-var∙ zero))
-  -- Degenerate cases: either ill-kinded or not neutral.
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ ≈-⊥ bs₁≈bs₂) = ≈-∙ ≈-⊥ bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ ≈-⊤ bs₁≈bs₂) = ≈-∙ ≈-⊤ bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂) =
-    ≈-∙ (≈-∀ k₁≋k₂ a₁≈a₂) bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
-    ≈-∙ (≈-→ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂) =
-    ≈-∙ (≈-Λ ⌊k₁⌋≡⌊k₂⌋ a₁≈a₂) bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂) =
-    ≈-∙ (≈-λ a₁≈a₂) bs₁≈bs₂
-  ≈-η-exp′ (is-⇒ _ _) (is-⇒ _ _) (≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂) =
-    ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) cs₁≈cs₂
 
   ≈-η-exp : ∀ {n} {j₁ j₂ : Kind Elim n} {a₁ a₂} →
             ⌊ j₁ ⌋ ≡ ⌊ j₂ ⌋ → a₁ ≈ a₂ → η-exp j₁ a₁ ≈ η-exp j₂ a₂
