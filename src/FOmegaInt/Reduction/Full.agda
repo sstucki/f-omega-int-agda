@@ -33,7 +33,7 @@ open Substitution using (_[_]; weaken)
 infixl 9  _·₁_ _·₂_ _⊡₁_ _⊡₂_
 infixr 7  _⇒₁_ _⇒₂_
 infix  6  _⋯₁_ _⋯₂_
-infix  5  _→β_ _Kd→β_ _→βη_ _Kd→βη_
+infix  5  _→β_ _Kd→β_
 
 mutual
 
@@ -66,14 +66,6 @@ data BetaCont {n} : Term n → Term n → Set where
   cont-Tm· : ∀ a b c → BetaCont ((ƛ a b) · c) (b [ c ])
   cont-⊡   : ∀ k a b → BetaCont ((Λ k a) ⊡ b) (a [ b ])
 
--- β-contraction together with η-expansion of neutral types.
-data BetaContEtaExp {n} : Term n → Term n → Set where
-  cont-Tp· : ∀ k a b → BetaContEtaExp ((Λ k a) · b) (a [ b ])
-  cont-Tm· : ∀ a b c → BetaContEtaExp ((ƛ a b) · c) (b [ c ])
-  cont-⊡   : ∀ k a b → BetaContEtaExp ((Λ k a) ⊡ b) (a [ b ])
-  exp-var  : ∀ k x   → BetaContEtaExp (var x) (Λ k (var (suc x)    · var zero))
-  exp-·    : ∀ k a b → BetaContEtaExp (a · b) (Λ k (weaken (a · b) · var zero))
-
 -- One-step β-reduction.
 
 _→β_ : TRel Term
@@ -81,14 +73,6 @@ _→β_ = Compat BetaCont
 
 _Kd→β_ : TRel (Kind Term)
 _Kd→β_ = KdCompat BetaCont
-
--- One-step β-reduction and η-expansion.
-
-_→βη_ : TRel Term
-_→βη_ = Compat BetaContEtaExp
-
-_Kd→βη_ : TRel (Kind Term)
-_Kd→βη_ = KdCompat BetaContEtaExp
 
 -- Full β-reduction and equality.
 
@@ -104,122 +88,35 @@ open Reduction β-reduction public hiding (_→1_)
 open Reduction β-reductionKind public hiding (_→1_)
   renaming (_→*_ to _Kd→β*_; _↔_ to _Kd≡β_)
 
--- Full β-reduction, η-expansion of neutrals, and βη-equality.
-
-βη-reductionExpansion : Reduction Term
-βη-reductionExpansion = record { _→1_ = _→βη_ }
-
-βη-reductionExpansionKind : Reduction (Kind Term)
-βη-reductionExpansionKind = record { _→1_ = _Kd→βη_ }
-
-open Reduction βη-reductionExpansion public hiding (_→1_)
-  renaming (_→*_ to _→βη*_; _↔_ to _≡βη_)
-
-open Reduction βη-reductionExpansionKind public hiding (_→1_)
-  renaming (_→*_ to _Kd→βη*_; _↔_ to _Kd≡βη_)
 
 ----------------------------------------------------------------------
 -- Simple properties of the β-reductions/equalities
 
 -- Inclusions.
 
-BetaCont⇒BetaContEtaExp : ∀ {n} {a b : Term n} →
-                          BetaCont a b → BetaContEtaExp a b
-BetaCont⇒BetaContEtaExp (cont-Tp· k a b) = cont-Tp· k a b
-BetaCont⇒BetaContEtaExp (cont-Tm· a b c) = cont-Tm· a b c
-BetaCont⇒BetaContEtaExp (cont-⊡   k a b) = cont-⊡   k a b
-
-module CompatInclusion (_∼₁_ _∼₂_ : TRel Term) where
-
-  mutual
-
-    →₁⇒→₂ : (∀ {n} {a b : Term n} → a ∼₁ b → a ∼₂ b) →
-             ∀ {n} {a b : Term n} → Compat _∼₁_ a b → Compat _∼₂_ a b
-    →₁⇒→₂ ∼₁⇒∼₂ ⌈ a∼₁b ⌉      = ⌈ ∼₁⇒∼₂ a∼₁b ⌉
-    →₁⇒→₂ ∼₁⇒∼₂ (Π₁ k₁→₁k₂ a) = Π₁ (Kd→₁⇒→₂ ∼₁⇒∼₂ k₁→₁k₂) a
-    →₁⇒→₂ ∼₁⇒∼₂ (Π₂ k a₁→₁a₂) = Π₂ k (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂)
-    →₁⇒→₂ ∼₁⇒∼₂ (a₁→₁a₂ ⇒₁ b) = (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) ⇒₁ b
-    →₁⇒→₂ ∼₁⇒∼₂ (a ⇒₂ b₁→₁b₂) = a ⇒₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
-    →₁⇒→₂ ∼₁⇒∼₂ (Λ₁ k₁→₁k₂ a) = Λ₁ (Kd→₁⇒→₂ ∼₁⇒∼₂ k₁→₁k₂) a
-    →₁⇒→₂ ∼₁⇒∼₂ (Λ₂ k a₁→₁a₂) = Λ₂ k (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂)
-    →₁⇒→₂ ∼₁⇒∼₂ (ƛ₁ a₁→₁a₂ b) = ƛ₁ (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) b
-    →₁⇒→₂ ∼₁⇒∼₂ (ƛ₂ a b₁→₁b₂) = ƛ₂ a (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
-    →₁⇒→₂ ∼₁⇒∼₂ (a₁→₁a₂ ·₁ b) = (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) ·₁ b
-    →₁⇒→₂ ∼₁⇒∼₂ (a ·₂ b₁→₁b₂) = a ·₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
-    →₁⇒→₂ ∼₁⇒∼₂ (a₁→₁a₂ ⊡₁ b) = (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) ⊡₁ b
-    →₁⇒→₂ ∼₁⇒∼₂ (a ⊡₂ b₁→₁b₂) = a ⊡₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
-
-    Kd→₁⇒→₂ : (∀ {n} {a b : Term n} → a ∼₁ b → a ∼₂ b) →
-               ∀ {n} {j k : Kind Term n} → KdCompat _∼₁_ j k → KdCompat _∼₂_ j k
-    Kd→₁⇒→₂ ∼₁⇒∼₂ (a₁→₁a₂ ⋯₁ b) = (→₁⇒→₂ ∼₁⇒∼₂ a₁→₁a₂) ⋯₁ b
-    Kd→₁⇒→₂ ∼₁⇒∼₂ (a ⋯₂ b₁→₁b₂) = a ⋯₂ (→₁⇒→₂ ∼₁⇒∼₂ b₁→₁b₂)
-    Kd→₁⇒→₂ ∼₁⇒∼₂ (Π₁ j₁→₁j₂ k) = Π₁ (Kd→₁⇒→₂ ∼₁⇒∼₂ j₁→₁j₂) k
-    Kd→₁⇒→₂ ∼₁⇒∼₂ (Π₂ j k₁→₁k₂) = Π₂ j (Kd→₁⇒→₂ ∼₁⇒∼₂ k₁→₁k₂)
-
-→β⇒→βη = CompatInclusion.→₁⇒→₂ BetaCont BetaContEtaExp BetaCont⇒BetaContEtaExp
-
-→β*⇒→βη* : ∀ {n} {a b : Term n} → a →β* b → a →βη* b
-→β*⇒→βη* = gmap Function.id →β⇒→βη
-
-≡β⇒≡βη : ∀ {n} {a b : Term n} → a ≡β b → a ≡βη b
-≡β⇒≡βη = EqClos.map →β⇒→βη
-
 →β⇒→β* = →1⇒→* β-reduction
 →β*⇒≡β = →*⇒↔  β-reduction
 →β⇒≡β  = →1⇒↔  β-reduction
 
-→βη⇒→βη* = →1⇒→* βη-reductionExpansion
-→βη*⇒≡βη = →*⇒↔  βη-reductionExpansion
-→βη⇒≡βη  = →1⇒↔  βη-reductionExpansion
-
--- The reductions are preorders.
+-- Reduction is a preorders.
 
 →β*-preorder   = →*-preorder β-reduction
 Kd→β*-preorder = →*-preorder β-reductionKind
 
-→βη*-preorder   = →*-preorder βη-reductionExpansion
-Kd→βη*-preorder = →*-preorder βη-reductionExpansionKind
-
--- Preorder reasoning for the reductions.
+-- Preorder reasoning for reduction.
 
 module →β*-Reasoning    = →*-Reasoning β-reduction
 module Kd→β*-Reasoning  = →*-Reasoning β-reductionKind
 
-module →βη*-Reasoning   = →*-Reasoning βη-reductionExpansion
-module Kd→βη*-Reasoning = →*-Reasoning βη-reductionExpansionKind
-
--- Raw terms and kinds together with β/βη-equality form setoids.
+-- Raw terms and kinds together with β-equality form setoids.
 
 ≡β-setoid   = ↔-setoid β-reduction
 Kd≡β-setoid = ↔-setoid β-reductionKind
 
-≡βη-setoid   = ↔-setoid βη-reductionExpansion
-Kd≡βη-setoid = ↔-setoid βη-reductionExpansionKind
-
--- Equational reasoning for the equalities.
+-- Equational reasoning for the equality.
 
 module ≡β-Reasoning   = ↔-Reasoning β-reduction
 module Kd≡β-Reasoning = ↔-Reasoning β-reductionKind
-
-module ≡βη-Reasoning   = ↔-Reasoning βη-reductionExpansion
-module Kd≡βη-Reasoning = ↔-Reasoning βη-reductionExpansionKind
-
--- An admissible expansion rule for neutral terms.
-exp-ne : ∀ {n} (k : Kind Term n) x as →
-         BetaContEtaExp (var x ⌞∙⌟ as) (Λ k (weaken (var x ⌞∙⌟ as) · var zero))
-exp-ne k x [] =
-  P.subst (λ a → BetaContEtaExp (var x) (Λ k (a · var zero)))
-          (P.sym weaken-var) (exp-var k x)
-  where open Substitution using (weaken-var)
-exp-ne k x (a ∷ as) with helper (var x) a as
-  where
-    helper : ∀ {n} (a b : Term n) bs →
-             ∃ λ c → ∃ λ d → a ⌞∙⌟ (b ∷ bs) ≡ c · d
-    helper a b []       = a , b , refl
-    helper a b (c ∷ cs) = helper (a · b) c cs
-... | c , d , x·a∙as≡c·d =
-  P.subst (λ a → BetaContEtaExp a (Λ k (weaken a · var zero)))
-          (P.sym x·a∙as≡c·d) (exp-· k c d)
 
 -- Multistep and equality congruence lemmas.
 
@@ -368,50 +265,3 @@ open CongLemmas BetaCont public renaming
   ; Kd↔-Π   to Kd≡β-Π
   ; ↔-⌞∙⌟₁  to ≡β-⌞∙⌟₁
   )
-
-open CongLemmas BetaContEtaExp public renaming
-  ( →1-⌞∙⌟₁ to →βη-⌞∙⌟₁
-  ; →*-Π    to →βη*-Π
-  ; →*-⇒    to →βη*-⇒
-  ; →*-Λ    to →βη*-Λ
-  ; →*-ƛ    to →βη*-ƛ
-  ; →*-·    to →βη*-·
-  ; →*-⊡    to →βη*-⊡
-  ; Kd→*-⋯  to Kd→βη*-⋯
-  ; Kd→*-Π  to Kd→βη*-Π
-  ; →*-⌞∙⌟₁ to →βη*-⌞∙⌟₁
-  ; ↔-Π     to ≡βη-Π
-  ; ↔-⇒     to ≡βη-⇒
-  ; ↔-Λ     to ≡βη-Λ
-  ; ↔-ƛ     to ≡βη-ƛ
-  ; ↔-·     to ≡βη-·
-  ; ↔-⊡     to ≡βη-⊡
-  ; Kd↔-⋯   to Kd≡βη-⋯
-  ; Kd↔-Π   to Kd≡βη-Π
-  ; ↔-⌞∙⌟₁  to ≡βη-⌞∙⌟₁
-  )
-
--- Shapes of type constructors are preserved by β-reduction and
--- η-expansion.
-
-Π-→βη* : ∀ {n} {k : Kind Term n} {a b} → Π k a →βη* b →
-         ∃ λ k′ → ∃ λ a′ → k Kd→βη* k′ × a →βη* a′ × Π k′ a′ ≡ b
-Π-→βη* ε                     = _ , _ , ε , ε , refl
-Π-→βη* (⌈ () ⌉ ◅ _)
-Π-→βη* (Π₁ k₁→k₂ a ◅ Πk₂a→b) =
-  let k′ , a′ , k₂→k′ , a→a′ , Πk′a′≡b = Π-→βη* Πk₂a→b
-  in k′ , a′ , k₁→k₂ ◅ k₂→k′ , a→a′ , Πk′a′≡b
-Π-→βη* (Π₂ k a₁→a₂ ◅ Πka₂→b) =
-  let k′ , a′ , k→k′ , a₂→a′ , Πk′a′≡b = Π-→βη* Πka₂→b
-  in k′ , a′ , k→k′ , a₁→a₂ ◅ a₂→a′ , Πk′a′≡b
-
-⇒-→βη* : ∀ {n} {a : Term n} {b c} → a ⇒ b →βη* c →
-         ∃ λ a′ → ∃ λ b′ → a →βη* a′ × b →βη* b′ × a′ ⇒ b′ ≡ c
-⇒-→βη* ε                     = _ , _ , ε , ε , refl
-⇒-→βη* (⌈ () ⌉ ◅ _)
-⇒-→βη* (a₁→a₂ ⇒₁ b ◅ a⇒₂b→c) =
-  let a′ , b′ , a₂→a′ , b→b′ , a⇒′b′≡c = ⇒-→βη* a⇒₂b→c
-  in a′ , b′ , a₁→a₂ ◅ a₂→a′ , b→b′ , a⇒′b′≡c
-⇒-→βη* (a ⇒₂ b₁→b₂ ◅ a⇒b₂→c) =
-  let a′ , b′ , a→a′ , b₂→b′ , a⇒′b′≡c = ⇒-→βη* a⇒b₂→c
-  in a′ , b′ , a→a′ , b₁→b₂ ◅ b₂→b′ , a⇒′b′≡c
