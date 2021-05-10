@@ -122,6 +122,12 @@ Tm∈-gen (∈-⇑ a·b∈e e<:f) | ∈-→-e a∈c⇒d b∈c d<:e    =
      <:-trans (<:-trans (≃⇒<: b₁≃nf-b₁∈*) (sound-<: nf-b₁<:nf-b₂))
               (≃⇒<: (≃-sym b₂≃nf-b₂∈*))
 
+-- ⊤ is not a subtype of ⊥.
+
+⊤-≮:-⊥ : ∀ {a : Term 0} → ¬ [] ⊢ ⊤ <: ⊥ ∈ *
+⊤-≮:-⊥ ⊤<:⊥ with CanInv.⊤-<:-max (complete-<:-⋯ ⊤<:⊥)
+⊤-≮:-⊥ ⊤<:⊥ | ()
+
 -- Arrows are not canonical subtypes of universals and vice-versa.
 
 ⇒-≮:-Π : ∀ {a₁ b₁ : Term 0} {k₂ a₂} → ¬ [] ⊢ a₁ ⇒ b₁ <: Π k₂ a₂ ∈ *
