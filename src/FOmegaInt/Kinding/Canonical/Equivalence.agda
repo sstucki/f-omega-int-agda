@@ -234,11 +234,11 @@ module TrackSimpleKindsCanonicalEtaExp where
                                (sym (⌊⌋≡⇒⌊⌋-≡ hyp)) l[z]≋l)
 
   -- NOTE. The definition of the function η-exp-Ne∈ below is
-  -- structurally recursive in the *simple* kind parameter k, but
-  -- *not* in the kind j because we need to weaken the domain j₁ of
-  -- the dependent kind (j = Π j₁ j₂) in the arrow case.  The
-  -- additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
-  -- simplification of the kind j.
+  -- structurally recursive in the *shape* parameter k, but *not* in
+  -- the kind j because we need to weaken the domain j₁ of the
+  -- dependent kind (j = Π j₁ j₂) in the arrow case.  The additional
+  -- hypothesis ⌊ j ⌋≡ k ensures that k is indeed the shape of the
+  -- kind j.
 
   -- η-expansion preserves canonical kinding of neutral types.
   η-exp-Ne∈ : ∀ {n} {Γ : Ctx n} {a j k l} (hyp : ⌊ j ⌋≡ k) →

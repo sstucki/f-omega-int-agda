@@ -225,15 +225,18 @@ open Kinding
 open ContextConversions using (⌊_⌋Ctx; module ⌊⌋Ctx-Lemmas)
 
 -- An inversion lemma for _⊢_wf.
+
 wf-kd-inv : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ kd k wf → Γ ⊢ k kd
 wf-kd-inv (wf-kd k-kd) = k-kd
 
--- Subkinds simplify equally.
+-- Subkinds have the same shape.
+
 <∷-⌊⌋ : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ j <∷ k → ⌊ j ⌋ ≡ ⌊ k ⌋
 <∷-⌊⌋ (<∷-⋯ _ _)             = refl
 <∷-⌊⌋ (<∷-Π j₂<∷j₁ k₁<∷k₂ _) = cong₂ _⇒_ (sym (<∷-⌊⌋ j₂<∷j₁)) (<∷-⌊⌋ k₁<∷k₂)
 
--- Equal kinds simplify equally.
+-- Equal kinds have the same shape.
+
 ≅-⌊⌋ : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ j ≅ k → ⌊ j ⌋ ≡ ⌊ k ⌋
 ≅-⌊⌋ (<∷-antisym j-kd k-kd j<∷k k<∷j) = <∷-⌊⌋ j<∷k
 

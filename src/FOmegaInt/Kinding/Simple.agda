@@ -337,10 +337,10 @@ module KindedHereditarySubstitution where
   -- NOTE. Since `j ≡ k', we could have formulated this lemma
   -- differently.  In particular, given the premise `Γ ⊢Var x ∈ j', it
   -- would have been more intuitive for the kinding judgment in the
-  -- conclusion to use the simple kind `j' rather than `k' (preserving
-  -- the kind of the variable, as usual for substitution lemmas).
-  -- However, it is important that the simple kind `k' of the normal
-  -- type returned by this function is syntactically equal to the kind
+  -- conclusion to use the shape `j' rather than `k' (preserving the
+  -- kind of the variable, as usual for substitution lemmas).
+  -- However, it is important that the shape `k' of the normal type
+  -- returned by this function is syntactically equal to the shape
   -- annotation of the hereditary substitution `Δ ⊢/⟨ k ⟩ σ ∈ Γ'
   -- because it serves as the termination measure for the (hereditary)
   -- substitution lemmas below.
@@ -399,8 +399,9 @@ module KindedHereditarySubstitution where
     Sp∈-/⟨⟩ (∈-∷ a∈j₁ j₂[a]∈as∈j₃) σ∈Γ =
       ∈-∷ (Nf∈-/⟨⟩ a∈j₁ σ∈Γ) (Sp∈-/⟨⟩ j₂[a]∈as∈j₃ σ∈Γ)
 
-    -- Hereditary substitutions preserve simple kinds of neutral
-    -- types (but not neutrality itself).
+    -- Hereditary substitutions preserve the shapes of neutral types
+    -- (but not neutrality itself).
+
     Ne∈-/⟨⟩ : ∀ {m n Γ k Δ} {σ : SVSub m n} {a} →
               Γ ⊢Ne a ∈ ★ → Δ ⊢/⟨ k ⟩ σ ∈ Γ → Δ ⊢Nf a /⟨ k ⟩ σ ∈ ★
     Ne∈-/⟨⟩ (∈-∙ (∈-var x Γ[x]≡kd-j) j∈as∈l) σ∈Γ =

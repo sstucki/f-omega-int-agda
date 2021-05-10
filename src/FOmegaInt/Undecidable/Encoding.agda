@@ -29,14 +29,14 @@ open Kinding
 open ≡-Reasoning
 
 ----------------------------------------------------------------------
--- Support for the encoding: injection of simple kinds into kinds.
+-- Support for the encoding: injection of shapes into kinds.
 
--- For every simple kind `k' there is a kind `⌈ k ⌉' that simplifies
--- back to `k', i.e. `⌈_⌉' is a right inverse for `⌊_⌋'.
+-- For every shape `k' there is a kind `⌈ k ⌉' that erases/simplifies
+-- back to `k', i.e. `⌈_⌉' is a right inverse of kind erasure `⌊_⌋'.
 --
 -- NOTE. The definition here is almost identical to that in
--- FOmegaInt.Typing.Encodings except we inject simple kinds into `Kind
--- Elim n' rather than `Kind Term n'.
+-- FOmegaInt.Typing.Encodings except we inject shapes into `Kind Elim
+-- n' rather than `Kind Term n'.
 
 ⌈_⌉ : ∀ {n} → SKind → Kind Elim n
 ⌈ ★     ⌉ = ⌜*⌝

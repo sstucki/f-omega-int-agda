@@ -48,11 +48,11 @@ module TrackSimpleKindsKindedEtaExp where
     module TK = TrackSimpleKindsEtaExp
 
   -- NOTE. The definition of the functions η-exp-Var∈ and η-exp-Ne∈
-  -- below are structurally recursive in the *simple* kind parameter
-  -- k, but *not* in the kind j because we need to weaken the domain
-  -- j₁ of the dependent kind (j = Π j₁ j₂) in the arrow case.  The
-  -- additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
-  -- simplification of the kind j.
+  -- below are structurally recursive in the *shape* parameter k, but
+  -- *not* in the kind j because we need to weaken the domain j₁ of
+  -- the dependent kind (j = Π j₁ j₂) in the arrow case.  The
+  -- additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the shape
+  -- of the kind j.
 
   mutual
 

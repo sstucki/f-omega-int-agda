@@ -270,7 +270,7 @@ module Syntax where
     ★   : SKind
     _⇒_ : SKind → SKind → SKind
 
-  -- Kind simplification.
+  -- Kind simplification (aka erasure from kinds to shapes).
 
   ⌊_⌋ : ∀ {T n} → Kind T n → SKind
   ⌊ a ⋯ b ⌋ = ★
@@ -1294,7 +1294,7 @@ elimCtx : KdOrTpCtx Elim
 elimCtx = record { termLikeLemmas = termLikeLemmasElimAsc }
 module ElimCtx = KdOrTpCtx elimCtx
 
--- Concrete typing contexts over simple kind ascriptions and useful
+-- Concrete typing contexts over shape ascriptions and useful
 -- operations.
 
 module SimpleCtx where
@@ -1320,7 +1320,7 @@ module SimpleCtx where
   SAsc : ℕ → Set
   SAsc _ = Maybe SKind
 
-  -- Simplification of ascriptions.
+  -- Simplification/erasure of ascriptions.
 
   ⌊_⌋Asc : ∀ {T n} → KdOrTp T n → SAsc n
   ⌊ kd k ⌋Asc = kd ⌊ k ⌋

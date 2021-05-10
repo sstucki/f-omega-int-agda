@@ -62,7 +62,7 @@ data _⊢_≤_ {n} (Γ : Ctx n) : ElimAsc n → ElimAsc n → Set where
 ≤-trans (≤-<∷ j<∷k k-kd) ≤-refl           = ≤-<∷ j<∷k k-kd
 ≤-trans ≤-refl           a≤c              = a≤c
 
--- Kinds in related ascriptions simplify equally.
+-- Kinds in related ascriptions have the same shape.
 
 ≤-⌊⌋ : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ kd j ≤ kd k → ⌊ j ⌋ ≡ ⌊ k ⌋
 ≤-⌊⌋ (≤-<∷ j<∷k _) = <∷-⌊⌋ j<∷k
@@ -251,7 +251,8 @@ lookup-/⟨⟩≃ (≃-H↑ {k = k} {Γ} {σ} {_} {_} {l} j≅l/σ _ σ≃τ⇇�
           ⌊ kd j ⌋Asc              ∎)
         (∈-H↑ (/⟨⟩⇇-/⟨⟩∈ σ≃σ∈Γ))
 
--- TODO: explain why we need to track simple kinds explicitly.
+-- TODO: explain why we need to track shapes explicitly.
+
 module TrackSimpleKindsSubst where
 
   -- TODO: explain how/why preservation of (sub)kinding/subtyping

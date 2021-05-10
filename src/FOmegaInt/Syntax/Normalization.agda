@@ -30,13 +30,23 @@ open import FOmegaInt.Syntax.HereditarySubstitution
 open Syntax
 
 ----------------------------------------------------------------------
--- Untyped η-expansion of neutral terms.
-
--- TODO: explain this
+-- Kind simplification as a relation.
 
 infix 4 ⌊_⌋≡_
 
--- Kind simplification as a relation.
+-- Kind simplification (aka erasure to shapes) as a relation.
+--
+-- We introduce an inductively defined relation on kinds (and shapes)
+-- that precisely relates a (dependent) kind to its shape.  Proofs of
+-- ⌊ j ⌋≡ k are equivalent to proofs that ⌊ j ⌋ ≡ k, as witnessed by
+-- the ⌊⌋-⌊⌋≡ and ⌊⌋≡⇒⌊⌋-≡ lemmas below, but the former are easier to
+-- work with in certain functions and lemmas that are defined by
+-- recursion on shapes since the recursion structure then matches the
+-- inductive structure of the relation.  A prime example of this is
+-- η-expansion as implemented below (see the definition of η-exp in
+-- the TrackSimpleKindsEtaExp module).  Most lemmas about η-expansion
+-- also use the ⌊_⌋≡_ relation in a similar way.
+
 data ⌊_⌋≡_ {T n} : Kind T n → SKind → Set where
   is-★ : ∀ {a b}                                   → ⌊ a ⋯ b ⌋≡ ★
   is-⇒ : ∀ {j₁ j₂ k₁ k₂} → ⌊ j₁ ⌋≡ k₁ → ⌊ j₂ ⌋≡ k₂ → ⌊ Π j₁ j₂ ⌋≡ k₁ ⇒ k₂
@@ -59,6 +69,7 @@ data ⌊_⌋≡_ {T n} : Kind T n → SKind → Set where
   subst (⌊ _ ⌋≡_) ⌊j⌋≡⌊l⌋ (⌊⌋-⌊⌋≡ _)
 
 -- Kind simplification is proof-irrelevant.
+
 ⌊⌋≡-pirr : ∀ {T n k} {j : Kind T n} → (p₁ p₂ : ⌊ j ⌋≡ k) → p₁ ≡ p₂
 ⌊⌋≡-pirr is-★ is-★                     = refl
 ⌊⌋≡-pirr (is-⇒ p₁₁ p₁₂) (is-⇒ p₂₁ p₂₂) =
@@ -66,12 +77,14 @@ data ⌊_⌋≡_ {T n} : Kind T n → SKind → Set where
 
 -- A type of abstract lemma stating that kind simplification as a
 -- relation commutes with substitution.
+
 KindSimpAppLemma : ∀ {T T′} (app : Application (Kind T) T′) → Set
 KindSimpAppLemma {_} {T′} app =
   ∀ {m n j k} {σ : Sub T′ m n} → ⌊ j ⌋≡ k → ⌊ j / σ ⌋≡ k
   where open Application app
 
 -- Lemmas relating kind simplification to operations on T-kinds.
+
 record KindSimpLemmas (T : ℕ → Set) : Set₁ where
 
   field lemmas : TermLikeLemmas (Kind T) Term
@@ -134,21 +147,26 @@ module SimpHSubstLemmas where
 
 open SimpHSubstLemmas
 
+
+----------------------------------------------------------------------
+-- Untyped η-expansion of neutral terms.
+
 module TrackSimpleKindsEtaExp where
   open Substitution hiding (_↑; sub)
 
   -- NOTE. The definition of the function η-exp in this module is
-  -- structurally recursive in the *simple* kind parameter k, but
-  -- *not* in the kind (j : Kind Elim n) because we need to weaken the
-  -- domain j₁ of the dependent kind (j = Π j₁ j₂) in the arrow case.
-  -- The additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the
-  -- simplification of the kind j.
+  -- structurally recursive in the *shape* parameter k, but *not* in
+  -- the kind (j : Kind Elim n) because we need to weaken the domain
+  -- j₁ of the dependent kind (j = Π j₁ j₂) in the arrow case.  The
+  -- additional hypothesis ⌊ j ⌋≡ k ensures that k is indeed the shape
+  -- of the kind j.
 
   -- Kind-driven untyped η-expansion of eliminations.
   --
   -- NOTE.  We only expand neutral types since these are the only
   -- non-lambda forms of arrow kind, and thus the only ones that
   -- require expansion to reach η-long β-normal forms.
+
   η-exp : ∀ {n k} (j : Kind Elim n) → ⌊ j ⌋≡ k → Elim n → Elim n
   η-exp (c ⋯ d)   (is-★)                 a = a
   η-exp (Π j₁ j₂) (is-⇒ ⌊j₁⌋≡k₁ ⌊j₂⌋≡k₂) a =
@@ -158,6 +176,7 @@ module TrackSimpleKindsEtaExp where
                η-exp (weakenKind′ j₁) (⌊⌋≡-weaken ⌊j₁⌋≡k₁) (var∙ zero)
 
   -- A helper lemma.
+
   η-exp-⌊⌋≡ : ∀ {n j₁ j₂ k₁ k₂} {a : Elim n}
               (hyp₁ : ⌊ j₁ ⌋≡ k₁) (hyp₂ : ⌊ j₂ ⌋≡ k₂) → j₁ ≡ j₂ → k₁ ≡ k₂ →
               η-exp j₁ hyp₁ a ≡ η-exp j₂ hyp₂ a
@@ -165,6 +184,7 @@ module TrackSimpleKindsEtaExp where
     cong (λ hyp → η-exp _ hyp _) (⌊⌋≡-pirr hyp₁ hyp₂)
 
   -- η-expansion commutes with renaming.
+
   η-exp-/Var : ∀ {m n j k} (hyp : ⌊ j ⌋≡ k) a {ρ : Sub Fin m n} →
                η-exp j hyp a Elim/Var ρ ≡
                  η-exp (j Kind′/Var ρ) (⌊⌋≡-/Var hyp) (a Elim/Var ρ)
@@ -260,6 +280,7 @@ module TrackSimpleKindsEtaExp where
 private module TK = TrackSimpleKindsEtaExp
 
 -- Kind-driven untyped η-expansion.
+
 η-exp : ∀ {n} → Kind Elim n → Elim n → Elim n
 η-exp k a = TK.η-exp k (⌊⌋-⌊⌋≡ k) a
 
@@ -268,6 +289,7 @@ module _ where
   open ≡-Reasoning
 
   -- η-expansion commutes with renaming.
+
   η-exp-/Var : ∀ {m n} k a {ρ : Sub Fin m n} →
                η-exp k a Elim/Var ρ ≡ η-exp (k Kind′/Var ρ) (a Elim/Var ρ)
   η-exp-/Var k a {ρ} = begin
@@ -280,12 +302,14 @@ module _ where
     ∎
 
   -- A corollary: η-expansion commutes with weakening.
+
   η-exp-weaken : ∀ {n} k (a : Elim n) →
                  weakenElim (η-exp k a) ≡ η-exp (weakenKind′ k) (weakenElim a)
   η-exp-weaken k a = η-exp-/Var k a
 
   -- η-expansion of neutrals commutes with hereditary substitutions
   -- that miss the head of the neutral.
+
   η-exp-ne-Miss-/⟨⟩ : ∀ {l m n} x y as k {σ : SVSub m n} → Miss σ x y →
                       η-exp k (var x ∙ as) /⟨ l ⟩ σ  ≡
                         η-exp (k Kind/⟨ l ⟩ σ) (var y ∙ (as //⟨ l ⟩ σ))
@@ -340,7 +364,8 @@ nfCtxExt : ∀ {m n} → Ctx m → TermCtx.CtxExt m n → CtxExt m n
 nfCtxExt Γ []      = []
 nfCtxExt Γ (a ∷ Δ) = let Δ′ = nfCtxExt Γ Δ in nfAsc (Δ′ ++ Γ) a ∷ Δ′
 
--- Simple kinds are stable w.r.t. normalization.
+-- Shapes are stable w.r.t. normalization.
+
 ⌊⌋-nf : ∀ {n} {Γ : Ctx n} k → ⌊ nfKind Γ k ⌋ ≡ ⌊ k ⌋
 ⌊⌋-nf (a ⋯ b) = refl
 ⌊⌋-nf (Π j k) = cong₂ _⇒_ (⌊⌋-nf j) (⌊⌋-nf k)
@@ -359,6 +384,7 @@ open ContextConversions using (⌊_⌋Ctx)
 ⌊⌋Ctx-nf (a ∷ Γ) = cong₂ _∷_ (⌊⌋Asc-nf a) (⌊⌋Ctx-nf Γ)
 
 -- Normalization commutes with context concatenation.
+
 nf-++ : ∀ {m n} (Δ : TermCtx.CtxExt m n) Γ →
         nfCtx (Δ ++ Γ) ≡ nfCtxExt (nfCtx Γ) Δ ++ nfCtx Γ
 nf-++ []      Γ = refl
@@ -405,6 +431,7 @@ module RenamingCommutesNorm where
 
   -- Extract a "consistency" proof from a well-formed renaming, i.e. a
   -- proof that `Δ(ρ(x)) = Γ(x)ρ'.
+
   lookup-≡ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} → Δ ⊢/Var ρ ∈ Γ → ∀ x →
              lookup Δ (Vec.lookup ρ x) ≡ lookup Γ x ElimAsc/Var ρ
   lookup-≡ {_} {_} {Δ} {Γ} {ρ} ρ∈Γ x
@@ -414,6 +441,7 @@ module RenamingCommutesNorm where
   mutual
 
     -- A helper.
+
     ∈-↑′ : ∀ {m n Δ Γ} {ρ : Sub Fin m n} k → Δ ⊢/Var ρ ∈ Γ →
            kd (nfKind Δ (k Kind/Var ρ)) ∷ Δ ⊢/Var ρ V.↑ ∈ (nfAsc Γ (kd k) ∷ Γ)
     ∈-↑′ k ρ∈Γ =
@@ -449,6 +477,7 @@ module RenamingCommutesNorm where
       cong₂ Π (nfKind-/Var j ρ∈Γ) (nfKind-/Var k (∈-↑′ j ρ∈Γ))
 
   -- Normalization of ascriptions commutes with renaming.
+
   nfAsc-/Var : ∀ {m n Δ Γ} {ρ : Sub Fin m n} a → Δ ⊢/Var ρ ∈ Γ →
                nfAsc Γ a ElimAsc/Var ρ ≡ nfAsc Δ (a TermAsc/Var ρ)
   nfAsc-/Var (kd k) ρ∈Γ = cong kd (nfKind-/Var k ρ∈Γ)
@@ -495,6 +524,7 @@ module _ where
   nf-Miss (a ∷ Γ) (missP ↑) = (nf-Miss Γ missP) ↑
 
   -- Normalization commutes conversion from context to vector representation.
+
   nfCtx-toVec : ∀ {n} (Γ : TermCtx.Ctx n) →
                 toVec (nfCtx Γ) ≡ Vec.map (nfAsc (nfCtx Γ)) (TermCtx.toVec Γ)
   nfCtx-toVec []      = refl
@@ -513,6 +543,7 @@ module _ where
       ∎)
 
   -- Normalization commutes with context lookup.
+
   nfCtx-lookup : ∀ {n} (Γ : TermCtx.Ctx n) x →
                  lookup (nfCtx Γ) x ≡ nfAsc (nfCtx Γ) (TermCtx.lookup Γ x)
   nfCtx-lookup Γ x = begin
@@ -523,7 +554,8 @@ module _ where
       nfAsc (nfCtx Γ) (TermCtx.lookup Γ x)
     ∎
 
-  -- A corollary of the above.
+  -- A corollary of the above (specialized for type variable lookup).
+
   nfCtx-lookup-kd : ∀ {n k} x (Γ : TermCtx.Ctx n) → TermCtx.lookup Γ x ≡ kd k →
                     lookup (nfCtx Γ) x ≡ kd (nfKind (nfCtx Γ) k)
   nfCtx-lookup-kd x Γ Γ[x]≡kd-k with TermCtx.lookup Γ x | nfCtx-lookup Γ x

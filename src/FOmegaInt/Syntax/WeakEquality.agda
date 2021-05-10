@@ -30,7 +30,25 @@ open import FOmegaInt.Syntax.Normalization
 -- types in elimination form up to type/kind ascriptions in
 -- abstractions (lambdas).
 --
--- TODO: explain the point of weak equality.
+-- Certain commutation lemmas about hereditary substitution,
+-- η-expansion and normalization of raw types do not hold on the nose
+-- (i.e. up to α-equivalence) because type-directed η-expansion can
+-- change domain annotations in type operator abstractions.  Since
+-- untyped normalization involves some degree of η-expansion, the
+-- order in which these operations are performed can affect the domain
+-- annotations in the resulting raw type expressions.  This is not a
+-- problem semantically because the two type expressions are
+-- considered equal as types (by the type equality judgment).  But
+-- proving the relevant commutation lemmas directly w.r.t. to type
+-- equality is difficult because of the complexity of that judgment.
+-- Instead, we introduce a separate equivalence relation, called "weak
+-- equality", that is essentially α-equivalence modulo shape-equal
+-- domain annotations.  The problematic commutation lemmas then all
+-- hold weakly (i.e. up to weak equality, see the nf-/⟨⟩ lemma in the
+-- FOmegaInt.Kinding.Simple.Normalization for example).  Weak equality
+-- is much easier to work with and can be embedded into (canonical)
+-- type equivalence (see the FOmegaInt.Kinding.Canonical.WeakEquality
+-- module).
 
 open Syntax
 
@@ -130,7 +148,8 @@ data _≈?_ {n} : SVRes n → SVRes n → Set where
         a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⌜·⌝ b₁ ≈ a₂ ⌜·⌝ b₂
 ≈-⌜·⌝ a₁≈a₂ b₁≈b₂ = ≈-∙∙ a₁≈a₂ (≈-∷ b₁≈b₂ ≈-[])
 
--- Weakly equal kinds simplify equally.
+-- Weakly equal kinds have equal shapes.
+
 ≋-⌊⌋ : ∀ {n} {k₁ k₂ : Kind Elim n} → k₁ ≋ k₂ → ⌊ k₁ ⌋ ≡ ⌊ k₂ ⌋
 ≋-⌊⌋ (≋-Π j₁≋j₂ k₁≋k₂) = cong₂ _⇒_ (≋-⌊⌋ j₁≋j₂) (≋-⌊⌋ k₁≋k₂)
 ≋-⌊⌋ (≋-⋯ a₁≈a₂ b₁≈b₂) = refl
@@ -139,7 +158,7 @@ module _ where
   open SimpleCtx          using (kd; ⌊_⌋Asc)
   open ContextConversions using (⌊_⌋Ctx)
 
-  -- Weakly equal ascriptions and contexts simplify equally.
+  -- Weakly equal ascriptions and contexts have equal shapes.
 
   ≈Asc-⌊⌋ : ∀ {n} {a₁ a₂ : ElimAsc n} → a₁ ≈Asc a₂ → ⌊ a₁ ⌋Asc ≡ ⌊ a₂ ⌋Asc
   ≈Asc-⌊⌋ (≈-kd k₁≋k₂) = cong kd (≋-⌊⌋ k₁≋k₂)
@@ -585,18 +604,17 @@ module WeakEqEtaExpansion where
   open ≈-Reasoning
 
   -- NOTE. The definition of the function ≈-η-exp′ in this module is
-  -- structurally recursive in the *simple* kind parameter k, but
-  -- *not* in the kinds (j₁ j₂ : Kind Elim n) because we need to
-  -- weaken the domains j₁₁ and j₂₁ of the dependent kinds (j₁ = Π j₁₁
-  -- j₁₂) and (j₂ = Π j₂₁ j₂₂) in the arrow case.  The additional
-  -- premises ⌊ j₁ ⌋≡ k and ⌊ j₂ ⌋≡ k ensure that k is indeed the
-  -- simplification of the kinds j₁ and j₂.
+  -- structurally recursive in the *shape* parameter k, but *not* in
+  -- the kinds (j₁ j₂ : Kind Elim n) because we need to weaken the
+  -- domains j₁₁ and j₂₁ of the dependent kinds (j₁ = Π j₁₁ j₁₂) and
+  -- (j₂ = Π j₂₁ j₂₂) in the arrow case.  The additional premises ⌊ j₁
+  -- ⌋≡ k and ⌊ j₂ ⌋≡ k ensure that k is indeed the shape of the kinds
+  -- j₁ and j₂.
 
   -- Weak equality is a congruence w.r.t. untyped η-expansion.
   --
-  -- NOTE. We do *not* require the kinds j₁ and j₂ to be weakly equal,
-  -- instead, we only require them to simplify equally, i.e. ⌊ j₁ ⌋ ≡
-  -- k ≡ ⌊ j₂ ⌋ (which is an even weaker requirement).
+  -- NOTE. We do *not* require the kinds j₁ and j₂ to be (weakly)
+  -- equal, we only require them to have the same shape.
 
   ≈-η-exp′ : ∀ {n k j₁ j₂} {a₁ a₂ : Elim n}
              (hyp₁ : ⌊ j₁ ⌋≡ k) (hyp₂ : ⌊ j₂ ⌋≡ k) → a₁ ≈ a₂ →
@@ -640,6 +658,7 @@ module WeakEqNormalization where
   open ContextConversions
 
   -- A helper lemma.
+
   ⌊⌋≡⌊⌋-lookup : ∀ {n} (Γ₁ Γ₂ : Ctx n) x → ⌊ Γ₁ ⌋Ctx ≡ ⌊ Γ₂ ⌋Ctx →
                  ⌊ lookup Γ₁ x ⌋Asc ≡ ⌊ lookup Γ₂ x ⌋Asc
   ⌊⌋≡⌊⌋-lookup Γ₁ Γ₂ x ⌊Γ₁⌋≡⌊Γ₂⌋ = begin
@@ -653,7 +672,7 @@ module WeakEqNormalization where
     ∎
     where open ≡-Reasoning
 
-  -- If two contexts simplify equally, then kinds, types and terms
+  -- If two contexts have the same shape, then kinds, types and terms
   -- normalize weakly equally in these contexts.
 
   mutual

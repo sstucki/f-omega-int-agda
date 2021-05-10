@@ -27,10 +27,10 @@ open TypedNarrowing
 
 
 ----------------------------------------------------------------------
--- Injection of simple kinds into kinds.
+-- Injection of shapes into kinds.
 
--- For every simple kind `k' there is a kind `⌈ k ⌉' that simplifies
--- back to `k', i.e. `⌈_⌉' is a right inverse for `⌊_⌋'.
+-- For every shape `k' there is a kind `⌈ k ⌉' that erases/simplifies
+-- back to `k', i.e. `⌈_⌉' is a right inverse of kind erasure `⌊_⌋'.
 --
 -- NOTE. The definition of the injection `⌈_⌉' is rather intuitive,
 -- but it is neither the only right inverse of `⌊_⌋', nor even the
@@ -59,15 +59,17 @@ open TypedNarrowing
 -- Encodings and properties of extremal kinds.
 
 -- The empty interval (note the use of absurd bounds).
+
 ∅ : ∀ {n} → Kind Term n
 ∅ = ⊤ ⋯ ⊥
 
 -- Well-formedness of the empty interval kind.
+
 ∅-kd : ∀ {n} {Γ : Ctx n} → Γ ctx → Γ ⊢ ∅ kd
 ∅-kd Γ-ctx = kd-⋯ (∈-⊤-f Γ-ctx) (∈-⊥-f Γ-ctx)
 
--- Right-inverses of kind simplification: for every simple kind `k'
--- there are two canonical kinds `⌈ k ⌉↓' and `⌈ k ⌉↑', such that
+-- Right-inverses of kind simplification: for every shape `k' there
+-- are two canonical kinds `⌈ k ⌉↓' and `⌈ k ⌉↑', such that
 --
 --  1. `⌈_⌉↓' and `⌈_⌉↑' are right-inverses for `⌊_⌋', i.e. `⌈ k ⌉↓'
 --     and `⌈ k ⌉↑' both simplify to `k',
@@ -80,6 +82,7 @@ open TypedNarrowing
 -- a "kind space" `S(k, Γ) = { j | ⌊ j ⌋ ≡ k, Γ ⊢ j kd }' ordered by
 -- subkinding, and interpret `⌈ k ⌉↓' and `⌈ k ⌉↑' as the extrema of
 -- the space `S(k, Γ)' associated with `k'.
+
 mutual
 
   ⌈_⌉↓ : ∀ {n} → SKind → Kind Term n
@@ -123,7 +126,7 @@ mutual
 mutual
 
   -- Proof of point 2 above: `⌈ k ⌉↓' and `⌈ k ⌉↑' are the least
-  -- resp. greatest (well-formed) kinds that simplify to `k'.
+  -- resp. greatest (well-formed) kinds that have shape `k'.
 
   ⌈⌉↑-maximum : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k <∷ ⌈ ⌊ k ⌋ ⌉↑
   ⌈⌉↑-maximum (kd-⋯ a∈* b∈*)       = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ b∈*)
@@ -140,25 +143,29 @@ mutual
 -- Some corollaries.
 
 -- Minima are subkinds of maxima.
+
 ⌈⌉↓<∷⌈⌉↑ : ∀ {n} {Γ : Ctx n} k → Γ ctx → Γ ⊢ ⌈ k ⌉↓ <∷ ⌈ k ⌉↑
 ⌈⌉↓<∷⌈⌉↑ k Γ-ctx =
   subst (_ ⊢ ⌈ k ⌉↓ <∷_) (cong ⌈_⌉↑ (⌊⌋∘⌈⌉↓-id k))
         (⌈⌉↑-maximum (⌈⌉↓-kd k Γ-ctx))
 
--- Minima are subkinds of the "intuitively" injected simple kinds.
+-- Minima are subkinds of the "intuitively" injected shapes.
+
 ⌈⌉↓<∷⌈⌉ : ∀ {n} {Γ : Ctx n} k → Γ ctx → Γ ⊢ ⌈ k ⌉↓ <∷ ⌈ k ⌉
 ⌈⌉↓<∷⌈⌉ k Γ-ctx =
   subst (_ ⊢_<∷ ⌈ k ⌉) (cong ⌈_⌉↓ (⌊⌋∘⌈⌉-id k))
         (⌈⌉↓-minimum (⌈⌉-kd k Γ-ctx))
 
--- Maxima are superkinds of the "intuitively" injected simple kinds.
+-- Maxima are superkinds of the "intuitively" injected shapes.
+
 ⌈⌉<∷⌈⌉↑ : ∀ {n} {Γ : Ctx n} k → Γ ctx → Γ ⊢ ⌈ k ⌉ <∷ ⌈ k ⌉↑
 ⌈⌉<∷⌈⌉↑ k Γ-ctx =
   subst (_ ⊢ ⌈ k ⌉ <∷_) (cong ⌈_⌉↑ (⌊⌋∘⌈⌉-id k))
         (⌈⌉↑-maximum (⌈⌉-kd k Γ-ctx))
 
 -- Every well-kinded type inhabits the maximum kind associated with
--- its simple kind.
+-- its shape.
+
 ∈-⇑-⌈⌉↑ : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢Tp a ∈ k → Γ ⊢Tp a ∈ ⌈ ⌊ k ⌋ ⌉↑
 ∈-⇑-⌈⌉↑ a∈k = ∈-⇑ a∈k (⌈⌉↑-maximum (Tp∈-valid a∈k))
 
@@ -166,7 +173,7 @@ mutual
 ----------------------------------------------------------------------
 -- Encodings and properties of higher-order extrema
 
--- Higher-order extremal types, indexed by simple kinds.
+-- Higher-order extremal types, indexed by shapes.
 --
 -- NOTE. We will define a variant of the higher-order extrema indexed
 -- by possibly dependent kinds below.
@@ -300,11 +307,13 @@ mutual
 ⊤′⟨ Π j k ⟩ = Λ j ⊤′⟨ k ⟩
 
 -- A higher-order variant of *.
+
 *⟨_⟩ : ∀ {n} → Kind Term n → Kind Term n
 *⟨ a ⋯ b ⟩ = *
 *⟨ Π j k ⟩ = Π j *⟨ k ⟩
 
 -- Substitution commutes with ⊥′⟨_⟩, ⊤′⟨_⟩ and *⟨_⟩.
+
 module EncSubstLemmas {T} (l : Lift T Term) where
   open SubstApp l
   open Lift l hiding (var)
@@ -326,6 +335,7 @@ open EncSubstLemmas (TermSubst.varLift  termSubst) public
   renaming (⊥′⟨⟩-/ to ⊥′⟨⟩-/Var; ⊤′⟨⟩-/ to ⊤′⟨⟩-/Var; *⟨⟩-/ to *⟨⟩-/Var)
 
 -- Well-formedness of higher-order star kinds.
+
 kd-*⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ *⟨ k ⟩ kd
 kd-*⟨⟩ (kd-⋯ a∈* b∈*)   = *-kd (Tp∈-ctx a∈*)
 kd-*⟨⟩ (kd-Π j-kd k-kd) = kd-Π j-kd (kd-*⟨⟩ k-kd)
@@ -341,6 +351,7 @@ kd-*⟨⟩ (kd-Π j-kd k-kd) = kd-Π j-kd (kd-*⟨⟩ k-kd)
 ∈-⊤′⟨⟩ (kd-Π j-kd k-kd) = ∈-Π-i j-kd (∈-⊤′⟨⟩ k-kd)
 
 -- A helper: any well-formed kind k is a subkind of *⟨ k ⟩.
+
 *⟨⟩-maximum : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k <∷ *⟨ k ⟩
 *⟨⟩-maximum (kd-⋯ a∈* b∈*)   = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ b∈*)
 *⟨⟩-maximum (kd-Π j-kd k-kd) =
@@ -401,11 +412,13 @@ kd-*⟨⟩ (kd-Π j-kd k-kd) = kd-Π j-kd (kd-*⟨⟩ k-kd)
 infix 6 _⋯⟨_⟩_
 
 -- Higher-order interval kinds.
+
 _⋯⟨_⟩_ : ∀ {n} → Term n → Kind Term n → Term n → Kind Term n
 a ⋯⟨ c ⋯ d ⟩ b = a ⋯ b
 a ⋯⟨ Π j k ⟩ b = Π j (weaken a · var zero ⋯⟨ k ⟩ weaken b · var zero)
 
--- Higher order interval kinds simplify as their kind-indices.
+-- Higher order interval kinds have the same shape as their
+-- kind-indices.
 
 ⌊⌋-⋯⟨⟩ : ∀ {n} {a b : Term n} k → ⌊ a ⋯⟨ k ⟩ b ⌋ ≡ ⌊ k ⌋
 ⌊⌋-⋯⟨⟩ (a ⋯ b) = refl
@@ -418,6 +431,7 @@ a ⋯⟨ Π j k ⟩ b = Π j (weaken a · var zero ⋯⟨ k ⟩ weaken b · var 
 ⋯⟨⟩-idempotent (Π j k) = cong (Π j) (⋯⟨⟩-idempotent k)
 
 -- Well-formedness of higher-order interval kinds.
+
 kd-⋯⟨⟩ : ∀ {n} {Γ : Ctx n} {a b k} →
          Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → Γ ⊢ a ⋯⟨ k ⟩ b kd
 kd-⋯⟨⟩ a∈k   b∈k   with Tp∈-valid a∈k
@@ -437,14 +451,15 @@ kd-⋯⟨⟩ a∈Πjk b∈Πjk | kd-Π j-kd k-kd =
 -- well-formed, but clearly `⊥ , ⊤ ∉ ø'.
 --
 -- However, as the following lemma illustrates, we can invert some
--- judgments about higher-order intervals with "sensible"
--- kind-indices, such as those resulting from simple kinds via ⌈_⌉.
--- Still, a proper inversion lemma would require more work, in
--- particular one has to contract the kinding derivations of the
--- η-expanded bounds `a' and `b' back into their non-expanded form.
+-- judgments about higher-order intervals with "sensible" kind
+-- indices, such as those resulting from shapes via ⌈_⌉.  Still, a
+-- proper inversion lemma would require more work, in particular one
+-- has to contract the kinding derivations of the η-expanded bounds
+-- `a' and `b' back into their non-expanded form.
 
 -- Higher-order interval kinds indexed by `⌈ k ⌉' for some `k' are
 -- subkinds of `⌈ k ⌉'.
+
 ⋯⟨⌈⌉⟩-<∷-⌈⌉ : ∀ {n} {Γ : Ctx n} {a b k} →
               Γ ⊢ a ⋯⟨ ⌈ k ⌉ ⟩ b kd → Γ ⊢ a ⋯⟨ ⌈ k ⌉ ⟩ b <∷ ⌈ k ⌉
 ⋯⟨⌈⌉⟩-<∷-⌈⌉ {k = ★    } (kd-⋯ a∈* b∈*) = <∷-⋯ (<:-⊥ a∈*) (<:-⊤ b∈*)
@@ -454,21 +469,24 @@ kd-⋯⟨⟩ a∈Πjk b∈Πjk | kd-Π j-kd k-kd =
 
 -- Two corollaries.
 
--- Types inhabiting a type interval indexed by a simple kind `k' also
+-- Types inhabiting a type interval indexed by a shape `k' also
 -- inhabit `⌈ k ⌉`.
+
 Tp∈-⋯⟨⌈⌉⟩-inv : ∀ {n} {Γ : Ctx n} {a b c k} →
                 Γ ⊢Tp a ∈ b ⋯⟨ ⌈ k ⌉ ⟩ c → Γ ⊢Tp a ∈ ⌈ k ⌉
 Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
   ∈-⇑ a∈b⋯⟨⌈k⌉⟩c (⋯⟨⌈⌉⟩-<∷-⌈⌉ (Tp∈-valid a∈b⋯⟨⌈k⌉⟩c))
 
--- Types related in a type interval indexed by a simple kind `k' are
--- also related in `⌈ k ⌉`.
+-- Types related in a type interval indexed by a shape `k' are also
+-- related in `⌈ k ⌉`.
+
 <:-⋯⟨⌈⌉⟩-inv : ∀ {n} {Γ : Ctx n} {a b c d k} →
                Γ ⊢ a <: b ∈ c ⋯⟨ ⌈ k ⌉ ⟩ d → Γ ⊢ a <: b ∈ ⌈ k ⌉
 <:-⋯⟨⌈⌉⟩-inv a<:b∈c⋯⟨⌈k⌉⟩d =
   <:-⇑ a<:b∈c⋯⟨⌈k⌉⟩d (⋯⟨⌈⌉⟩-<∷-⌈⌉ (<:-valid-kd a<:b∈c⋯⟨⌈k⌉⟩d))
 
 -- Subkinding of higher-order interval kinds.
+
 <∷-⋯⟨⟩ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ k} →
          Γ ⊢ a₂ <: a₁ ∈ k → Γ ⊢ b₁ <: b₂ ∈ k → Γ ⊢ a₁ ⋯⟨ k ⟩ b₁ <∷ a₂ ⋯⟨ k ⟩ b₂
 <∷-⋯⟨⟩ a₂<:a₁∈k   b₁<:b₂∈k   with <:-valid-kd a₂<:a₁∈k
@@ -494,17 +512,20 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
           (kd-⋯⟨⟩ a₁∈Πjk b₁∈Πjk)
 
 -- A corollary: equality of higher-order interval kinds.
+
 ≅-⋯⟨⟩ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ k} →
         Γ ⊢ a₁ ≃ a₂ ∈ k → Γ ⊢ b₁ ≃ b₂ ∈ k → Γ ⊢ a₁ ⋯⟨ k ⟩ b₁ ≅ a₂ ⋯⟨ k ⟩ b₂
 ≅-⋯⟨⟩ (<:-antisym a₁<:a₂∈k a₂<:a₁∈k) (<:-antisym b₁<:b₂∈k b₂<:b₁∈k) =
   <∷-antisym (<∷-⋯⟨⟩ a₂<:a₁∈k b₁<:b₂∈k) (<∷-⋯⟨⟩ a₁<:a₂∈k b₂<:b₁∈k)
 
 -- A variant of kind-driven η-expansion that only expands the head.
+
 η-exp : ∀ {n} → Kind Term n → Term n → Term n
 η-exp (_ ⋯ _) a = a
 η-exp (Π j k) a = Λ j (η-exp k (weaken a · var zero))
 
 -- Soundness of η-expansion.
+
 ≃-η-exp : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ≃ η-exp k a ∈ k
 ≃-η-exp {_} {_} {_} {b ⋯ c} a∈b⋯c = ≃-refl a∈b⋯c
 ≃-η-exp {_} {_} {a} {Π j k} a∈Πjk with Tp∈-valid a∈Πjk
@@ -517,6 +538,7 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
     a·z∈k = proj₂ (Tp∈-Λ-inv (Tp∈-η a∈Πjk))
 
 -- A singleton introduction rule for higher-order interval kinds.
+
 ∈-s⟨⟩-i : ∀ {n} {Γ : Ctx n} {a k} →
           Γ ⊢Tp a ∈ k → Γ ⊢Tp η-exp k a ∈ a ⋯⟨ k ⟩ a
 ∈-s⟨⟩-i a∈k   with Tp∈-valid a∈k
@@ -528,6 +550,7 @@ Tp∈-⋯⟨⌈⌉⟩-inv a∈b⋯⟨⌈k⌉⟩c =
 
 -- A corollary: we can kind (the η-expansion of) a type with explicit
 -- lower and uper bounds in the interval defined by these bounds.
+
 Tp∈-<:-⋯ : ∀ {n} {Γ : Ctx n} {a b c k} →
            Γ ⊢ b <: a ∈ k → Γ ⊢ a <: c ∈ k → Γ ⊢Tp η-exp k a ∈ b ⋯⟨ k ⟩ c
 Tp∈-<:-⋯ b<:a∈k a<:c∈k =
@@ -581,6 +604,7 @@ Tp∈-<:-⋯ b<:a∈k a<:c∈k =
 
 -- An interval introduction rule for subtypes inhabiting higher-order
 -- interval kinds.
+
 <:-⋯⟨⟩-i : ∀ {n} {Γ : Ctx n} {a b k} →
            Γ ⊢ a <: b ∈ k → Γ ⊢ η-exp k a <: η-exp k b ∈ a ⋯⟨ k ⟩ b
 <:-⋯⟨⟩-i a<:b∈k   with <:-valid-kd a<:b∈k
@@ -600,11 +624,13 @@ Tp∈-<:-⋯ b<:a∈k a<:c∈k =
           (∈-⇑ (∈-s⟨⟩-i b∈Πjk) (<∷-⋯⟨⟩ a<:b∈Πjk (<:-refl b∈Πjk)))
 
 -- Any interval indexed by *⟨ k ⟩ can be re-indexed by k
+
 *⟨⟩-⋯⟨⟩ : ∀ {n} {a b : Term n} k → a ⋯⟨ *⟨ k ⟩ ⟩ b ≡ a ⋯⟨ k ⟩ b
 *⟨⟩-⋯⟨⟩ (a ⋯ b) = refl
 *⟨⟩-⋯⟨⟩ (Π j k) = cong (Π j) (*⟨⟩-⋯⟨⟩ k)
 
 -- *⟨ k ⟩ is equal to the HO interval bounded by ⊥′⟨ k ⟩ and ⊤′⟨ k ⟩.
+
 *⟨⟩-⊥⟨⟩⋯⟨⟩⊤⟨⟩ : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd →
                 Γ ⊢ *⟨ k ⟩ ≅ ⊥′⟨ k ⟩ ⋯⟨ k ⟩ ⊤′⟨ k ⟩
 *⟨⟩-⊥⟨⟩⋯⟨⟩⊤⟨⟩         (kd-⋯ a∈* b∈*)           = ≅-refl (*-kd (Tp∈-ctx a∈*))
@@ -639,30 +665,36 @@ Tp∈-<:-⋯ b<:a∈k a<:c∈k =
 -- operators
 
 -- Bounded operator kind.
+
 Π′ : ∀ {n} → Term n → Term n → Kind Term n → Kind Term (suc n) → Kind Term n
 Π′ a b j k = Π (a ⋯⟨ j ⟩ b) k
 
 -- Bounded universal quantifiers.
+
 ∀′ : ∀ {n} → Term n → Term n → Kind Term n → Term (suc n) → Term n
 ∀′ a b k c = Π (a ⋯⟨ k ⟩ b) c
 
 -- Bounded type abstraction.
+
 Λ′ : ∀ {n} → Term n → Term n → Kind Term n → Term (suc n) → Term n
 Λ′ a b k c = Λ (a ⋯⟨ k ⟩ b) c
 
 -- A formation rule for bounded operator kinds.
+
 ∈-Π′-f : ∀ {n} {Γ : Ctx n} {a b j k} →
          Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ j → kd (a ⋯⟨ j ⟩ b) ∷ Γ ⊢ k kd →
          Γ ⊢ Π′ a b j k kd
 ∈-Π′-f a∈j b∈j k-kd = kd-Π (kd-⋯⟨⟩ a∈j b∈j) k-kd
 
 -- An introduction rule for bounded universal quantifiers.
+
 ∈-Π′-i : ∀ {n} {Γ : Ctx n} {a b j c k} →
          Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ j → kd (a ⋯⟨ j ⟩ b) ∷ Γ ⊢Tp c ∈ k →
          Γ ⊢Tp Λ′ a b j c ∈ Π′ a b j k
 ∈-Π′-i a∈j b∈j c∈k = ∈-Π-i (kd-⋯⟨⟩ a∈j b∈j) c∈k
 
 -- An elimination rule for bounded universal quantifiers.
+
 ∈-Π′-e : ∀ {n} {Γ : Ctx n} {a b c j k d} →
          Γ ⊢Tp a ∈ Π′ b c j k → Γ ⊢ b <: d ∈ j → Γ ⊢ d <: c ∈ j →
          Γ ⊢Tp a · η-exp j d ∈ k Kind[ η-exp j d ]
@@ -671,18 +703,21 @@ Tp∈-<:-⋯ b<:a∈k a<:c∈k =
   in ∈-Π-e a∈Πbcjk (Tp∈-<:-⋯ b<:d∈j d<:c∈j)
 
 -- A formation rule for bounded universal quantifiers.
+
 ∈-∀′-f : ∀ {n} {Γ : Ctx n} {a b k c} →
          Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → kd (a ⋯⟨ k ⟩ b) ∷ Γ ⊢Tp c ∈ * →
          Γ ⊢Tp ∀′ a b k c ∈ *
 ∈-∀′-f a∈k b∈k c∈* = ∈-∀-f (kd-⋯⟨⟩ a∈k b∈k) c∈*
 
 -- An introduction rule for bounded universal quantifiers.
+
 ∈-∀′-i : ∀ {n} {Γ : Ctx n} {a b k c d} →
          Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ k → kd (a ⋯⟨ k ⟩ b) ∷ Γ ⊢Tm c ∈ d →
          Γ ⊢Tm Λ′ a b k c ∈ ∀′ a b k d
 ∈-∀′-i a∈k b∈k c∈d = ∈-∀-i (kd-⋯⟨⟩ a∈k b∈k) c∈d
 
 -- An elimination rule for bounded universal quantifiers.
+
 ∈-∀′-e : ∀ {n} {Γ : Ctx n} {a b c k d e} →
          Γ ⊢Tm a ∈ ∀′ b c k d → Γ ⊢ b <: e ∈ k → Γ ⊢ e <: c ∈ k →
          Γ ⊢Tm a ⊡ η-exp k e ∈ d [ η-exp k e ]
@@ -699,10 +734,12 @@ Tp∈-<:-⋯ b<:a∈k a<:c∈k =
 -- 2000.
 
 -- An encoding of Stone and Harper's singleton kinds.
+
 S : ∀ {n} → Term n → Kind Term n
 S a = a ⋯ a
 
 -- Singleton kind formation.
+
 kd-s : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ S a kd
 kd-s a∈* = kd-⋯ a∈* a∈*
 
@@ -711,6 +748,7 @@ kd-s a∈* = kd-⋯ a∈* a∈*
 -- Singleton introduction for equality.
 --
 -- NOTE. This is just a weaker version of `≃-s-i'.
+
 ≃-s-i′ : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ a ≃ b ∈ S a
 ≃-s-i′ a≃b∈* = ≃-s-i a≃b∈*
 
@@ -729,6 +767,7 @@ kd-s a∈* = kd-⋯ a∈* a∈*
 -- Equality of singleton kinds.
 --
 -- NOTE. This is just a weaker version of `≅-⋯'.
+
 ≅-s : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ S a ≅ S b
 ≅-s a≃b∈* = ≅-⋯ a≃b∈* a≃b∈*
 
@@ -740,18 +779,22 @@ kd-s a∈* = kd-⋯ a∈* a∈*
 -- Quest, JFP 1(4), Cambridge University Press, 1991.
 
 -- An encoding of Cardelli and Longo's power kinds.
+
 P : ∀ {n} → Term n → Kind Term n
 P a = ⊥ ⋯ a
 
 -- Power kind formation.
+
 kd-p : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢ P a kd
 kd-p a∈* = kd-⋯ (∈-⊥-f (Tp∈-ctx a∈*)) a∈*
 
 -- Power kind introduction.
+
 ∈-p-i : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢Tp a ∈ * → Γ ⊢Tp a ∈ P a
 ∈-p-i a∈* = ∈-⇑ (∈-s-i a∈*) (<∷-⋯ (<:-⊥ a∈*) (<:-refl a∈*))
 
 -- Subkinding of power kinds.
+
 <∷-p : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢ P a <∷ P b
 <∷-p a<:b∈* = <∷-⋯ (<:-⊥ (∈-⊥-f (<:-ctx a<:b∈*))) a<:b∈*
 
