@@ -320,7 +320,7 @@ mutual
   nf Γ (Λ k a) = let k′ = nfKind Γ k in Λ∙ k′ (nf (kd k′ ∷ Γ) a)
   nf Γ (ƛ a b) = ƛ∙ ⌜ a ⌝ ⌜ b ⌝                   -- ! ƛ a b not a type
   nf Γ (a · b) = nf Γ a ↓⌜·⌝ nf Γ b
-  nf Γ (a ⊡ b) = ⌜ a ⌝ ⊡ ⌜ b ⌝ ∙ []               -- ! a ⊡ b not a type
+  nf Γ (a ⊡ b) = ⌜ a ⌝ ⊡∙ ⌜ b ⌝                   -- ! a ⊡ b not a type
 
   nfKind : ∀ {n} → Ctx n → Kind Term n → Kind Elim n
   nfKind Γ (a ⋯ b) = nf Γ a ⋯ nf Γ b
@@ -440,8 +440,7 @@ module RenamingCommutesNorm where
       ≡⟨ cong₂ (_↓⌜·⌝_) (nf-/Var a ρ∈Γ) (nf-/Var b ρ∈Γ) ⟩
         nf Δ (a · b /Var ρ)
       ∎
-    nf-/Var (a ⊡ b) ρ∈Γ =
-      cong₂ (λ a b → a ⊡ b ∙ []) (sym (⌜⌝-/Var a)) (sym (⌜⌝-/Var b))
+    nf-/Var (a ⊡ b) ρ∈Γ = cong₂ _⊡∙_ (sym (⌜⌝-/Var a)) (sym (⌜⌝-/Var b))
 
     nfKind-/Var : ∀ {m n Δ Γ} {ρ : Sub Fin m n} k → Δ ⊢/Var ρ ∈ Γ →
                   nfKind Γ k Kind′/Var ρ ≡ nfKind Δ (k Kind/Var ρ)

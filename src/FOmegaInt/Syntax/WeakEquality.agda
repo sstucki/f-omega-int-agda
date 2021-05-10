@@ -107,7 +107,7 @@ data _≈?_ {n} : SVRes n → SVRes n → Set where
 ≈-λ∙ a₁≈a₂ = ≈-∙ (≈-λ a₁≈a₂) ≈-[]
 
 ≈-⊡∙ : ∀ {n} {a₁ a₂ : Elim n} {b₁ b₂} →
-       a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⊡ b₁ ∙ [] ≈ a₂ ⊡ b₂ ∙ []
+       a₁ ≈ a₂ → b₁ ≈ b₂ → a₁ ⊡∙ b₁ ≈ a₂ ⊡∙ b₂
 ≈-⊡∙ a₁≈a₂ b₁≈b₂ = ≈-∙ (≈-⊡ a₁≈a₂ b₁≈b₂) ≈-[]
 
 

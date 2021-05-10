@@ -42,12 +42,19 @@ open P.≡-Reasoning
 -- structure of kinds (e.g. kind simplification and related
 -- properties).
 --
--- NOTE 2.  We use de Brujin indexing to represent variables in raw
--- terms.  To this end, the datatype Term is indexed by the number of
--- free variables its inhabitants may contain, i.e. given a raw term
--- (a : Term n), the set of "names" that may appear in a is { 0, 1,
--- ..., n-1 }.  Binders extend this set by the fresh name they
--- introduce.  This ensures that raw terms are intrinsically
+-- NOTE 2.  We use well-scoped de Bruijn indexing to represent term
+-- and type variables in raw terms/types.  The datatype `Term' is
+-- indexed by the number of free variables its inhabitants may
+-- contain, i.e. given a raw term
+--
+--    a : Term n
+--
+-- the set of "names" that may appear in `a' is
+--
+--   { 0, 1, ..., n-1 }.
+--
+-- Binders extend this set by increasing n by one for each fresh name
+-- they introduce.  This ensures that raw terms are intrinsically
 -- well-scoped.  This representation was adapted from previous Agda
 -- formalizations of typed lambda calculi by Danielsson and others [1,
 -- 2] and comes with some support in the Agda standard library.  See
@@ -59,14 +66,15 @@ open P.≡-Reasoning
 --
 --  [2] N. A. Danielsson, "Operational Semantics Using the Partiality
 --      Monad", Proc. ICFP 2012.
---
+
 module Syntax where
 
-  infixl 9 _·_ _⊡_
+  infixl 9 _·_ _⊡_ _⊡∙_
   infixr 7 _⇒_ _⇒∙_
   infix  6 _⋯_
 
   -- Raw, T-dependent kinds with up to n free variables.
+
   data Kind (T : ℕ → Set) (n : ℕ) : Set where
     _⋯_ : (a b : T n)                         → Kind T n  -- interval
     Π   : (j : Kind T n) (k : Kind T (suc n)) → Kind T n  -- dependent arrow
@@ -87,6 +95,7 @@ module Syntax where
   -- semantics, this dependency can be avoided.  See
   -- FOmegaInt.Typing.Preservation for a proof of subject reduction
   -- for typing using the usual CBV semantics.
+
   data Term (n : ℕ) : Set where
     var : (x : Fin n)                          → Term n  -- variable
     ⊥   :                                        Term n  -- bottom (minimum)
@@ -99,18 +108,21 @@ module Syntax where
     _·_ : (a b : Term n)                       → Term n  -- term application
 
   -- A shorthand for the kind of proper types.
+
   * : ∀ {n} → Kind Term n
   * = ⊥ ⋯ ⊤
 
   infixl 9 _∙_
 
-  -- An alternative representation of raw terms where the arguments of
-  -- consecutive applications are grouped together into sequences of
-  -- arguments called "spines".  This representation is better suited
-  -- for the definition of "hereditary substitution" (see
-  -- Syntax.HereditarySubstitution) and canonical kinding (see
-  -- Kinding.Canonical).  The two representations are isomorphic (as
-  -- witnessed by ⌜⌝∘⌞⌟-id and ⌞⌟∘⌜⌝-id below).
+  -- Raw terms and types in spine form.
+  --
+  -- Spine form is an alternative representation of raw terms where
+  -- the arguments of consecutive applications are grouped together
+  -- into sequences of arguments called "spines".  This representation
+  -- is better suited for the definition of "hereditary substitution"
+  -- (see Syntax.HereditarySubstitution) and canonical kinding (see
+  -- Kinding.Canonical).  The two representations are isomorphic, as
+  -- witnessed by ⌜⌝∘⌞⌟-id and ⌞⌟∘⌜⌝-id below.
   --
   -- NOTE.  Below, we consider type instantiations (a ⊡ b) as heads
   -- rather than eliminations, despite the fact that, semantically,
@@ -119,14 +131,26 @@ module Syntax where
   -- _⊡_ as an uninterpreted binary operation.  This is justified by
   -- the fact that *well-kinded* hereditary substitution is only
   -- defined on (well-kinded) types, in which _⊡_ cannot appear.
+  --
+  -- One may wonder: why include constructors for term-level forms
+  -- such as ƛ or _⊡_ in this presentation of the syntax if it is only
+  -- used to define type-level hereditary substitution?  The answer is
+  -- that we often rely on the two presentations of the syntax being
+  -- isomorphic to switch between them without loss of generality.  If
+  -- we only included type formers, we could not prove this
+  -- isomorphism.  Including the term formers thus adds a bit of
+  -- overhead but simplifies things over all.
+
   mutual
 
     -- Eliminations are applications of (possibly empty) sequences of
     -- arguments to heads.
+
     data Elim (n : ℕ) : Set where
       _∙_ : (a : Head n) (as : Spine n) → Elim n  -- application
 
     -- Heads are those terms that are not eliminations.
+
     data Head (n : ℕ) : Set where
       var : (x : Fin n)                          → Head n  -- variable
       ⊥   :                                        Head n  -- bottom (minimum)
@@ -138,6 +162,7 @@ module Syntax where
       _⊡_ : (a b : Elim n)                       → Head n  -- type inst.
 
     -- Spines are (possibly empty) sequences of eliminations.
+
     Spine : ℕ → Set
     Spine n = List (Elim n)
 
@@ -160,10 +185,11 @@ module Syntax where
   a ⌜·⌝ b = a ∙∙ (b ∷ [])
 
   -- Application of term sequences to terms.
+
   _⌞∙⌟_ : ∀ {n} → Term n → List (Term n) → Term n
   a ⌞∙⌟ as = foldl _·_ a as
 
-  -- Some useful shorthands.
+  -- Shorthands for "unapplied" term/type constructors.
 
   var∙ : ∀ {n} → Fin n → Elim n
   var∙ x = var x ∙ []
@@ -185,6 +211,9 @@ module Syntax where
 
   ƛ∙ : ∀ {n} → Elim n → Elim (suc n) → Elim n
   ƛ∙ a b = ƛ a b ∙ []
+
+  _⊡∙_ : ∀ {n} → Elim n → Elim n → Elim n
+  a ⊡∙ b = (a ⊡ b) ∙ []
 
   ⌜*⌝ : ∀ {n} → Kind Elim n
   ⌜*⌝ = ⊥∙ ⋯ ⊤∙
@@ -228,19 +257,21 @@ module Syntax where
     ⌜ a ⇒ b ⌝ = ⌜ a ⌝ ⇒∙ ⌜ b ⌝
     ⌜ Λ k a ⌝ = Λ∙ ⌜ k ⌝Kd ⌜ a ⌝
     ⌜ ƛ a b ⌝ = ƛ∙ ⌜ a ⌝ ⌜ b ⌝
-    ⌜ a ⊡ b ⌝ = (⌜ a ⌝ ⊡ ⌜ b ⌝) ∙ []
+    ⌜ a ⊡ b ⌝ = ⌜ a ⌝ ⊡∙ ⌜ b ⌝
     ⌜ a · b ⌝ = ⌜ a ⌝ ⌜·⌝ ⌜ b ⌝
 
     ⌜_⌝Kd : ∀ {n} → Kind Term n → Kind Elim n
     ⌜ a ⋯ b ⌝Kd = ⌜ a ⌝ ⋯ ⌜ b ⌝
     ⌜ Π j k ⌝Kd = Π ⌜ j ⌝Kd ⌜ k ⌝Kd
 
-  -- Simple kinds.
+  -- Shapes (aka simple kinds).
+
   data SKind : Set where
     ★   : SKind
     _⇒_ : SKind → SKind → SKind
 
   -- Kind simplification.
+
   ⌊_⌋ : ∀ {T n} → Kind T n → SKind
   ⌊ a ⋯ b ⌋ = ★
   ⌊ Π j k ⌋ = ⌊ j ⌋ ⇒ ⌊ k ⌋
@@ -269,24 +300,29 @@ open Syntax
 -- Some properties of raw terms and kinds
 
 -- The kd constructor is injective.
+
 kd-inj : ∀ {T n} {j k : Kind T n} → kd j ≡ kd k → j ≡ k
 kd-inj refl = refl
 
 -- Extensionality of eliminations.
+
 ∙-ext : ∀ {n} (a : Elim n) → headOf a ∙ spineOf a ≡ a
 ∙-ext (a ∙ as) = refl
 
 -- The empty spine is a right unit of _∙∙_
+
 ∙∙-[] : ∀ {n} (a : Elim n) → a ∙∙ [] ≡ a
 ∙∙-[] (a ∙ as) = cong (a ∙_) (proj₂ identity as)
   where open Monoid (++-monoid (Elim _)) hiding (_∙_)
 
 -- Spine application commutes with spine concatenation.
+
 ∙∙-++ : ∀ {n} (a : Elim n) bs cs → a ∙∙ bs ∙∙ cs ≡ a ∙∙ (bs ++ cs)
 ∙∙-++ (a ∙ as) bs cs = cong (a ∙_) (assoc as bs cs)
   where open Monoid (++-monoid (Elim _)) hiding (_∙_)
 
 -- Spine application can be expressed as a left fold.
+
 ∙∙IsFold : ∀ {n} (a : Elim n) bs → a ∙∙ bs ≡ foldl _⌜·⌝_ a bs
 ∙∙IsFold (a ∙ as) []       = ∙∙-[] (a ∙ as)
 ∙∙IsFold (a ∙ as) (b ∷ bs) = begin
@@ -373,7 +409,7 @@ mutual
   ⌜⌝∘⌞⌟Hd-∙-[] (a ⇒ b) = cong₂ _⇒∙_ (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
   ⌜⌝∘⌞⌟Hd-∙-[] (Λ k a) = cong₂ Λ∙ (⌜⌝Kd∘⌞⌟Kd-id k) (⌜⌝∘⌞⌟-id a)
   ⌜⌝∘⌞⌟Hd-∙-[] (ƛ a b) = cong₂ ƛ∙ (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
-  ⌜⌝∘⌞⌟Hd-∙-[] (a ⊡ b) = cong₂ (λ a b → (a ⊡ b) ∙ []) (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
+  ⌜⌝∘⌞⌟Hd-∙-[] (a ⊡ b) = cong₂ _⊡∙_ (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
 
   ⌜⌝Kd∘⌞⌟Kd-id : ∀ {n} (k : Kind Elim n) → ⌜ ⌞ k ⌟Kd ⌝Kd ≡ k
   ⌜⌝Kd∘⌞⌟Kd-id (a ⋯ b) = cong₂ _⋯_ (⌜⌝∘⌞⌟-id a) (⌜⌝∘⌞⌟-id b)
@@ -392,14 +428,60 @@ mutual
 
 
 ----------------------------------------------------------------------
--- Substitutions in pre-terms
+-- Substitutions in raw terms
 --
--- TODO: explain why we define application in a generic way first (or
--- at least point to McBride's paper on "Type-Preserving Renaming and
--- Substitution").
+-- We use an intrinsically well-scoped variant of simultaneous
+-- substitutions inspired by McBride's technique for defining
+-- type-preserving substitutions [3].  These come with some support in
+-- the Agda standard library.  In particular, the standard library
+-- provides generic proofs for a plethora of standard untyped
+-- substitution lemmas (e.g. substitutions commute, identity
+-- substitutions vanish, etc.) which are easy but tedious to prove
+-- (see the Data.Fin.Substitution.Lemmas module).  By using this
+-- substitution framework, we get those lemmas for "free" (we still
+-- need to provide some basic lemmas to bootstrap everything).
+--
+-- To use the standard framework, we must follow the following four
+-- steps.
+--
+--  1. We define an application function `t / σ' of generic untyped
+--     substitutions `σ' to well-scoped untyped terms `t'.  Generic
+--     substitutions are defined over an abstract type `T', which will
+--     later represent variables (to encode renamings) or terms (to
+--     encode actual substitutions).  Hence the definition of
+--     application must be parametrized over some abstract operations
+--     on such substitutions (lifting, weakening, etc.) to be defined
+--     later.  Concrete instances of these operations are collected in
+--     the record `Lift' (see e.g. `SubstApp' module below).
+--
+--     Along with application, we define a few lemmas to be used in
+--     step 4.  (They express the fact that application of
+--     (multi-)substitutions is compositional w.r.t. the various
+--     syntactic forms.)
+--
+--  2. Application is instantiated with `T = Fin' to obtain
+--     well-scoped renamings, i.e. substitutions of variables in
+--     terms.  The standard library provides a predefined instance of
+--     `Lift Fin Term' to this end.
+--
+--  3. Using well-scoped renamings, an instance of `Lift Term Term' is
+--     defined, and application is instantiated to concrete
+--     substitutions of terms in terms.
+--
+--  4. Using the generic lemmas defined in step 1, many helpful
+--     derived substitution lemmas are instantiated.
+--     (E.g. "substitutions commute", "identity substitutions vanish",
+--     etc.)
+--
+-- Most of the work is done in step 1, while steps 2-3 consists mostly
+-- in calls to the substitution API of the Agda standard library.
+--
+--  [3] C. McBride, "Type-Preserving Renaming and Substitution"
+--      http://strictlypositive.org/ren-sub.pdf
 
 -- Application of generic substitutions lifted to type and kind
 -- ascriptions.
+
 module KdOrTpSubstApp {T T′ : ℕ → Set} (simple : Simple T)
                       (kdApp : Application (Kind T′) T)
                       (tpApp : Application T′ T) where
@@ -410,6 +492,7 @@ module KdOrTpSubstApp {T T′ : ℕ → Set} (simple : Simple T)
   infixl 8 _/_
 
   -- Apply a substitution to a kind or type ascription.
+
   _/_ : ∀ {m n} → KdOrTp T′ m → Sub T m n → KdOrTp T′ n
   (kd k) / σ = kd (k Kd/ σ)
   (tp a) / σ = tp (a Tp/ σ)
@@ -420,18 +503,21 @@ module KdOrTpSubstApp {T T′ : ℕ → Set} (simple : Simple T)
   -- be used for instantiating TermSubstLemmas).
 
   -- Substitutions in kind ascriptions are compositional.
+
   kd-/✶-↑✶ : ∀ k {m n j} (σs : Subs T m n) →
              (kd j) /✶ σs ↑✶ k ≡ kd (j Kd/✶ σs ↑✶ k)
   kd-/✶-↑✶ k ε        = refl
   kd-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (kd-/✶-↑✶ k σs) refl
 
   -- Substitutions in type ascriptions are compositional.
+
   tp-/✶-↑✶ : ∀ k {m n a} (σs : Subs T m n) →
              (tp a) /✶ σs ↑✶ k ≡ tp (a Tp/✶ σs ↑✶ k)
   tp-/✶-↑✶ k ε        = refl
   tp-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (tp-/✶-↑✶ k σs) refl
 
 -- Application of generic substitutions to terms
+
 module SubstApp {T : ℕ → Set} (l : Lift T Term) where
   open Lift l hiding (var)
 
@@ -440,6 +526,7 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
   mutual
 
     -- Apply a substitution to a raw term/type.
+
     _/_ : ∀ {m n} → Term m → Sub T m n → Term n
     var x   / σ = lift (Vec.lookup σ x)
     ⊥       / σ = ⊥
@@ -452,6 +539,7 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
     a ⊡ b   / σ = (a / σ) ⊡ (b / σ)
 
     -- Apply a substitution to a kind.
+
     _Kind/_ : ∀ {m n} → Kind Term m → Sub T m n → Kind Term n
     (a ⋯ b) Kind/ σ = (a / σ) ⋯ (b / σ)
     Π j k   Kind/ σ = Π (j Kind/ σ) (k Kind/ σ ↑)
@@ -464,6 +552,7 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
     a ∙ as Elim/ σ = (a Head/ σ) ∙∙ (as // σ)
 
     -- Apply a substitution to a head.
+
     _Head/_ : ∀ {m n} → Head m → Sub T m n → Elim n
     var x   Head/ σ = ⌜ lift (Vec.lookup σ x) ⌝
     ⊥       Head/ σ = ⊥∙
@@ -472,9 +561,10 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
     (a ⇒ b) Head/ σ = (a Elim/ σ) ⇒∙ (b Elim/ σ)
     Λ k a   Head/ σ = Λ∙ (k Kind′/ σ) (a Elim/ σ ↑)
     ƛ a b   Head/ σ = ƛ∙ (a Elim/ σ) (b Elim/ σ ↑)
-    a ⊡ b   Head/ σ = (a Elim/ σ) ⊡ (b Elim/ σ) ∙ []
+    a ⊡ b   Head/ σ = (a Elim/ σ) ⊡∙ (b Elim/ σ)
 
     -- Apply a substitution to a spine.
+
     _//_ : ∀ {m n} → Spine m → Sub T m n → Spine n
     []       // σ = []
     (a ∷ as) // σ = a Elim/ σ ∷ as // σ
@@ -496,72 +586,72 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
   open Application appTerm hiding (_/_)
   open Application appKind using () renaming (_/✶_ to _Kind/✶_)
 
-  -- The bottom type is invariant under substitution.
+  -- The bottom and top types are invariant under substitution.
+
   ⊥-/✶-↑✶ : ∀ k {m n} (σs : Subs T m n) → ⊥ /✶ σs ↑✶ k ≡ ⊥
   ⊥-/✶-↑✶ k ε        = refl
   ⊥-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (⊥-/✶-↑✶ k σs) refl
 
-  -- The top type is invariant under substitution.
   ⊤-/✶-↑✶ : ∀ k {m n} (σs : Subs T m n) → ⊤ /✶ σs ↑✶ k ≡ ⊤
   ⊤-/✶-↑✶ k ε        = refl
   ⊤-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (⊤-/✶-↑✶ k σs) refl
 
-  -- Substitutions in dependent products are compositional.
+  -- Substitutions in the remaining term and type formers are
+  -- compositional.
+  
   Π-/✶-↑✶ : ∀ k {m n j a} (σs : Subs T m n) →
             (Π j a) /✶ σs ↑✶ k ≡ Π (j Kind/✶ σs ↑✶ k) (a /✶ σs ↑✶ suc k)
   Π-/✶-↑✶ k ε        = refl
   Π-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (Π-/✶-↑✶ k σs) refl
 
-  -- Substitutions in (non-dependent) arrow types are compositional.
   ⇒-/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
             (a ⇒ b) /✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) ⇒ (b /✶ σs ↑✶ k)
   ⇒-/✶-↑✶ k ε        = refl
   ⇒-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (⇒-/✶-↑✶ k σs) refl
 
-  -- Substitutions in type abstractions are compositional.
   Λ-/✶-↑✶ : ∀ k {m n j a} (σs : Subs T m n) →
             (Λ j a) /✶ σs ↑✶ k ≡ Λ (j Kind/✶ σs ↑✶ k) (a /✶ σs ↑✶ suc k)
   Λ-/✶-↑✶ k ε        = refl
   Λ-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (Λ-/✶-↑✶ k σs) refl
 
-  -- Substitutions in term abstractions are compositional.
   ƛ-/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
             (ƛ a b) /✶ σs ↑✶ k ≡ ƛ (a /✶ σs ↑✶ k) (b /✶ σs ↑✶ suc k)
   ƛ-/✶-↑✶ k ε        = refl
   ƛ-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (ƛ-/✶-↑✶ k σs) refl
 
-  -- Substitutions in term applications are compositional.
   ·-/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
             (a · b) /✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) · (b /✶ σs ↑✶ k)
   ·-/✶-↑✶ k ε        = refl
   ·-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (·-/✶-↑✶ k σs) refl
 
-  -- Substitutions in type instantiations are compositional.
   ⊡-/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
             (a ⊡ b) /✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) ⊡ (b /✶ σs ↑✶ k)
   ⊡-/✶-↑✶ k ε        = refl
   ⊡-/✶-↑✶ k (σ ◅ σs) = cong₂ _/_ (⊡-/✶-↑✶ k σs) refl
 
-  -- Substitutions in interval kinds are compositional.
+  -- Substitutions in the kind formers are compositional.
+
   Π-Kind/✶-↑✶ : ∀ k {m n j l} (σs : Subs T m n) →
             (Π j l) Kind/✶ σs ↑✶ k ≡
               Π (j Kind/✶ σs ↑✶ k) (l Kind/✶ σs ↑✶ (suc k))
   Π-Kind/✶-↑✶ k ε        = refl
   Π-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (Π-Kind/✶-↑✶ k σs) refl
 
-  -- Substitutions in type ascriptions are compositional.
   ⋯-Kind/✶-↑✶ : ∀ k {m n a b} (σs : Subs T m n) →
             (a ⋯ b) Kind/✶ σs ↑✶ k ≡ (a /✶ σs ↑✶ k) ⋯ (b /✶ σs ↑✶ k)
   ⋯-Kind/✶-↑✶ k ε        = refl
   ⋯-Kind/✶-↑✶ k (σ ◅ σs) = cong₂ _Kind/_ (⋯-Kind/✶-↑✶ k σs) refl
 
   -- Application of substitutions commutes with concatenation of spines.
+
   ++-// : ∀ {m n} (as bs : Spine m) {σ : Sub T m n} →
          (as ++ bs) // σ ≡ as // σ ++ bs // σ
   ++-// []       bs = refl
   ++-// (a ∷ as) bs = cong (a Elim/ _ ∷_) (++-// as bs)
 
-  -- Application of substitutions commutes application of spines.
+  -- Application of substitutions commutes application of spines and
+  -- eliminations.
+
   ∙∙-/ : ∀ {m n} a (as : Spine m) {σ : Sub T m n} →
          a ∙∙ as Elim/ σ ≡ (a Elim/ σ) ∙∙ (as // σ)
   ∙∙-/ (a ∙ as) bs = begin
@@ -572,8 +662,6 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
       (a Head/ _) ∙∙ (as // _) ∙∙ (bs // _)
     ∎
 
-  -- Application of substitutions commutes with application of
-  -- eliminations.
   ⌜·⌝-/ : ∀ {m n} (a b : Elim m) {σ : Sub T m n} →
           a ⌜·⌝ b Elim/ σ ≡ (a Elim/ σ) ⌜·⌝ (b Elim/ σ)
   ⌜·⌝-/ (a ∙ as) b {σ} = begin
@@ -602,7 +690,7 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
       ⌜ a / σ ⌝ ⌜·⌝ ⌜ b / σ ⌝               ≡⟨ cong₂ _⌜·⌝_ (⌜⌝-/ a) (⌜⌝-/ b) ⟩
       (⌜ a ⌝ Elim/ σ) ⌜·⌝ (⌜ b ⌝ Elim/ σ)   ≡⟨ sym (⌜·⌝-/ ⌜ a ⌝ ⌜ b ⌝) ⟩
       ⌜ a ⌝ ⌜·⌝ ⌜ b ⌝ Elim/ σ               ∎
-    ⌜⌝-/ (a ⊡ b) = cong₂ (λ a b → (a ⊡ b) ∙ []) (⌜⌝-/ a) (⌜⌝-/ b)
+    ⌜⌝-/ (a ⊡ b) = cong₂ _⊡∙_ (⌜⌝-/ a) (⌜⌝-/ b)
 
     ⌜⌝Kd-/ : ∀ {m n} k {σ : Sub T m n} → ⌜ k Kind/ σ ⌝Kd ≡ ⌜ k ⌝Kd Kind′/ σ
     ⌜⌝Kd-/ (a ⋯ b) = cong₂ _⋯_ (⌜⌝-/ a) (⌜⌝-/ b)
@@ -656,15 +744,18 @@ module SubstApp {T : ℕ → Set} (l : Lift T Term) where
   ⌊⌋-Kind′/ (Π j k) = cong₂ _⇒_ (⌊⌋-Kind′/ j) (⌊⌋-Kind′/ k)
 
   -- Application of substitutions to type and kind ascriptions.
+
   open KdOrTpSubstApp simple appKind  appTerm public using ()
     renaming (_/_ to _TermAsc/_)
   open KdOrTpSubstApp simple appKind′ appElim public using ()
     renaming (_/_ to _ElimAsc/_)
 
 -- Substitutions in terms and associated lemmas.
+
 module Substitution where
 
   -- Term substitutions.
+
   termSubst : TermSubst Term
   termSubst = record { var = var; app = SubstApp._/_ }
 
@@ -673,6 +764,7 @@ module Substitution where
   -- NOTE. The special treatment of heads here reflects the fact that
   -- the structure of heads is preserved by renamings but not by
   -- general term substitutions.
+
   module HeadRenamings where
     open Simple VarSubst.simple hiding (var)
     open SubstApp (TermSubst.varLift termSubst)
@@ -689,7 +781,7 @@ module Substitution where
     ƛ a b   Head/Var σ = ƛ (a Elim/ σ) (b Elim/ σ ↑)
     (a ⊡ b) Head/Var σ = (a Elim/ σ) ⊡ (b Elim/ σ)
 
-    -- A lemmas relating the above definition of application to the
+    -- A lemma relating the above definition of application to the
     -- previous ones.
 
     Head/Var-∙ : ∀ {m n} {σ : Sub Fin m n} a → (a Head/Var σ) ∙ [] ≡ a Head/ σ
@@ -721,6 +813,7 @@ module Substitution where
   -- Using these generic lemmas, we can instantiate the record
   -- Data.Fin.Substitution.Lemmas.TermLemmas below, which gives access
   -- to a number of useful (derived) lemmas about path substitutions.
+
   module Lemmas {T₁ T₂ : ℕ → Set}
                 {lift₁ : Lift T₁ Term} {lift₂ : Lift T₂ Term} where
     open SubstApp
@@ -878,6 +971,7 @@ module Substitution where
   -- Lemmas relating application of sequences of generic substitutions
   -- in generic kind or type ascriptions, provided substitutions on
   -- the underlying kinds or types are similarly related.
+
   record KdOrTpLemmas {T₁ T₂ T′ : ℕ → Set}
                       (lift₁ : Lift T₁ Term)
                       (lift₂ : Lift T₂ Term)
@@ -950,6 +1044,7 @@ module Substitution where
 
   -- By instantiating TermLemmas, we get access to a number of useful
   -- (derived) lemmas about path substitutions.
+
   termLemmas : TermLemmas Term
   termLemmas = record
     { termSubst = termSubst
@@ -1131,6 +1226,7 @@ module Substitution where
 
   -- Kinds are stable under substitutions of a variable for a fresh
   -- variable (up to α-equivalence).
+
   Kind-wk↑-sub-zero-vanishes : ∀ {n} (k : Kind Term (suc n)) →
                                (k Kind/Var V.wk V.↑) Kind[ var zero ] ≡ k
   Kind-wk↑-sub-zero-vanishes k = begin
@@ -1157,10 +1253,12 @@ module Substitution where
 -- Typing contexts containing kind and type ascriptions.
 
 -- Generic typing contexts over T-ascriptions and useful operations.
+
 record KdOrTpCtx (T : ℕ → Set) : Set₁ where
   open Context public hiding (Ctx; CtxExt)
 
   -- Contexts and context extensions.
+
   Ctx     = Context.Ctx     (KdOrTp T)
   CtxExt  = Context.CtxExt  (KdOrTp T)
 
@@ -1168,8 +1266,8 @@ record KdOrTpCtx (T : ℕ → Set) : Set₁ where
   -- extensions require some extra substitution machinery for
   -- T-ascriptions, all of which is provided by the following instance
   -- of TermLikeLemmas.
-  field
-    termLikeLemmas : TermLikeLemmas (KdOrTp T) Term
+
+  field termLikeLemmas : TermLikeLemmas (KdOrTp T) Term
   open TermLikeLemmas termLikeLemmas
     using (termApplication; weaken; termLemmas)
   open TermLemmas termLemmas using (simple)
@@ -1198,26 +1296,43 @@ module ElimCtx = KdOrTpCtx elimCtx
 
 -- Concrete typing contexts over simple kind ascriptions and useful
 -- operations.
+
 module SimpleCtx where
   open Context public hiding (Ctx; CtxExt)
   open Maybe   public using  (Maybe) renaming (just to kd; nothing to tp)
 
-  -- Simple kind ascriptions.
+  -- Shape ascriptions.
   --
-  -- TODO: explain this a bit.
+  -- NOTE.  We only use shape ascriptions (or "simple" kind
+  -- ascriptions) in the simplified kinding system, which is defined
+  -- exclusively on types (see the FOmegaInt.Kinding.Simple module).
+  -- Because simple kinding judgments can never refer to term
+  -- variables, we may as well forget the type of such variables.  We
+  -- just need to remember that there are such variables in the
+  -- context so as to maintain the de Bruijn indexes of (type)
+  -- variables, e.g. when we convert full kinding judgments to
+  -- simplified ones.  Accordingly, we implement shape ascriptions
+  -- using `Maybe' from the standard library, but with the
+  -- constructors `just' and `nothing' renamed to `kd' and `tp' to
+  -- better reflect their meaning.  (This renaming happens during the
+  -- import of the `Maybe' module above.)
+
   SAsc : ℕ → Set
   SAsc _ = Maybe SKind
 
-  -- Simplification of simple ascriptions.
+  -- Simplification of ascriptions.
+
   ⌊_⌋Asc : ∀ {T n} → KdOrTp T n → SAsc n
   ⌊ kd k ⌋Asc = kd ⌊ k ⌋
   ⌊ tp a ⌋Asc = tp
 
   -- Injectivity of the (simple) `kd' constructor.
+
   kd-inj′ : {j k : SKind} → _≡_ {A = Maybe SKind} (kd j) (kd k) → j ≡ k
   kd-inj′ refl = refl
 
-  -- Contexts and context extensions over simple kind ascriptions.
+  -- Contexts and context extensions over shape ascriptions.
+
   Ctx     = Context.Ctx     SAsc
   CtxExt  = Context.CtxExt  SAsc
 
@@ -1229,6 +1344,7 @@ module SimpleCtx where
   open ConversionLemmas weakenOps weakenOps public
 
   -- Change the indexing of a context extension.
+
   re-idx : ∀ {k m n} → CtxExt k n → CtxExt m n
   re-idx Γ = mapExt (λ _ k → k) Γ
 
@@ -1252,6 +1368,7 @@ module SimpleCtx where
   ⌊⌋-ElimAsc/Var (tp t) = refl
 
 -- Conversions between the different context representations.
+
 module ContextConversions where
   open Context
   open SimpleCtx using (kd; ⌊_⌋Asc; ⌊⌋-ElimAsc/Var)
