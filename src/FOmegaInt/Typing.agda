@@ -40,16 +40,19 @@ module Typing where
     _ctx = ContextFormation._wf _⊢_wf
 
     -- Well-formed type/kind ascriptions in typing contexts.
+
     data _⊢_wf {n} (Γ : Ctx n) : TermAsc n → Set where
       wf-kd : ∀ {a} → Γ ⊢ a kd    → Γ ⊢ (kd a) wf
       wf-tp : ∀ {a} → Γ ⊢Tp a ∈ * → Γ ⊢ (tp a) wf
 
     -- Well-formed kinds.
+
     data _⊢_kd {n} (Γ : Ctx n) : Kind Term n → Set where
       kd-⋯ : ∀ {a b} → Γ ⊢Tp a ∈ * → Γ ⊢Tp b ∈ * → Γ ⊢ a ⋯ b kd
       kd-Π : ∀ {j k} → Γ ⊢ j kd → kd j ∷ Γ ⊢ k kd → Γ ⊢ Π j k kd
 
     -- Kinding derivations.
+
     data _⊢Tp_∈_ {n} (Γ : Ctx n) : Term n → Kind Term n → Set where
       ∈-var : ∀ {k} x → Γ ctx → lookup Γ x ≡ kd k → Γ ⊢Tp var x ∈ k
       ∈-⊥-f : Γ ctx → Γ ⊢Tp ⊥ ∈ *
@@ -64,6 +67,7 @@ module Typing where
       ∈-⇑   : ∀ {a j k} → Γ ⊢Tp a ∈ j → Γ ⊢ j <∷ k → Γ ⊢Tp a ∈ k
 
     -- Subkinding derivations.
+
     data _⊢_<∷_ {n} (Γ : Ctx n) : Kind Term n → Kind Term n → Set where
       <∷-⋯ : ∀ {a₁ a₂ b₁ b₂} →
              Γ ⊢ a₂ <: a₁ ∈ * → Γ ⊢ b₁ <: b₂ ∈ * → Γ ⊢ a₁ ⋯ b₁ <∷ a₂ ⋯ b₂
@@ -72,6 +76,7 @@ module Typing where
              Γ ⊢ Π j₁ k₁ <∷ Π j₂ k₂
 
     -- Subtyping derivations.
+
     data _⊢_<:_∈_ {n} (Γ : Ctx n) : Term n → Term n → Kind Term n → Set where
       <:-refl  : ∀ {a k}     → Γ ⊢Tp a ∈ k → Γ ⊢ a <: a ∈ k
       <:-trans : ∀ {a b c k} → Γ ⊢ a <: b ∈ k → Γ ⊢ b <: c ∈ k → Γ ⊢ a <: c ∈ k
@@ -101,22 +106,27 @@ module Typing where
       <:-⇑     : ∀ {a b j k} → Γ ⊢ a <: b ∈ j → Γ ⊢ j <∷ k → Γ ⊢ a <: b ∈ k
 
     -- Type equality.
+
     data _⊢_≃_∈_ {n} (Γ : Ctx n) : Term n → Term n → Kind Term n → Set where
       <:-antisym : ∀ {a b k} → Γ ⊢ a <: b ∈ k → Γ ⊢ b <: a ∈ k → Γ ⊢ a ≃ b ∈ k
 
   -- Kind equality.
+
   data _⊢_≅_ {n} (Γ : Ctx n) : Kind Term n → Kind Term n → Set where
     <∷-antisym : ∀ {j k} → Γ ⊢ j <∷ k → Γ ⊢ k <∷ j → Γ ⊢ j ≅ k
 
   -- Typing derivations.
+
   data _⊢Tm_∈_ {n} (Γ : Ctx n) : Term n → Term n → Set where
     ∈-var : ∀ {a} x → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢Tm var x ∈ a
     ∈-∀-i : ∀ {k a b} → Γ ⊢ k kd → kd k ∷ Γ ⊢Tm a ∈ b →
             Γ ⊢Tm Λ k a ∈ Π k b
     ∈-→-i : ∀ {a b c} → Γ ⊢Tp a ∈ * → tp a ∷ Γ ⊢Tm b ∈ weaken c →
-            -- FIXME: redundant validity condition (could be avoided
-            -- by proving a context strengthening lemma for
-            -- eliminating term variables in kindings).
+            -- NOTE. The following premise is a redundant validity
+            -- condition that could be avoided by proving a context
+            -- strengthening lemma (showing that unused variables,
+            -- i.e. variables not appearing freely to the right of the
+            -- turnstyle, can be eliminated from the context).
             Γ ⊢Tp c ∈ * →
             Γ ⊢Tm ƛ a b ∈ a ⇒ c
     ∈-∀-e : ∀ {a b k c} → Γ ⊢Tm a ∈ Π k c → Γ ⊢Tp b ∈ k →
@@ -126,11 +136,13 @@ module Typing where
     ∈-⇑   : ∀ {a b c} → Γ ⊢Tm a ∈ b → Γ ⊢ b <: c ∈ * → Γ ⊢Tm a ∈ c
 
   -- Combined typing and kinding of terms and types.
+
   data _⊢_∈_ {n} (Γ : Ctx n) : Term n → TermAsc n → Set where
     ∈-tp : ∀ {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ∈ kd k
     ∈-tm : ∀ {a b} → Γ ⊢Tm a ∈ b → Γ ⊢ a ∈ tp b
 
   -- Combined subtyping and subkinding.
+
   data _⊢_≤_ {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
     ≤-<∷ : ∀ {j k} → Γ ⊢ j <∷ k     → Γ ⊢ kd j ≤ kd k
     ≤-<: : ∀ {a b} → Γ ⊢ a <: b ∈ * → Γ ⊢ tp a ≤ tp b
@@ -139,11 +151,13 @@ module Typing where
 
     -- Combined kind and type equality, i.e. equality of well-formed
     -- ascriptions.
+
     data _⊢_≃_wf {n} (Γ : Ctx n) : TermAsc n → TermAsc n → Set where
       ≃wf-≅ : ∀ {j k} → Γ ⊢ j ≅ k     → Γ ⊢ kd j ≃ kd k wf
       ≃wf-≃ : ∀ {a b} → Γ ⊢ a ≃ b ∈ * → Γ ⊢ tp a ≃ tp b wf
 
     -- Equality of well-formed contexts.
+
     data _≃_ctx : ∀ {n} → Ctx n → Ctx n → Set where
       ≃-[] : [] ≃ [] ctx
       ≃-∷  : ∀ {n a b} {Γ Δ : Ctx n} →
@@ -152,12 +166,14 @@ module Typing where
   open PropEq using ([_])
 
   -- A derived variable rule.
+
   ∈-var′ : ∀ {n} {Γ : Ctx n} x → Γ ctx → Γ ⊢ var x ∈ lookup Γ x
   ∈-var′ {Γ = Γ} x Γ-ctx with lookup Γ x | inspect (lookup Γ) x
   ∈-var′ x Γ-ctx | kd k | [ Γ[x]≡kd-k ] = ∈-tp (∈-var x Γ-ctx Γ[x]≡kd-k)
   ∈-var′ x Γ-ctx | tp a | [ Γ[x]≡tp-a ] = ∈-tm (∈-var x Γ-ctx Γ[x]≡tp-a)
 
   -- A derived subsumption rule.
+
   ∈-⇑′ : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢ a ∈ b → Γ ⊢ b ≤ c → Γ ⊢ a ∈ c
   ∈-⇑′ (∈-tp a∈b) (≤-<∷ b<∷c) = ∈-tp (∈-⇑ a∈b b<∷c)
   ∈-⇑′ (∈-tm a∈b) (≤-<: b<:c) = ∈-tm (∈-⇑ a∈b b<:c)
@@ -182,6 +198,7 @@ wf-tp-inv : ∀ {n} {Γ : Ctx n} {a} → Γ ⊢ tp a wf → Γ ⊢Tp a ∈ *
 wf-tp-inv (wf-tp a∈*) = a∈*
 
 -- An inversion lemma for _⊢_≃_wf.
+
 ≃wf-kd-inv : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ kd j ≃ kd k wf → Γ ⊢ j ≅ k
 ≃wf-kd-inv (≃wf-≅ j≅k) = j≅k
 
@@ -715,6 +732,7 @@ open WfCtxOps
 -- Generation lemmas for kinding
 
 -- A generation lemma for kinding of universals.
+
 Tp∈-∀-inv : ∀ {n} {Γ : Ctx n} {a j k} → Γ ⊢Tp Π j a ∈ k →
             Γ ⊢ j kd × kd j ∷ Γ ⊢Tp a ∈ *
 Tp∈-∀-inv (∈-∀-f j-kd a∈*) = j-kd , a∈*
@@ -722,6 +740,7 @@ Tp∈-∀-inv (∈-s-i ∀ka∈b⋯c)  = Tp∈-∀-inv ∀ka∈b⋯c
 Tp∈-∀-inv (∈-⇑ ∀ja∈k k<∷l) = Tp∈-∀-inv ∀ja∈k
 
 -- A generation lemma for kinding of arrows.
+
 Tp∈-→-inv : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢Tp a ⇒ b ∈ k →
             Γ ⊢Tp a ∈ * × Γ ⊢Tp b ∈ *
 Tp∈-→-inv (∈-→-f a∈* b∈*)  = a∈* , b∈*
