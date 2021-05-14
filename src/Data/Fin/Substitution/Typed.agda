@@ -12,6 +12,7 @@ open import Data.Context.Properties using (module ContextFormationLemmas)
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
+open import Data.Fin.Substitution.Extra
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; suc)
 open import Data.Vec as Vec using (Vec; []; _∷_; map)

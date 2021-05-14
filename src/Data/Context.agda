@@ -8,7 +8,7 @@ module Data.Context where
 
 open import Data.Fin using (Fin)
 open import Data.Fin.Substitution
-open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Extra using (Extension)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Vec as Vec using (Vec; []; _∷_)
 open import Relation.Unary using (Pred)

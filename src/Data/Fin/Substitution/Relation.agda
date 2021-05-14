@@ -8,7 +8,7 @@ module Data.Fin.Substitution.Relation where
 
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
-open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Extra
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Vec.Relation.Binary.Pointwise.Inductive hiding (refl)
 import Function as Fun

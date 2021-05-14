@@ -12,6 +12,7 @@ open import Data.Context.Properties
 open import Data.Fin using (Fin; suc; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
+open import Data.Fin.Substitution.Extra using (Extension)
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Nat using (ℕ; suc; zero)
 open import Data.Product using (proj₂)

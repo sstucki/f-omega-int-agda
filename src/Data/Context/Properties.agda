@@ -7,7 +7,7 @@
 module Data.Context.Properties where
 
 open import Data.Fin using (Fin; zero; suc; lift; raise)
-open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Extra using (Extension)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (_×_; _,_)
 open import Data.Vec as Vec using (Vec; []; _∷_)

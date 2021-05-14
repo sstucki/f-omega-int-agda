@@ -10,7 +10,8 @@ open import Data.Context.WellFormed
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
-open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Extra using (module SimpleExt)
+open import Data.Fin.Substitution.ExtraLemmas using (TermLikeLemmas)
 open import Data.Fin.Substitution.Typed
 open import Data.List using ([]; _∷_; _++_)
 open import Data.Nat using (ℕ; zero; suc)
@@ -280,11 +281,13 @@ Sp∼-⋯ ∼-[] = refl , refl , refl
 
 -- A shorthand for kindings and typings of Ts by kind or type
 -- ascriptions.
+
 ElimAscTyping : (ℕ → Set) → Set₁
 ElimAscTyping T = Typing ElimAsc T ElimAsc Level.zero
 
 -- Liftings from well-typed Ts to well-typed/kinded normal forms or
 -- variables.
+
 LiftTo-NfOrVar∈ : ∀ {T} → ElimAscTyping T → Set₁
 LiftTo-NfOrVar∈ _⊢T_∈_ =
   LiftTyped Substitution.elimAscTermSubst _⊢_wf _⊢T_∈_ _⊢NfOrVar_∈_

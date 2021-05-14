@@ -11,7 +11,7 @@ open import Data.Context.WellFormed
 open import Data.Fin using (Fin; zero)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
-open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Extra
 open import Data.Fin.Substitution.Typed
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product as Prod using (_×_; _,_)

@@ -8,7 +8,7 @@ module Data.Context.WellFormed where
 
 open import Level using (suc; _⊔_; Lift; lift)
 open import Data.Fin using (Fin)
-open import Data.Fin.Substitution.ExtraLemmas
+open import Data.Fin.Substitution.Extra using (Extension)
 open import Data.Nat using (ℕ)
 open import Data.Unit using (⊤; tt)
 open import Data.Vec.Relation.Unary.All as All using (All; []; _∷_)

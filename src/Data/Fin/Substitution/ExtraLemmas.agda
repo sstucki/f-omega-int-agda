@@ -8,9 +8,10 @@ module Data.Fin.Substitution.ExtraLemmas where
 
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Fin.Substitution
+open import Data.Fin.Substitution.Extra
 open import Data.Fin.Substitution.Lemmas
 open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Vec using (Vec; _∷_; lookup; map)
+open import Data.Vec using (_∷_; lookup; map)
 open import Data.Vec.Properties using (map-cong; map-∘; lookup-map)
 open import Data.Vec.Relation.Unary.All hiding (lookup; map)
 open import Function using (_∘_; _$_; flip)
@@ -21,34 +22,20 @@ open import Relation.Binary.PropositionalEquality as PropEq hiding (subst)
 open PropEq.≡-Reasoning
 open import Relation.Unary using (Pred)
 
--- Simple extension of substitutions.
+------------------------------------------------------------------------
+-- Lemmas generalizing those in Data.Fin.Substitution.Lemmas.
 --
--- FIXME: this should go into Data.Fin.Substitution.
-record Extension {ℓ} (T : Pred ℕ ℓ) : Set ℓ where
-  infixr 5 _/∷_
-
-  field weaken : ∀ {n} → T n → T (suc n)  -- Weakens Ts.
-
-  -- Iterated weakening of types.
-  weaken⋆ : ∀ m {n} → T n → T (m + n)
-  weaken⋆ zero    t = t
-  weaken⋆ (suc m) t = weaken (weaken⋆ m t)
-
-  -- Extension.
-  _/∷_ : ∀ {m n} → T (suc n) → Sub T m n → Sub T (suc m) (suc n)
-  t /∷ ρ = t ∷ map weaken ρ
-
--- Helper module
-module SimpleExt {ℓ} {T : Pred ℕ ℓ} (simple : Simple T) where
-  open Simple simple public
-
-  extension : Extension T
-  extension = record { weaken = weaken }
-  open Extension extension public hiding (weaken)
+-- NOTE. The modules below generalize the Lemmasᵢ record modules from
+-- Data.Fin.Substitution.Lemmas in two ways:
+--
+--  1) by proving generalized versions of existing lemmas that relate
+--     extended substitutions t /∷ ρ instead of lifted ones ρ ↑ and
+--
+--  2) by adding extra lemmas that were not present in the original
+--     modules.
 
 -- An generalized version of Data.Fin.Lemmas.Lemmas₀
---
--- FIXME: this should go into Data.Fin.Substitution.Lemmas.
+
 module ExtLemmas₀ {ℓ} {T : Pred ℕ ℓ} (lemmas₀ : Lemmas₀ T) where
   open Data.Fin using (lift; raise)
 
@@ -56,6 +43,7 @@ module ExtLemmas₀ {ℓ} {T : Pred ℕ ℓ} (lemmas₀ : Lemmas₀ T) where
   open SimpleExt simple
 
   -- A generalized variant of Lemmas₀.lookup-map-weaken-↑⋆.
+
   lookup-map-weaken-↑⋆ : ∀ {m n} k x {ρ : Sub T m n} {t} →
                          lookup (map weaken ρ ↑⋆ k) x ≡
                          lookup ((t /∷ ρ) ↑⋆ k) (lift k suc x)
@@ -72,8 +60,7 @@ module ExtLemmas₀ {ℓ} {T : Pred ℕ ℓ} (lemmas₀ : Lemmas₀ T) where
     ∎
 
 -- A version of Data.Fin.Lemmas.Lemmas₁ with additional lemmas.
---
--- FIXME: this should go into Data.Fin.Substitution.Lemmas.
+
 module ExtLemmas₁ {ℓ} {T : Pred ℕ ℓ} (lemmas₁ : Lemmas₁ T) where
   open Data.Fin using (raise; fromℕ; lift)
 
@@ -92,8 +79,7 @@ module ExtLemmas₁ {ℓ} {T : Pred ℕ ℓ} (lemmas₁ : Lemmas₁ T) where
     lookup-map-weaken (raise k x) {_} {σ ↑⋆ k} (lookup-raise-↑⋆ k x hyp)
 
 -- A generalized version of Data.Fin.Lemmas.Lemmas₄
---
--- FIXME: this should go into Data.Fin.Substitution.Lemmas.
+
 module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
   open Data.Fin using (lift; raise)
 
@@ -172,9 +158,8 @@ module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
     t / (wk ⊙ (t′ ∷ ρ))   ≡⟨ cong (t /_) (wk-⊙-∷ t′) ⟩
     t / ρ                 ∎
 
--- A generalize version of Data.Fin.Lemmas.AppLemmas
---
--- FIXME: this should go into Data.Fin.Substitution.Lemmas.
+-- A generalized version of Data.Fin.Lemmas.AppLemmas
+
 module ExtAppLemmas {ℓ₁ ℓ₂} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ ℓ₂}
                     (appLemmas : AppLemmas T₁ T₂) where
 
@@ -192,7 +177,13 @@ module ExtAppLemmas {ℓ₁ ℓ₂} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ �
                 t / ρ / wk ≡ t / wk / (t′ /∷ ρ)
   wk-commutes = wk-↑⋆-commutes zero
 
+
+------------------------------------------------------------------------
+-- Lemmas relating substitutions defined over and applied to different
+-- kinds of terms.
+
 -- Lemmas relating T₃ substitutions in T₁ and T₂.
+
 record LiftAppLemmas {ℓ₁ ℓ₂ ℓ₃}
                      (T₁ : Pred ℕ ℓ₁) (T₂ : Pred ℕ ℓ₂) (T₃ : Pred ℕ ℓ₃)
                      : Set (ℓ₁ ⊔ ℓ₂ ⊔ ℓ₃) where
@@ -210,14 +201,18 @@ record LiftAppLemmas {ℓ₁ ℓ₂ ℓ₃}
     module A₂ = Application application₂₃
 
   field
+
     -- Lifting commutes with application of T₃ substitutions.
+
     lift-/ : ∀ {m n} t {σ : Sub T₃ m n} → lift (t L₃./ σ) ≡ lift t A₂./ σ
 
     -- Lifting preserves variables.
+
     lift-var : ∀ {n} (x : Fin n) → lift (L₃.var x) ≡ L₂.var x
 
     -- Sequences of T₃ substitutions are equivalent when applied to
     -- T₁s if they are equivalent when applied to T₂ variables.
+
     /✶-↑✶ :
       ∀ {m n} (σs₁ σs₂ : Subs T₃ m n) →
       (∀ k x → L₂.var x A₂./✶ σs₁ L₃.↑✶ k ≡ L₂.var x A₂./✶ σs₂ L₃.↑✶ k) →
@@ -252,6 +247,7 @@ record LiftAppLemmas {ℓ₁ ℓ₂ ℓ₃}
 
   -- Sequences of T₃ substitutions are equivalent when applied to
   -- T₁s if they are equivalent when applied as composites.
+
   /✶-↑✶′ : ∀ {m n} (σs₁ σs₂ : Subs T₃ m n) →
            (∀ k → L₃.⨀ (σs₁ L₃.↑✶ k) ≡ L₃.⨀ (σs₂ L₃.↑✶ k)) →
             ∀ k t → t A₁./✶ σs₁ L₃.↑✶ k ≡ t A₁./✶ σs₂ L₃.↑✶ k
@@ -266,6 +262,7 @@ record LiftAppLemmas {ℓ₁ ℓ₂ ℓ₃}
     ∎)
 
   -- Derived lemmas about applications of T₃ substitutions to T₁s.
+
   appLemmas : AppLemmas T₁ T₃
   appLemmas = record
     { application = application₁₃
@@ -294,17 +291,21 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
     module A₂₃ = Application application₂₃
 
   field
+
     -- Weakening commutes with lifting.
+
     weaken-lift : ∀ {n} (t : T₃ n) → L₂.weaken (lift t) ≡ lift (L₃.weaken t)
 
     -- Applying a composition of T₂ substitutions to T₁s
     -- corresponds to two consecutive applications.
+
     /-⊙₂ : ∀ {m n k} {σ₁ : Sub T₂ m n} {σ₂ : Sub T₂ n k} t →
            t A₁₂./ σ₁ L₂.⊙ σ₂ ≡ t A₁₂./ σ₁ A₁₂./ σ₂
 
     -- Sequences of T₃ substitutions are equivalent to T₂
     -- substitutions when applied to T₁s if they are equivalent when
     -- applied to variables.
+
     /✶-↑✶₁ :
       ∀ {m n} (σs₁ : Subs T₃ m n) (σs₂ : Subs T₂ m n) →
       (∀ k x → L₂.var x A₂₃./✶ σs₁ ↑✶ k ≡ L₂.var x L₂./✶  σs₂ L₂.↑✶ k) →
@@ -313,16 +314,19 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
     -- Sequences of T₃ substitutions are equivalent to T₂
     -- substitutions when applied to T₂s if they are equivalent when
     -- applied to variables.
+
     /✶-↑✶₂ :
       ∀ {m n} (σs₁ : Subs T₃ m n) (σs₂ : Subs T₂ m n) →
       (∀ k x → L₂.var x A₂₃./✶ σs₁ ↑✶ k ≡ L₂.var x L₂./✶ σs₂ L₂.↑✶ k) →
        ∀ k t → t        A₂₃./✶ σs₁ ↑✶ k ≡ t        L₂./✶ σs₂ L₂.↑✶ k
 
   -- Lifting of T₃ substitutions to T₂ substitutions.
+
   liftSub : ∀ {m n} → Sub T₃ m n → Sub T₂ m n
   liftSub σ = map lift σ
 
   -- The two types of lifting commute.
+
   liftSub-↑⋆ : ∀ {m n} (σ : Sub T₃ m n) k →
                liftSub σ L₂.↑⋆ k ≡ liftSub (σ ↑⋆ k)
   liftSub-↑⋆ σ zero    = refl
@@ -334,6 +338,7 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
     map lift (map L₃.weaken (σ ↑⋆ k))   ∎)
 
   -- The identity substitutions are equivalent up to lifting.
+
   liftSub-id : ∀ {n} → liftSub (L₃.id {n}) ≡ L₂.id {n}
   liftSub-id {zero}  = refl
   liftSub-id {suc n} = begin
@@ -342,6 +347,7 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
     L₂.id ∎
 
   -- Weakening is equivalent up to lifting.
+
   liftSub-wk⋆ : ∀ k {n} → liftSub (L₃.wk⋆ k {n}) ≡ L₂.wk⋆ k {n}
   liftSub-wk⋆ zero    = liftSub-id
   liftSub-wk⋆ (suc k) = begin
@@ -352,14 +358,17 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
     map L₂.weaken (L₂.wk⋆ k)             ∎
 
   -- Weakening is equivalent up to lifting.
+
   liftSub-wk : ∀ {n} → liftSub (L₃.wk {n}) ≡ L₂.wk {n}
   liftSub-wk = liftSub-wk⋆ 1
 
   -- Single variable substitution is equivalent up to lifting.
+
   liftSub-sub : ∀ {n} (t : T₃ n) → liftSub (L₃.sub t) ≡ L₂.sub (lift t)
   liftSub-sub t = cong₂ _∷_ refl liftSub-id
 
   -- Lifting commutes with application to variables.
+
   var-/-liftSub-↑⋆ : ∀ {m n} (σ : Sub T₃ m n) k x →
                      L₂.var x A₂₃./ σ ↑⋆ k ≡ L₂.var x L₂./ liftSub σ L₂.↑⋆ k
   var-/-liftSub-↑⋆ σ k x = begin
@@ -421,6 +430,7 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
   /-sub = /-sub-↑⋆ zero
 
   -- Lifting commutes with application.
+
   /-sub-↑ : ∀ {m n} t s (σ : Sub T₃ m n) →
             t A₁₂./ L₂.sub s A₁₃./ σ ≡ (t A₁₃./ σ ↑) A₁₂./ L₂.sub (s A₂₃./ σ)
   /-sub-↑ t s σ = begin
@@ -505,33 +515,6 @@ record WeakenLemmas {ℓ₁ ℓ₂} (T₁ : Pred ℕ ℓ₁) (T₂ : Pred ℕ �
     t / wk ⊙ (t′ ∷ σ)     ≡⟨ cong (t /_) (wk-⊙-∷ t′) ⟩
     t / σ                 ∎
 
--- T₂-substitutions in term-like T₁
---
--- FIXME: this should go into Data.Fin.Substitution.
-
-record TermLikeSubst {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
-                     : Set (lsuc (ℓ ⊔ lzero)) where
-  field
-    app       : ∀ {T₃} → Lift T₃ T₂ → ∀ {m n} → T₁ m → Sub T₃ m n → T₁ n
-    termSubst : TermSubst T₂
-
-  open TermSubst termSubst public
-    hiding (app; var; weaken; _/Var_; _/_; _/✶_)
-
-  termApplication : Application T₁ T₂
-  termApplication = record { _/_ = app termLift }
-
-  varApplication : Application T₁ Fin
-  varApplication = record { _/_ = app varLift }
-
-  open Application termApplication public using (_/_; _/✶_)
-  open Application varApplication  public using () renaming (_/_ to _/Var_)
-
-  -- Weakening of T₁s.
-
-  weaken : ∀ {n} → T₁ n → T₁ (suc n)
-  weaken t = t /Var VarSubst.wk
-
 -- Lemmas for a term-like T₁ derived from term lemmas for T₂
 
 record TermLikeLemmas {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
@@ -579,6 +562,7 @@ record TermLikeLemmas {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
                   ∀ k t → t     /✶₁₃ σs₁ ↑✶₃ k ≡ t     /✶₁₂ σs₂ ↑✶₂ k
 
   -- An instantiation of the above lemmas for T₂ substitutions in T₁s.
+
   termLiftAppLemmas : LiftAppLemmas T₁ T₂ T₂
   termLiftAppLemmas = record
     { lift          = Lift.lift termLift
@@ -595,6 +579,7 @@ record TermLikeLemmas {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
 
   -- An instantiation of the above lemmas for variable substitutions
   -- (renamings) in T₁s.
+
   varLiftSubLemmas : LiftSubLemmas T₁ T₂ Fin
   varLiftSubLemmas = record
     { application₁₂ = termApplication
