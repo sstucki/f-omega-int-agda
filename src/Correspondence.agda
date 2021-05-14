@@ -65,3 +65,27 @@ thm-5-5b = FOmegaInt.Typing.Preservation.pres
 ------------------------------------------------------------------------
 -- 5## Sec. 4
 -- - Canonical system: syntax (Fig. 7, 8):
+
+{-
+------------------------------------------------------------------------
+** Differences between our paper (and technical appendix) and our Agda development
+------------------------------------------------------------------------
+
+There are a number of small differences between the paper presentation
+of Fω.. and the formalization in Agda. We briefly discuss them here.
+
+- In Agda, we use well-scoped de Bruijn indexes and parallel substitutions, and
+  this choice affects some statements, especially for auxiliary lemmas.
+
+- In our paper, we have inlined a few auxiliary definitions for clarity.
+
+------------------------------------------------------------------------
+** Typing lemma naming conventions
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+* Directory Layout
+------------------------------------------------------------------------
+
+FIXME (P.): do we need this here, Sandro?
+-}
