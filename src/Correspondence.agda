@@ -15,23 +15,30 @@ module Correspondence where
 -- type system. In more detail:
 
 
--- Sec. 3:
--- - Syntax (Fig. 1): [FOmegaInt/Syntax.agda](FOmegaInt/Syntax.agda)
+-- - Declarative System (Sec. 3):
+-- -- Syntax (Fig. 1), including substitution: [FOmegaInt/Syntax.agda](FOmegaInt/Syntax.agda)
 
 -- FIXME: not sure what to make clickable here...
 import FOmegaInt.Syntax
-module fig-1 = FOmegaInt.Syntax
+module Syn = FOmegaInt.Syntax.Syntax
+fig-1-kind = Syn.Kind
+fig-1-term-type = Syn.Term
 
--- - Declarative presentation (Fig. 3-4):
+-- -- Declarative presentation (Fig. 3-4):
 import FOmegaInt.Typing
 module fig-3&4 = FOmegaInt.Typing
 
--- - Normalization:
+-- - Normalization (Sec. 4):
+-- -- Syntax (Sec. 4.1), hereditary substitution (Fig. 5):
+sec-4-1-term-type = Syn.Elim
+import FOmegaInt.Syntax.HereditarySubstitution as HS
+fig-5-term-type-subst = HS._/⟨_⟩_
+fig-5-kind-subst = HS._Kind/⟨_⟩_
+
+-- sec-4-1-kind = Syn.Kind
 
 -- - Theorem 5.5 (type safety):
 --   * Part 1: progress
-
--- - Sec. 6 (undecidability):
 
 -- Sandro: not including the type signature as this requires importing
 -- tons of other stuff (including from the stdlib) and possibly will
@@ -45,6 +52,9 @@ thm-5-5a = FOmegaInt.Typing.Progress.prog
 
 import FOmegaInt.Typing.Preservation
 thm-5-5b = FOmegaInt.Typing.Preservation.pres
+
+-- - Sec. 6 (undecidability):
+import FOmegaInt.Undecidable
 
 ------------------------------------------------------------------------
 -- ## Proofs
