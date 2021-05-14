@@ -10,8 +10,8 @@ module Correspondence where
 ------------------------------------------------------------------------
 -- ## Trusted base
 -- To confirm that we have proved type soundness for Fω.., and that our examples
--- are well-typed, it is sufficient to check our type soundness
--- theorem, and the definition of the language with its operational semantics and
+-- are well-typed, it is sufficient to check the statement of our top-level theorems,
+-- and the definition of the language with its operational semantics and
 -- type system. In more detail:
 
 
@@ -22,15 +22,16 @@ module Correspondence where
 import FOmegaInt.Syntax
 module fig-1 = FOmegaInt.Syntax
 
--- - Encodings (Fig. 2): ?
-
 -- - Declarative presentation (Fig. 3-4):
 import FOmegaInt.Typing
 module fig-3&4 = FOmegaInt.Typing
 
+-- - Normalization:
+
 -- - Theorem 5.5 (type safety):
 --   * Part 1: progress
 
+-- - Sec. 6 (undecidability):
 
 -- Sandro: not including the type signature as this requires importing
 -- tons of other stuff (including from the stdlib) and possibly will
@@ -47,6 +48,7 @@ thm-5-5b = FOmegaInt.Typing.Preservation.pres
 
 ------------------------------------------------------------------------
 -- ## Proofs
+-- - Encodings (Fig. 2): ?
 -- - Lemma 3.1 (validity):
 -- - Lemma 3.2 (functionality):
 -- - Sec. 3.4: Subject reduction for well-kinded types (Thm. 3.3, Corollary 3.4):
