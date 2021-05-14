@@ -10,7 +10,11 @@ compile:
 doc:
 	agda --html src/Correspondence.agda
 
-# FIXME @Blaisorblade ;-)
+# Remove build products
 clean:
+	# Remove interface files
+	find . -name '*.agdai'|xargs rm
+	# Remove build folder altogether?
+	#rm -rf _build
 
 .PHONY: all clean compile doc
