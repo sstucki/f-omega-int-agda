@@ -76,7 +76,7 @@ mutual
   {-# CATCHALL #-}
   (a ∙ [])       ⌜·⌝⟨ j ⇒ k ⟩ b = a ∙ (b ∷ [])         -- ! unless a = var x
 
--- Apply a herediary substition to a kind or type ascription.
+-- Apply a hereditary substition to a kind or type ascription.
 
 _Asc/⟨_⟩_ : ∀ {m n} → ElimAsc m → SKind → SVSub m n → ElimAsc n
 kd j Asc/⟨ k ⟩ σ = kd (j Kind/⟨ k ⟩ σ)
