@@ -17,4 +17,4 @@ clean:
 cleanall: clean
 	rm -rf html
 
-.PHONY: all clean compile doc
+.PHONY: all clean cleanall compile doc
