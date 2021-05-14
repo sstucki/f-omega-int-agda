@@ -12,9 +12,9 @@ doc:
 
 # Remove build products
 clean:
-	# Remove interface files
-	find . -name '*.agdai'|xargs rm
-	# Remove build folder altogether?
-	#rm -rf _build
+	rm -rf _build
+
+cleanall: clean
+	rm -rf html
 
 .PHONY: all clean compile doc

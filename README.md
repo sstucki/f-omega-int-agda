@@ -8,6 +8,8 @@ Name: **A theory of Higher-order Subtyping with Type Intervals**
    artifact. Authors can either fold the QEmu instructions below into this
    section, or leave the QEmu section in place at the bottom.]**
 
+_**FIXME:** discuss make, and make doc, clean, cleanall.
+
 _**FIXME:** stub copied from the README.md in the `master` branch._
 
 A mechanized type safety proof for Fω extended with interval kinds.
