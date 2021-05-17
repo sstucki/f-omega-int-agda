@@ -8,7 +8,8 @@ module Correspondence where
 
 
 ------------------------------------------------------------------------
--- ## Trusted base
+-- ## Definitions and top-level claims
+
 -- To confirm that we have proved type soundness for Fω.., and that our examples
 -- are well-typed, it is sufficient to check the statement of our top-level theorems,
 -- and the definition of the language with its operational semantics and
@@ -35,6 +36,7 @@ import FOmegaInt.Syntax.HereditarySubstitution as HS
 fig-5-term-type-subst = HS._/⟨_⟩_
 fig-5-kind-subst = HS._Kind/⟨_⟩_
 
+-- Is there such a thing?
 -- sec-4-1-kind = Syn.Kind
 
 -- - Theorem 5.5 (type safety):
@@ -62,7 +64,7 @@ import FOmegaInt.Undecidable
 -- - Lemma 3.1 (validity):
 -- - Lemma 3.2 (functionality):
 -- - Sec. 3.4: Subject reduction for well-kinded types (Thm. 3.3, Corollary 3.4):
--- - Sec. 3.5: Prop. 3.1 (???): preservation (this might not belong here)?
+-- - Sec. 3.5: Prop. 3.1 (???): preservation. Not a theorem. Prop. 3.2 is proven in Thm. 5.5, listed above.
 
 ------------------------------------------------------------------------
 -- ### Sec. 4
