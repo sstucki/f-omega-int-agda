@@ -8,7 +8,7 @@ module Correspondence where
 
 
 ------------------------------------------------------------------------
--- ## Definitions and top-level claims
+-- # Definitions and top-level claims
 
 -- To confirm that we have proved type soundness for Fω.., and that our examples
 -- are well-typed, it is sufficient to check the statement of our top-level theorems,
@@ -64,7 +64,8 @@ thm-5-5b = FOmegaInt.Typing.Preservation.pres
 import FOmegaInt.Undecidable
 
 ------------------------------------------------------------------------
--- ## Proofs
+-- # Proofs
+-- ### Sec. 3
 -- - Encodings (Fig. 2): ?
 -- - Lemma 3.1 (validity):
 -- - Lemma 3.2 (functionality):
@@ -77,7 +78,7 @@ import FOmegaInt.Undecidable
 -- - Lemma 4.4 (substitution weakly commutes with normalization):
 
 ------------------------------------------------------------------------
--- ## Sec. 5
+-- ### Sec. 5
 -- - Canonical system: syntax (Fig. 7, 8):
 -- - Lemmas 5.1, 5.2, 5.3 (just to show the full statement)
 -- - Lemma 5.4
