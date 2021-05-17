@@ -128,6 +128,7 @@ open import FOmegaInt.Undecidable
 open import Data.Context
 open import Data.Context.WellFormed
 open import Data.Context.Properties
+open import Data.Fin.Substitution.Extra
 open import Data.Fin.Substitution.ExtraLemmas
 open import Data.Fin.Substitution.Relation
 open import Data.Fin.Substitution.Typed

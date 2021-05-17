@@ -49,35 +49,25 @@ CanoncialSubtypeCheck = ∀ {n} (Γ : E.Ctx n) a b k → Dec (Γ ⊢ a <: b ⇇ 
 DeclarativeSubtypeCheck : Set
 DeclarativeSubtypeCheck = ∀ {n} (Γ : T.Ctx n) a b k → Dec (Γ ⊢ a <: b ∈ k)
 
--- The reduction from SK equality checking to canoncial subtype checking.
+-- The reduction from SK equality checking to canonical subtype checking.
 
-module CanoncialReduction (check-<:⇇ : CanoncialSubtypeCheck) where
-
-  canonicalEquivalence : ∀ s t → Γ-SK? ⊢ encode s <: encode t ⇇ ⌜*⌝ ⇔ s ≡SK t
-  canonicalEquivalence s t = equivalence decode-<:⇇-encode <:⇇-encode
-
-  check-≡SK : SKEqualityCheck
-  check-≡SK s t =
-    map (canonicalEquivalence s t) (check-<:⇇ Γ-SK? (encode s) (encode t) ⌜*⌝)
+canonicalEquivalence : ∀ s t → Γ-SK? ⊢ encode s <: encode t ⇇ ⌜*⌝ ⇔ s ≡SK t
+canonicalEquivalence s t = equivalence decode-<:⇇-encode <:⇇-encode
 
 canonicalReduction : CanoncialSubtypeCheck → SKEqualityCheck
-canonicalReduction = CanoncialReduction.check-≡SK
+canonicalReduction check-<:⇇ s t =
+  map (canonicalEquivalence s t) (check-<:⇇ Γ-SK? (encode s) (encode t) ⌜*⌝)
 
 -- The reduction from SK equality checking to declarative subtype checking.
 
-module DeclarativeReduction (check-<:∈ : DeclarativeSubtypeCheck) where
-
-  declarativeEquivalence :
-    ∀ s t → ⌞Γ-SK?⌟ ⊢ ⌞ encode s ⌟ <: ⌞ encode t ⌟ ∈ * ⇔ s ≡SK t
-  declarativeEquivalence s t = equivalence
-    (λ es<:et∈* → decode-<:⇇-encode
-        (subst₂ (_ ⊢_<:_⇇ _) (nf-encode s) (nf-encode t) (complete-<: es<:et∈*)))
-    (λ s≡t → sound-<:⇇ (<:⇇-encode s≡t))
-
-  check-≡SK : SKEqualityCheck
-  check-≡SK s t =
-    map (declarativeEquivalence s t)
-        (check-<:∈ ⌞Γ-SK?⌟ ⌞ encode s ⌟ ⌞ encode t ⌟ *)
+declarativeEquivalence :
+  ∀ s t → ⌞Γ-SK?⌟ ⊢ ⌞ encode s ⌟ <: ⌞ encode t ⌟ ∈ * ⇔ s ≡SK t
+declarativeEquivalence s t = equivalence
+  (λ es<:et∈* → decode-<:⇇-encode
+      (subst₂ (_ ⊢_<:_⇇ _) (nf-encode s) (nf-encode t) (complete-<: es<:et∈*)))
+  (λ s≡t → sound-<:⇇ (<:⇇-encode s≡t))
 
 declarativeReduction : DeclarativeSubtypeCheck → SKEqualityCheck
-declarativeReduction = DeclarativeReduction.check-≡SK
+declarativeReduction check-<:∈ s t =
+  map (declarativeEquivalence s t)
+      (check-<:∈ ⌞Γ-SK?⌟ ⌞ encode s ⌟ ⌞ encode t ⌟ *)

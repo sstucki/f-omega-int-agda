@@ -259,4 +259,3 @@ decode-<:⇇-encode : ∀ {s t} → Γ-SK? ⊢ encode s <: encode t ⇇ ⌜*⌝ 
 decode-<:⇇-encode {s} {t} es<:et⇇* =
   inject-≤SK?-≡SK (subst₂ (_≤SK?_) (decode-encode s) (decode-encode t)
                           (decode-<:⇇ es<:et⇇*))
-

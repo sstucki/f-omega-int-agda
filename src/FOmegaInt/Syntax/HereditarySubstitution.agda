@@ -27,10 +27,20 @@ open Syntax
 infixl 9 _?∙∙⟨_⟩_ _∙∙⟨_⟩_ _⌜·⌝⟨_⟩_ _↓⌜·⌝_
 infixl 8 _/⟨_⟩_ _//⟨_⟩_ _Kind/⟨_⟩_ _Asc/⟨_⟩_
 
--- TODO: explain why there are degenerate cases.
+-- NOTE. We define hereditary substitution and reducing application
+-- directly on raw terms, types and kinds, hence there are degenerate
+-- cases.  This is because ill-kinded term or type expressions are can
+-- be non-normalizing, yet hereditary substitution and reducing
+-- application are supposed to reduce regexes they introduce.  Hence
+-- there must be degenerate cases for the definitions to be total
+-- (i.e. terminating) functions.  Later, we will show that hereditary
+-- substitution and reducing applications of (simply) well-kinded
+-- types and (simply) well-formed kinds are non-degenerate (see
+-- e.g. Lemma Nf∈-/⟨⟩ in FOmegaInt.Kinding.Simple module).
+
 mutual
 
-  -- Apply a herediary substition to an elimination, kind or spine.
+  -- Apply a hereditary substitution to an elimination, kind or spine.
 
   _/⟨_⟩_ : ∀ {m n} → Elim m → SKind → SVSub m n → Elim n
   var x   ∙ as /⟨ k ⟩ σ = lookupSV σ x ?∙∙⟨ k ⟩ (as //⟨ k ⟩ σ)
@@ -76,7 +86,7 @@ mutual
   {-# CATCHALL #-}
   (a ∙ [])       ⌜·⌝⟨ j ⇒ k ⟩ b = a ∙ (b ∷ [])         -- ! unless a = var x
 
--- Apply a herediary substition to a kind or type ascription.
+-- Apply a hereditary substitution to a kind or type ascription.
 
 _Asc/⟨_⟩_ : ∀ {m n} → ElimAsc m → SKind → SVSub m n → ElimAsc n
 kd j Asc/⟨ k ⟩ σ = kd (j Kind/⟨ k ⟩ σ)
@@ -455,6 +465,7 @@ module RenamingCommutes where
       cong₂ _∷_ (/Var-wk-↑⋆-hsub-vanishes i a) (//Var-wk-↑⋆-hsub-vanishes i as)
 
   -- A corollary of the above.
+
   Asc/Var-wk-↑⋆-hsub-vanishes
     : ∀ i {k m} a {b : Elim m} →
       a S.ElimAsc/Var V.wk V.↑⋆ i Asc/⟨ k ⟩ sub b ↑⋆ i ≡ a
@@ -521,6 +532,7 @@ module _ where
     ∎
 
   -- A corollary of the above.
+
   weaken⋆-/⟨⟩-↑⋆ : ∀ i {k m n} a {σ : SVSub m n} →
                    weakenElim⋆ i (a /⟨ k ⟩ σ) ≡ weakenElim⋆ i a /⟨ k ⟩ σ ↑⋆ i
   weaken⋆-/⟨⟩-↑⋆ i {k} a {σ} = begin
@@ -531,7 +543,7 @@ module _ where
 
   -- NOTE. Unfortunately, we cannot prove that arbitrary untyped
   -- hereditary substitutions commute, because *untyped* hereditary
-  -- substitutions need not commute with reducting applications in
+  -- substitutions need not commute with reducing applications in
   -- general.  We will prove a weaker result, namely that well-kinded
   -- hereditary substitutions in well-kinded types commute, later.
   -- See e.g. `Nf∈-[]-/⟨⟩-↑⋆` etc. in module Kinding.Simple.
