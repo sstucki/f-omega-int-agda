@@ -39,6 +39,10 @@ fig-5-kind-subst = HS._Kind/⟨_⟩_
 -- Is there such a thing?
 -- sec-4-1-kind = Syn.Kind
 
+-- -- Corollary 4.2
+-- -- Lemma 4.3 (soundness of normalization)
+-- -- Normalization (Fig. 6):
+
 -- - Theorem 5.5 (type safety):
 --   * Part 1: progress
 
@@ -68,11 +72,8 @@ import FOmegaInt.Undecidable
 
 ------------------------------------------------------------------------
 -- ### Sec. 4
--- - Het. subst: (Fig. 5):
--- - Lemma 4.1, Corollary 4.2:
--- - Auxiliary syntax (Fig. 6):
--- - Lemma 4.3 (soundness of normalization)
--- - Lemma 4.4:
+-- - Lemma 4.1 (results of substitution beta-reduce to results of het. subst.):
+-- - Lemma 4.4 (substitution weakly commutes with normalization):
 
 ------------------------------------------------------------------------
 -- 5## Sec. 4
