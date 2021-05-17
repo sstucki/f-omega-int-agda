@@ -21,6 +21,9 @@ To build the artifact:
 - `make cleanall` will perform `make clean` _and_ remove the generated HTML.
 
 _**FIXME:** stub copied from the README.md in the `master` branch._
+_**FIXME:** decide ordering of sections, and revise accordingly.
+
+## Project Description
 
 A mechanized type safety proof for Fω extended with interval kinds.
 
