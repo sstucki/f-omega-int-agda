@@ -363,7 +363,7 @@ open KindedEncoding
 -- Some helper lemmas.
 
 wk-hsub-helper : ∀ {n} (a b c : Elim n) →
-  (weakenElim (weakenElim a) /⟨ ★ ⟩ sub b ↑) [ c ∈ ★ ] ≡ a
+                 (weakenElim (weakenElim a) /⟨ ★ ⟩ sub b ↑) [ c ∈ ★ ] ≡ a
 wk-hsub-helper a b c = begin
     (weakenElim (weakenElim a) /⟨ ★ ⟩ sub b ↑) [ c ∈ ★ ]
   ≡⟨ cong (λ a → (a /⟨ ★ ⟩ sub b ↑) [ c ∈ ★ ]) (ELV.wk-commutes a) ⟩
