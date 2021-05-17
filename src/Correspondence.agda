@@ -60,6 +60,7 @@ import FOmegaInt.Typing.Preservation
 thm-5-5b = FOmegaInt.Typing.Preservation.pres
 
 -- - Sec. 6 (undecidability):
+-- -- Thm. 6.1
 import FOmegaInt.Undecidable
 
 ------------------------------------------------------------------------
@@ -76,8 +77,10 @@ import FOmegaInt.Undecidable
 -- - Lemma 4.4 (substitution weakly commutes with normalization):
 
 ------------------------------------------------------------------------
--- 5## Sec. 4
+-- ## Sec. 5
 -- - Canonical system: syntax (Fig. 7, 8):
+-- - Lemmas 5.1, 5.2, 5.3 (just to show the full statement)
+-- - Lemma 5.4
 
 {-
 ------------------------------------------------------------------------
