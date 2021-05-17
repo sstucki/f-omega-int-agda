@@ -15,7 +15,6 @@ browse the latter, start from (FIXME check)
 
 To build the artifact:
 - `make doc` will typecheck the artifact and print it as hyper-linked HTML; results are cached
-- `make` will typecheck the artifact; results are cached
 - `make clean` will remove the typechecking caches (`.agdai` files)
 - `make cleanall` will perform `make clean` _and_ remove the generated HTML.
 
