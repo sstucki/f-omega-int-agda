@@ -4,61 +4,91 @@ Name: **A theory of Higher-order Subtyping with Type Intervals**
 
 ## Artifact Instructions
 
-**[Authors should add their own instructions here about how to exercise their
-   artifact. Authors can either fold the QEmu instructions below into this
-   section, or leave the QEmu section in place at the bottom.]**
-
-_**FIXME:** where should all this be? In the home, or in a subfolder?
-
-Our virtual machine and package contain the paper (and appendix), the Agda source code,
-and the source pretty-printed into hyperlinked HTML for easy navigation. To
-browse the latter, start from (FIXME check)
-[html/Correspondence.agda](html/Correspondence.agda).
+Our virtual machine and package contain the [paper](paper.pdf) (and
+[appendix](supplement.pdf)), the Agda source code, and the source
+pretty-printed into hyperlinked HTML for easy navigation. To browse the
+latter, start from [html/Correspondence.html](html/Correspondence.html).
 
 To build the artifact:
-- `make doc` will typecheck the artifact and print it as hyper-linked HTML; results are cached
-- `make clean` will remove the typechecking caches (`.agdai` files)
+- `make doc` will typecheck the artifact and print it as hyper-linked HTML
+  (results are cached);
+- `make` will just typecheck the artifact but not generate HTML;
+- `make clean` will remove the typechecking caches (`.agdai` files);
 - `make cleanall` will perform `make clean` _and_ remove the generated HTML.
 
-_**FIXME:** stub copied from the README.md in the `master` branch._
-_**FIXME:** decide ordering of sections, and revise accordingly.
 
-## Project Description
+### If you are viewing the contents of our VM archive...
 
-A mechanized type safety proof for Fω extended with interval kinds.
+see the [QEmu Instructions](#qemu-setup) below for how to setup, start and
+connect to the VM.
 
-The code in this repository contains an Agda mechanization of the type system Fω extended with *interval kinds* ("F omega int").  An interval kind `A..B` represents a type interval bounded by a pair of types `A`, `B`.  It is inhabited by all proper types `C : A..B` that are both supertypes of `A` and subtypes of `B`.  Interval kinds are flexible enough to express various features found in other type systems, such as
+Once you logged into the VM you can change to the artifact directory and
+check the Agda mechanization by running
 
- * F-<:-style bounded polymorphism,
- * bounded type operators,
- * singleton kinds and first-class type definitions.
+    cd artifact
+    make
 
-The mechanization includes a small-step operational call-by-value semantics, declarative and canonical presentations of typing and kinding, along with (syntactic) proofs of various meta-theoretic properties, such as
+This will typecheck the [Correspondence.agda](src/Correspondence.agda)
+file in the `src` directory which imports the Agda modules containing
+mechanized versions of the main definitions, lemmas and theorems described
+in the paper.
 
- * weak normalization of types (and kinds) via hereditary substitution,
- * subject reduction for types (w.r.t. full β-reduction),
- * type safety (progress & preservation) w.r.t. to the CBV semantics,
- * undecidability of subtyping.
+For suggestions on how to navigate the source code, see [How to navigate
+the Agda mechanization below](#navigate).
 
 
-### The Agda mechanization
+### If you are viewing the contents of the source tarball...
 
-The file `src/README.agda` contains a detailed overview of the formalization.
+you will require an up-to-date installation of Agda and its standard
+library.  The code in this archive has been type-checked using Agda 2.6.1.3
+and version 1.6 of the Agda standard library.
 
-The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes heavy use of the [Agda standard library](https://github.com/agda/agda-stdlib).  The code in this repository has been type-checked using Agda 2.6.1.3 and version 1.6 of the Agda standard library.  The latest versions of the Agda distribution and standard library, along with setup instructions, can be found at
+The latest versions of the Agda distribution and standard library, along
+with setup instructions, can be found at
 
  * https://github.com/agda/agda
  * https://github.com/agda/agda-stdlib
 
-The easiest way to check all the code is to compile the `README.agda` file from the `src/` directory.  Run
+Once you have Agda installed, the easiest way to check the mechanization is
+to unpack the archive, enter the `artifact/` directory and run
 
-    agda src/README.agda
+    make
 
-in the console, or simply open the file using the [Agda Emacs mode](https://github.com/agda/agda#configuring-the-emacs-mode) and type `C-c C-l`.
+which will typecheck the [Correspondence.agda](src/Correspondence.agda)
+file in the `src` directory.  This file imports the Agda modules containing
+mechanized versions of the main definitions, lemmas and theorems described
+in the paper.
 
-### License
+Alternatively, if you are a GNU/Emacs user, you can open the
+[src/Correspondence.agda](src/Correspondence.agda) file using the [Agda
+Emacs mode](https://github.com/agda/agda#configuring-the-emacs-mode) and
+type `C-c C-l`.
 
-The source code is released under the MIT License.  See the `LICENSE` file for details.
+See the next section for suggestions on how to navigate the source code.
+
+
+<a name="navigate">
+
+### How to navigate the Agda mechanization
+
+To simplify the comparison between the metatheoretic results described in
+the paper and the corresponding Agda mechanization, we include a file
+[Correspondence.agda](src/Correspondence.agda) in the `src` directory.  The
+file lists the main results from the paper and imports the Agda modules
+containing the relevant definitions and proofs.  For your convenience, we
+have included a hyper-linked and syntax-highlighted HTML version of this
+file (and all other source files relevant to the mechanization) in the
+`html` directory: [html/Correspondence.html](html/Correspondence.html).  To
+explore a particular definition or proof, just click on the corresponding
+Agda module or definition in the HTML version of the source code.
+
+An exhaustive list of all the modules contained in the mechanization with a
+brief description is contained in the [src/README.agda](src/README.agda)
+([HTML version](html/README.html)) file, and in the [appendix of our
+paper](supplement.pdf).
+
+
+<a name="qemu-setup">
 
 ## QEmu Instructions
 
