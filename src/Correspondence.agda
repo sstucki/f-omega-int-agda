@@ -106,3 +106,6 @@ of Fω.. and the formalization in Agda. We briefly discuss them here.
 
 FIXME (P.): do we need this here, Sandro?
 -}
+
+-- For more info on the code, see:
+import README
