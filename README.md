@@ -8,6 +8,8 @@ Name: **A theory of Higher-order Subtyping with Type Intervals**
    artifact. Authors can either fold the QEmu instructions below into this
    section, or leave the QEmu section in place at the bottom.]**
 
+_**FIXME:** where should all this be? In the home, or in a subfolder?
+
 Our virtual machine and package contain the paper (and appendix), the Agda source code,
 and the source pretty-printed into hyperlinked HTML for easy navigation. To
 browse the latter, start from (FIXME check)
