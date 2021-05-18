@@ -19,8 +19,8 @@ To build the artifact:
 
 ### If you are viewing the contents of our VM archive...
 
-see the [QEmu Instructions](#qemu-setup) below for how to setup, start and
-connect to the VM.
+see the [QEmu Instructions](#qemu-instructions) below for how to setup,
+start and connect to the VM.
 
 Once you logged into the VM you can change to the artifact directory and
 check the Agda mechanization by running
@@ -34,7 +34,7 @@ mechanized versions of the main definitions, lemmas and theorems described
 in the paper.
 
 For suggestions on how to navigate the source code, see [How to navigate
-the Agda mechanization below](#navigate).
+the Agda mechanization below](#how-to-navigate-the-agda-mechanization).
 
 
 ### If you are viewing the contents of the source tarball...
@@ -67,8 +67,6 @@ type `C-c C-l`.
 See the next section for suggestions on how to navigate the source code.
 
 
-<a name="navigate">
-
 ### How to navigate the Agda mechanization
 
 To simplify the comparison between the metatheoretic results described in
@@ -87,8 +85,6 @@ brief description is contained in the [src/README.agda](src/README.agda)
 ([HTML version](html/README.html)) file, and in the [appendix of our
 paper](supplement.pdf).
 
-
-<a name="qemu-setup">
 
 ## QEmu Instructions
 
