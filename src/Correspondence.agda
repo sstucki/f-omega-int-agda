@@ -127,42 +127,138 @@ thm-6-1 = FOmegaInt.Undecidable.declarativeEquivalence
 
 
 ------------------------------------------------------------------------
--- # Proofs
--- ### Sec. 3
--- - Encodings (Fig. 2): ?
--- - Lemma 3.1 (validity):
--- - Lemma 3.2 (functionality):
--- - Sec. 3.4: Subject reduction for well-kinded types (Thm. 3.3, Corollary 3.4):
--- - Sec. 3.5: Prop. 3.1 (???): preservation. Not a theorem. Prop. 3.2 is proven in Thm. 5.5, listed above.
+-- Other definitions and proofs
+--
+-- For completeness, we list here the other definitions and lemmas
+-- given in the paper that are not covered under 'Main results' above.
+--
+-- ** Sec. 3 -- The Declarative System **
+--
+--  * Encodings (Fig. 2)
 
-------------------------------------------------------------------------
--- ### Sec. 4
--- - Lemma 4.1 (results of substitution beta-reduce to results of het. subst.):
--- - Lemma 4.4 (substitution weakly commutes with normalization):
+import FOmegaInt.Typing.Encodings as Enc
+fig-2-*       = Syn.Syntax.*    -- kind constants
+fig-2-∅       = Enc.∅
+fig-2-HO-intv = Enc._⋯⟨_⟩_      -- higher-order intervals
+fig-2-HO-*    = Enc.*⟨_⟩
+fig-2-HO-⊤    = Enc.⊤⟨_⟩        -- higher-order extrema
+fig-2-HO-⊥    = Enc.⊥⟨_⟩
+fig-2-erase   = Syn.Syntax.⌊_⌋  -- type erasure
+fig-2-bnd-∀   = Enc.∀′          -- bounded universals type
+fig-2-bnd-Π   = Enc.Π′          -- bounded operator kind
+fig-2-bnd-λ   = Enc.Λ′          -- bounded lambda (same for terms and types)
 
-------------------------------------------------------------------------
--- ### Sec. 5
--- - Canonical system: syntax (Fig. 7, 8):
--- - Lemmas 5.1, 5.2, 5.3 (just to show the full statement)
--- - Lemma 5.4
+--  * Lemma 3.1 (validity)
 
-{-
-------------------------------------------------------------------------
-** Differences between our paper (and technical appendix) and our Agda development
-------------------------------------------------------------------------
+lem-3-1-kinding-validity₁        = Decl.kd-ctx
+lem-3-1-kinding-validity₂        = DeclValid.Tp∈-valid
+lem-3-1-typing-validity₁         = Decl.Tp∈-ctx
+lem-3-1-typing-validity₂         = DeclValid.Tm∈-valid
+lem-3-1-kind-equation-validity   = DeclValid.≅-valid
+lem-3-1-kind-inequation-validity = DeclValid.≅-valid
+lem-3-1-type-equation-validity   = DeclValid.<∷-valid
+lem-3-1-type-inequation-validity = DeclValid.<:-valid
 
-There are a number of small differences between the paper presentation
-of Fω.. and the formalization in Agda. We briefly discuss them here.
+--  * Lemma 3.2 (functionality)
 
-- In Agda, we use well-scoped de Bruijn indexes and parallel substitutions, and
-  this choice affects some statements, especially for auxiliary lemmas.
+lem-3-2-1 = DeclValid.kd-[≃]
+lem-3-2-2 = DeclValid.Tp∈-[≃]
 
-- In our paper, we have inlined a few auxiliary definitions for clarity.
+--    NOTE. The the functionality lemma(s) referenced above are
+--    slightly weaker than the formulation given in the paper since
+--    the latter allows substitutions of equal types for *any*
+--    variable in the context (rather than just the last one).  The
+--    fully general version from the paper can be recovered from the
+--    following strengthened lemmas that prove functionality in the
+--    *extended* declarative system and for pointwise equal *parallel*
+--    substitutions (aka simultaneous substitutions).  However, only
+--    the weak single-variable variants for the original declarative
+--    system are used in the remainder of the metatheoretic
+--    development, so we don't bother proving the more general
+--    versions for the original system.
 
-------------------------------------------------------------------------
-** Typing lemma naming conventions
-------------------------------------------------------------------------
--}
+import FOmegaInt.Kinding.Declarative as ExtDeclKinding
+parallel-functionality-1 = ExtDeclKinding.WfSubstitutionEquality.kd-/≃
+parallel-functionality-2 = ExtDeclKinding.WfSubstitutionEquality.Tp∈-/≃
+
+
+-- ** Sec. 4 -- Normalization of Types **
+
+--  * Lemma 4.1 (ordinary substs. β-reduce to hereditary substs.)
+
+lem-4-1-1 = HSubst.⌞⌟Kd-/⟨⟩-β
+lem-4-1-2 = HSubst.⌞⌟-/⟨⟩-β
+lem-4-1-3 = HSubst.⌞⌟-⌜·⌝-β
+lem-4-1-4 = HSubst.⌞⌟-∙∙-β
+
+--  * Lemma 4.4 (substitution weakly commutes with normalization):
+
+import FOmegaInt.Kinding.Simple.Normalization as SimpleNorm
+lem-4-4-1 = SimpleNorm.nfKind-/⟨⟩
+lem-4-4-2 = SimpleNorm.nf-/⟨⟩
+
+--    NOTE. The Agda version of Lemma 4.4 referenced above uses a
+--    representation of (well-kinded) single-variable substitutions
+--    that is well-suited to the intrinsically well-scoped de Bruijn
+--    representation used throughout the mechanization.  However, this
+--    changes (and somewhat obscures) the statement of the lemma in
+--    that
+--
+--    1. the kinding premise shared by all three parts of the lemma is
+--       replaced by a well-typed substitution judgment, and
+--
+--    2. part 3 of the lemma becomes redundant and has been omitted.
+--
+--    A more familiar version of the statement, for the special case
+--    where the last variable in the context is substituted, is stated
+--    explicitly as a pair of corollaries in the Agda mechanization.
+
+cor-lem-4-4-1 = SimpleNorm.nfKind-[]
+cor-lem-4-4-2 = SimpleNorm.nf-[]
+
+-- ** Sec. 5 -- The Canonical System **
+
+--  * The canonical system (Fig. 7 and 8)
+
+import FOmegaInt.Kinding.Canonical
+module Canon = FOmegaInt.Kinding.Canonical
+
+--  * Lemma 5.1 (soundness of the canonical rules -- excerpt)
+
+import FOmegaInt.Kinding.Canonical.Equivalence as CanonEquiv
+lemma-5-1-1a = CanonEquiv.sound-Nf⇉
+lemma-5-1-1b = CanonEquiv.sound-Nf⇇
+lemma-5-1-2  = CanonEquiv.sound-<:
+lemma-5-1-3  = CanonEquiv.sound-<:⇇
+
+--  * Lemma 5.2 (hereditary substitution -- excerpt)
+--
+--    NOTE. The Agda version of Lemma 5.2 again uses a representation
+--    of (canonically well-kinded) single-variable substitutions
+--    similar to that discussed in the comment of Lemma 4.4 above.  As
+--    a consequence, the (canonical) kinding premise shared by all
+--    four parts is replaced by a (canonically) well-kinded single
+--    variable substitution.
+
+import FOmegaInt.Kinding.Canonical.HereditarySubstitution as CanonHSubst
+lemma-5-2-1 = CanonHSubst.TrackSimpleKindsSubst.Nf⇇-/⟨⟩
+lemma-5-2-2 = CanonHSubst.TrackSimpleKindsSubst.Nf⇇-/⟨⟩≃-<:
+lemma-5-2-3 = CanonHSubst.TrackSimpleKindsSubst.<:⇇-/⟨⟩≃
+lemma-5-2-4 = CanonHSubst.TrackSimpleKindsSubst.≃-Π-e
+
+--  * Lemma 5.3 (completeness of the canonical rules -- excerpt)
+
+lemma-5-3-1 = CanonEquiv.CompletenessExtended.complete-Tp∈
+lemma-5-3-2 = CanonEquiv.CompletenessExtended.complete-<:
+
+--  * Lemma 5.4 (inversion of top-level subtyping)
+
+import FOmegaInt.Typing.Inversion as Inv
+lemma-5-4-1  = Inv.<:-∀-inv
+lemma-5-4-2  = Inv.<:-→-inv
+lemma-5-4-3a = Inv.⇒-≮:-Π
+lemma-5-4-3b = Inv.Π-≮:-⇒
+
 
 ------------------------------------------------------------------------
 -- Full list of Agda modules
