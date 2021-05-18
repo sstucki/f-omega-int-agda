@@ -548,7 +548,7 @@ module _ where
   -- hereditary substitutions in well-kinded types commute, later.
   -- See e.g. `Nf∈-[]-/⟨⟩-↑⋆` etc. in module Kinding.Simple.
 
--- Some commutation lemmas up to βη-equality.
+-- Some commutation lemmas up to β-equality.
 
 module _ where
   open →β*-Reasoning
