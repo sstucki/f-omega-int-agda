@@ -13,7 +13,8 @@ open import FOmegaInt.Syntax
 open import FOmegaInt.Syntax.HereditarySubstitution
 open import FOmegaInt.Syntax.Normalization
 open import FOmegaInt.Kinding.Canonical
-open import FOmegaInt.Kinding.Canonical.HereditarySubstitution
+open import FOmegaInt.Kinding.Canonical.HereditarySubstitution as HS
+  hiding (Nf⇇-Π-e)
 
 open Syntax
 open ElimCtx
@@ -22,8 +23,6 @@ open Kinding
 open WfCtxOps
 open ContextNarrowing
 
-private module TK = TrackSimpleKindsSubst
-
 
 ------------------------------------------------------------------------
 -- Validity of canonical kinding, subkinding and subtyping.
@@ -31,17 +30,20 @@ private module TK = TrackSimpleKindsSubst
 -- Validity of spine kinding: the kind of an elimination is
 -- well-formed, provided that the spine is well-kinded and the kind of
 -- the head is well-formed.
+
 Sp⇉-valid : ∀ {n} {Γ : Ctx n} {as j k} → Γ ⊢ j kd → Γ ⊢ j ⇉∙ as ⇉ k → Γ ⊢ k kd
 Sp⇉-valid j-kd ⇉-[] = j-kd
 Sp⇉-valid (kd-Π j-kd k-kd) (⇉-∷ a⇇j _ k[a]⇉as⇉l) =
-  Sp⇉-valid (TK.kd-/⟨⟩ k-kd (⇇-hsub a⇇j j-kd (⌊⌋-⌊⌋≡ _))) k[a]⇉as⇉l
+  Sp⇉-valid (kd-/⟨⟩ k-kd (⇇-hsub a⇇j j-kd (⌊⌋-⌊⌋≡ _))) k[a]⇉as⇉l
 
 -- Validity of kinding for neutral types: the kinds of neutral types
 -- are well-formed.
+
 Ne∈-valid : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢Ne a ∈ k → Γ ⊢ k kd
 Ne∈-valid (∈-∙ x∈j j⇉as⇉k) = Sp⇉-valid (Var∈-valid x∈j) j⇉as⇉k
 
 -- Validity of spine equality.
+
 Sp≃-valid : ∀ {n} {Γ : Ctx n} {as bs j₁ j₂ k₂} →
             Γ ⊢ j₁ <∷ j₂ → Γ ⊢ j₂ ⇉∙ as ≃ bs ⇉ k₂ →
             ∃ λ k₁ → Γ ⊢ j₂ ⇉∙ as ⇉ k₂ × Γ ⊢ j₁ ⇉∙ bs ⇉ k₁ × Γ ⊢ k₁ <∷ k₂
@@ -51,7 +53,7 @@ Sp≃-valid (<∷-Π j₂<∷j₁ k₁<∷k₂ (kd-Π j₁-kd k₁-kd))
   let j₂-kd        = ≃-valid-kd a≃b⇇j₂
       a⇇j₂ , b⇇j₂  = ≃-valid a≃b⇇j₂
       b⇇j₁         = Nf⇇-⇑ b⇇j₂ j₂<∷j₁
-      k₁[b]<∷k₂[a] = TK.<∷-/⟨⟩≃ k₁<∷k₂ (≃-hsub (≃-sym a≃b⇇j₂) (⌊⌋-⌊⌋≡ _))
+      k₁[b]<∷k₂[a] = <∷-/⟨⟩≃ k₁<∷k₂ (≃-hsub (≃-sym a≃b⇇j₂) (⌊⌋-⌊⌋≡ _))
       l₁ , k₂[a]⇉as⇉l₂ , k₁[b]⇉bs⇉l₁ , l₁<∷l₂ = Sp≃-valid k₁[b]<∷k₂[a]
                                                           k₂[a]⇉as≃bs⇉l₂
   in l₁ ,
@@ -102,31 +104,38 @@ mutual
 
 -- Validity of kind checking: if a normal type checks against a kind,
 -- then that kind is well-formed.
+
 Nf⇇-valid : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢Nf a ⇇ k → Γ ⊢ k kd
 Nf⇇-valid (⇇-⇑ a⇉j j<∷k) = proj₂ (<∷-valid j<∷k)
 
--- Some corollaries.
+
+------------------------------------------------------------------------
+-- Some corollaries of validity
 
 -- The checked kinds of subtypes are well-formed.
+
 <:⇇-valid-kd : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a <: b ⇇ k → Γ ⊢ k kd
 <:⇇-valid-kd a<:b⇇k = Nf⇇-valid (proj₁ (<:⇇-valid a<:b⇇k))
 
--- Canonical kinding of applications is admissible.
+-- Canonical kinding of applications is admissible (strong version).
+
 Nf⇇-Π-e : ∀ {n} {Γ : Ctx n} {a b j k} →
           Γ ⊢Nf a ⇇ Π j k → Γ ⊢Nf b ⇇ j →
           Γ ⊢Nf a ⌜·⌝⟨ ⌊ Π j k ⌋ ⟩ b ⇇ k Kind[ b ∈ ⌊ j ⌋ ]
-Nf⇇-Π-e a⇇Πjk b⇇j = TK.Nf⇇-Π-e a⇇Πjk b⇇j (Nf⇇-valid b⇇j) (⌊⌋-⌊⌋≡ _)
+Nf⇇-Π-e a⇇Πjk b⇇j = HS.Nf⇇-Π-e a⇇Πjk b⇇j (Nf⇇-valid b⇇j) (⌊⌋-⌊⌋≡ _)
 
 -- Canonical subtyping of applications is admissible.
+
 <:-⌜·⌝ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ j k} →
          Γ ⊢ a₁ <: a₂ ⇇ Π j k → Γ ⊢ b₁ ≃ b₂ ⇇ j →
          Γ ⊢ a₁ ⌜·⌝⟨ ⌊ Π j k ⌋ ⟩ b₁ <: a₂ ⌜·⌝⟨ ⌊ Π j k ⌋ ⟩ b₂ ⇇
            k Kind[ b₁ ∈ ⌊ j ⌋ ]
 <:-⌜·⌝ a₁<:a₂⇇Πjk b₁≃b₂⇇j with <:⇇-valid-kd a₁<:a₂⇇Πjk
 <:-⌜·⌝ (<:-λ a₁<:a₂⇇k Λj₁a₁⇇Πjk Λj₂a₂⇇Πjk) b₁≃b₂⇇j | (kd-Π _ k-kd) =
-  TK.<:⇇-/⟨⟩≃ a₁<:a₂⇇k k-kd (≃-hsub b₁≃b₂⇇j (⌊⌋-⌊⌋≡ _))
+  <:⇇-/⟨⟩≃ a₁<:a₂⇇k k-kd (≃-hsub b₁≃b₂⇇j (⌊⌋-⌊⌋≡ _))
 
 -- Subtyping of proper types checks against the kind of proper types.
+
 <:-⋯-* : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a <: b → Γ ⊢ a <: b ⇇ ⌜*⌝
 <:-⋯-* a<:b with <:-valid a<:b
 <:-⋯-* a<:b | a⇉a⋯a , b⇉b⋯b = <:-⇇ (Nf⇉-⋯-* a⇉a⋯a) (Nf⇉-⋯-* b⇉b⋯b) a<:b
@@ -135,26 +144,27 @@ Nf⇇-Π-e a⇇Πjk b⇇j = TK.Nf⇇-Π-e a⇇Πjk b⇇j (Nf⇇-valid b⇇j) (�
 
 kd-[] : ∀ {n} {Γ : Ctx n} {a j k} →
         kd k ∷ Γ ⊢ j kd → Γ ⊢Nf a ⇇ k → Γ ⊢ j Kind[ a ∈ ⌊ k ⌋ ] kd
-kd-[] j-kd a⇇k = TK.kd-/⟨⟩ j-kd (⇇-hsub a⇇k (Nf⇇-valid a⇇k) (⌊⌋-⌊⌋≡ _))
+kd-[] j-kd a⇇k = kd-/⟨⟩ j-kd (⇇-hsub a⇇k (Nf⇇-valid a⇇k) (⌊⌋-⌊⌋≡ _))
 
 Nf⇇-[] : ∀ {n} {Γ : Ctx n} {a b j k} →
          kd j ∷ Γ ⊢Nf a ⇇ k → Γ ⊢Nf b ⇇ j →
          Γ ⊢Nf a [ b ∈ ⌊ j ⌋ ] ⇇ k Kind[ b ∈ ⌊ j ⌋ ]
-Nf⇇-[] a⇇k b⇇j = TK.Nf⇇-/⟨⟩ a⇇k (⇇-hsub b⇇j (Nf⇇-valid b⇇j) (⌊⌋-⌊⌋≡ _))
+Nf⇇-[] a⇇k b⇇j = Nf⇇-/⟨⟩ a⇇k (⇇-hsub b⇇j (Nf⇇-valid b⇇j) (⌊⌋-⌊⌋≡ _))
 
 <∷-[≃] : ∀ {n} {Γ : Ctx n} {j k₁ k₂ a₁ a₂} →
          kd j ∷ Γ ⊢ k₁ <∷ k₂ → Γ ⊢ a₁ ≃ a₂ ⇇ j →
          Γ ⊢ k₁ Kind[ a₁ ∈ ⌊ j ⌋ ] <∷ k₂ Kind[ a₂ ∈ ⌊ j ⌋ ]
 <∷-[≃] k₁<∷k₂ a₁≃a₂⇇j =
-  TK.<∷-/⟨⟩≃ k₁<∷k₂ (≃-hsub a₁≃a₂⇇j (⌊⌋-⌊⌋≡ _))
+  <∷-/⟨⟩≃ k₁<∷k₂ (≃-hsub a₁≃a₂⇇j (⌊⌋-⌊⌋≡ _))
 
 <:-[≃] : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ j k} →
          kd j ∷ Γ ⊢ a₁ <: a₂ ⇇ k → Γ ⊢ b₁ ≃ b₂ ⇇ j →
          Γ ⊢ a₁ [ b₁ ∈ ⌊ j ⌋ ] <: a₂ [ b₂ ∈ ⌊ j ⌋ ] ⇇ k Kind[ b₁ ∈ ⌊ j ⌋ ]
 <:-[≃] a₁<:a₂⇇k b₁≃b₂⇇j =
-  TK.<:⇇-/⟨⟩≃ a₁<:a₂⇇k (<:⇇-valid-kd a₁<:a₂⇇k) (≃-hsub b₁≃b₂⇇j (⌊⌋-⌊⌋≡ _))
+  <:⇇-/⟨⟩≃ a₁<:a₂⇇k (<:⇇-valid-kd a₁<:a₂⇇k) (≃-hsub b₁≃b₂⇇j (⌊⌋-⌊⌋≡ _))
 
 -- Another admissible kinding rule for applications.
+
 Nf⇇-Π-e′ : ∀ {n} {Γ : Ctx n} {a b j k} →
            Γ ⊢Nf a ⇇ Π j k → Γ ⊢Nf b ⇇ j →
            Γ ⊢Nf a ↓⌜·⌝ b ⇇ k Kind[ b ∈ ⌊ j ⌋ ]
@@ -164,6 +174,7 @@ Nf⇇-Π-e′ {b = b} (⇇-⇑ (⇉-Π-i {_} {a₁} j₁-kd a⇉k₁) (<∷-Π j
         (Nf⇇-[] (⇇-⇑ (⇓-Nf⇉ (Nf⇇-valid b⇇j₂) j₂<∷j₁ a⇉k₁) k₁<∷k₂) b⇇j₂)
 
 -- Another admissible subtyping rule for applications.
+
 <:-↓⌜·⌝ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂ j k} →
          Γ ⊢ a₁ <: a₂ ⇇ Π j k → Γ ⊢ b₁ ≃ b₂ ⇇ j →
          Γ ⊢ a₁ ↓⌜·⌝ b₁ <: a₂ ↓⌜·⌝ b₂ ⇇ k Kind[ b₁ ∈ ⌊ j ⌋ ]

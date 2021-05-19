@@ -99,20 +99,18 @@ mutual
           (⇉-∷ a₁⇇j₁ j₁-kd k₁[a₁]⇉bs₁⇉c₁⋯d₁)
           (⇉-∷ a₂⇇j₂ j₂-kd k₂[a₂]⇉bs₂⇉c₂⋯d₂) (≈-∷ a₁≈a₂ bs₁≈bs₂) =
     let a₁⇇j     = Nf⇇-⇑ a₁⇇j₁ j₁<∷j
-        k[a₁]-kd = TK.kd-/⟨⟩ k-kd (⇇-hsub a₁⇇j j-kd (⌊⌋-⌊⌋≡ _))
+        k[a₁]-kd = kd-/⟨⟩ k-kd (⇇-hsub a₁⇇j j-kd (⌊⌋-⌊⌋≡ _))
         a₁≃a₂⇇j  = ≈-≃ j-kd a₁⇇j (Nf⇇-⇑ a₂⇇j₂ j₂<∷j) a₁≈a₂
         k[a₁]<∷k₁[a₁] = subst (λ l → _ ⊢ _ Kind[ _ ∈ l ] <∷ _) (<∷-⌊⌋ j₁<∷j)
-                              (TK.<∷-/⟨⟩≃ k<∷k₁ (⇇-hsub a₁⇇j₁ j₁-kd (⌊⌋-⌊⌋≡ _)))
+                              (<∷-/⟨⟩≃ k<∷k₁ (⇇-hsub a₁⇇j₁ j₁-kd (⌊⌋-⌊⌋≡ _)))
         k[a₂]<∷k₂[a₂] = subst (λ l → _ ⊢ _ Kind[ _ ∈ l ] <∷ _) (<∷-⌊⌋ j₂<∷j)
-                              (TK.<∷-/⟨⟩≃ k<∷k₂ (⇇-hsub a₂⇇j₂ j₂-kd (⌊⌋-⌊⌋≡ _)))
-        k[a₁]<∷k[a₂]  = TK.kd-/⟨⟩≃-<∷ k-kd (≃-hsub a₁≃a₂⇇j (⌊⌋-⌊⌋≡ _))
+                              (<∷-/⟨⟩≃ k<∷k₂ (⇇-hsub a₂⇇j₂ j₂-kd (⌊⌋-⌊⌋≡ _)))
+        k[a₁]<∷k[a₂]  = kd-/⟨⟩≃-<∷ k-kd (≃-hsub a₁≃a₂⇇j (⌊⌋-⌊⌋≡ _))
         k[a₁]<∷k₂[a₂] = <∷-trans k[a₁]<∷k[a₂] k[a₂]<∷k₂[a₂]
         c , d , k[a₁]⇉bs₁≃bs₂⇉c⋯d = ≈Sp-Sp≃ k[a₁]-kd k[a₁]<∷k₁[a₁] k[a₁]<∷k₂[a₂]
                                             k₁[a₁]⇉bs₁⇉c₁⋯d₁ k₂[a₂]⇉bs₂⇉c₂⋯d₂
                                             bs₁≈bs₂
     in c , d , ≃-∷ a₁≃a₂⇇j k[a₁]⇉bs₁≃bs₂⇉c⋯d
-    where
-      module TK = TrackSimpleKindsSubst
 
   ≈-≃ : ∀ {n} {Γ : Ctx n} {a b j} →
         Γ ⊢ j kd → Γ ⊢Nf a ⇇ j → Γ ⊢Nf b ⇇ j → a ≈ b → Γ ⊢ a ≃ b ⇇ j
