@@ -241,10 +241,10 @@ lemma-5-1-3  = CanonEquiv.sound-<:⇇
 --    variable substitution.
 
 import FOmegaInt.Kinding.Canonical.HereditarySubstitution as CanonHSubst
-lemma-5-2-1 = CanonHSubst.TrackSimpleKindsSubst.Nf⇇-/⟨⟩
-lemma-5-2-2 = CanonHSubst.TrackSimpleKindsSubst.Nf⇇-/⟨⟩≃-<:
-lemma-5-2-3 = CanonHSubst.TrackSimpleKindsSubst.<:⇇-/⟨⟩≃
-lemma-5-2-4 = CanonHSubst.TrackSimpleKindsSubst.≃-Π-e
+lemma-5-2-1 = CanonHSubst.Nf⇇-/⟨⟩
+lemma-5-2-2 = CanonHSubst.Nf⇇-/⟨⟩≃-<:
+lemma-5-2-3 = CanonHSubst.<:⇇-/⟨⟩≃
+lemma-5-2-4 = CanonHSubst.≃-Π-e
 
 --  * Lemma 5.3 (completeness of the canonical rules -- excerpt)
 
