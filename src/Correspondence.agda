@@ -2,8 +2,9 @@
 -- Correspondence between paper and Agda development
 ------------------------------------------------------------------------
 
-module Correspondence where
+{-# OPTIONS --safe --without-K #-}
 
+module Correspondence where
 
 ------------------------------------------------------------------------
 -- Main results
@@ -181,7 +182,6 @@ import FOmegaInt.Kinding.Declarative as ExtDeclKinding
 parallel-functionality-1 = ExtDeclKinding.WfSubstitutionEquality.kd-/≃
 parallel-functionality-2 = ExtDeclKinding.WfSubstitutionEquality.Tp∈-/≃
 
-
 -- ** Sec. 4 -- Normalization of Types **
 
 --  * Lemma 4.1 (ordinary substs. β-reduce to hereditary substs.)
@@ -258,8 +258,7 @@ lemma-5-4-3b = Inv.Π-≮:-⇒
 
 ------------------------------------------------------------------------
 -- Full list of Agda modules
-------------------------------------------------------------------------
-
+--
 -- For an exhaustive list of all the modules contained in the
 -- mechanization, see:
 
