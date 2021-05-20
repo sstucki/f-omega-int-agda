@@ -1,6 +1,5 @@
 ------------------------------------------------------------------------
--- Convenient syntax for relational reasoning using transitive
--- relations
+-- Relational reasoning using transitive relations
 ------------------------------------------------------------------------
 
 {-# OPTIONS --safe --without-K #-}
@@ -37,6 +36,7 @@ record IsTransRel {a ℓ₁ ℓ₂} {A : Set a}
     --
     -- (This always true for preorders, but not necessarily for
     -- irreflexive relations.)
+
     ∼-resp-≈      : _∼_ Respects₂ _≈_
 
   module Eq = IsEquivalence isEquivalence
@@ -53,6 +53,7 @@ record TransRel c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
 
 -- Sanity check: every pre-order is a transitive relation in the above
 -- sense...
+
 preorderIsTransRel : ∀ {c ℓ₁ ℓ₂} → Preorder c ℓ₁ ℓ₂ → TransRel c ℓ₁ ℓ₂
 preorderIsTransRel P = record
  { isTransRel = record
@@ -64,6 +65,7 @@ preorderIsTransRel P = record
  where open IsPreorder (Preorder.isPreorder P)
 
 -- ... and so is every strict partial order.
+
 strictPartialOrderIsTransRel : ∀ {c ℓ₁ ℓ₂} →
                                StrictPartialOrder c ℓ₁ ℓ₂ → TransRel c ℓ₁ ℓ₂
 strictPartialOrderIsTransRel SPO = record
@@ -108,10 +110,12 @@ module TransRelReasoning {c ℓ₁ ℓ₂} (R : TransRel c ℓ₁ ℓ₂) where
   infix  1 begin_
 
   -- Codes for the relation _∼_ and the underlying equality _≈_.
+
   data RelC : Set where
     rel eq : RelC
 
   -- A generic relation combining _∼_ and equality.
+
   data _IsRelatedTo_In_ (x y : Carrier) : RelC → Set (ℓ₁ ⊔ ℓ₂) where
     relTo : (x∼y : x ∼ y) → x IsRelatedTo y In rel
     eqTo  : (x≈y : x ≈ y) → x IsRelatedTo y In eq
@@ -135,15 +139,16 @@ module TransRelReasoning {c ℓ₁ ℓ₂} (R : TransRel c ℓ₁ ℓ₂) where
 
 
 ------------------------------------------------------------------------
--- FIXME: the following should go into a different module (probably
--- into Data.Fin.Substitution.{Typed,TypedRel})
+-- Instantiations of the above for relational judgments.
 
 -- A form of pre-order reasoning for transitive relations in a context.
+
 record TransCtxTermRelReasoning {t₁ t₂ ℓ} {T₁ : Pred ℕ t₁} {T₂ : Pred ℕ t₂}
                                 (_⊢_∼_ : Typing T₁ T₂ T₂ ℓ)
                                 : Set (t₁ ⊔ t₂ ⊔ ℓ) where
 
   -- Transitivity of _⊢_∼_ for a given context.
+
   field ∼-trans : ∀ {n} {Γ : Ctx T₁ n} → Transitive (Γ ⊢_∼_)
 
   module _ {n} {Γ : Ctx T₁ n} where
@@ -163,12 +168,14 @@ record TransCtxTermRelReasoning {t₁ t₂ ℓ} {T₁ : Pred ℕ t₁} {T₂ : P
       renaming (_≈⟨_⟩_ to _≡⟨_⟩_; _≈⟨⟩_ to _≡⟨⟩_)
 
 -- A form of pre-order reasoning for typed transitive relations.
+
 record TypedTransRelReasoning {t₁ t₂ t₃ ℓ} {T₁ : Pred ℕ t₁}
                               {T₂ : Pred ℕ t₂} {T₃ : Pred ℕ t₃}
                               (_⊢_∼_∈_ : TypedRel T₁ T₂ T₂ T₃ ℓ)
                               : Set (t₁ ⊔ t₂ ⊔ t₃ ⊔ ℓ) where
 
   -- Transitivity of _⊢_∼_∈_ for a given context and T₃-"type".
+
   field ∼-trans : ∀ {n} {Γ : Ctx T₁ n} {t} → Transitive (Γ ⊢_∼_∈ t)
 
   module _ {n} {Γ : Ctx T₁ n} {t : T₃ n} where
