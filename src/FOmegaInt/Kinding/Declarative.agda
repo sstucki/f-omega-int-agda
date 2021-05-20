@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- A variant of declarative kinding in Fω with interval kinds
+-- Extended declarative kinding in Fω with interval kinds
 ------------------------------------------------------------------------
 
 {-# OPTIONS --safe --without-K #-}
@@ -25,7 +25,7 @@ open import FOmegaInt.Syntax
 
 
 ------------------------------------------------------------------------
--- Declarative (sub)kinding, subtyping and kind/type equality.
+-- Extended declarative (sub)kinding, subtyping and equality.
 --
 -- This module contains variants of the declarative kinding and
 -- subtyping judgments which differ slightly from those given in the
@@ -95,16 +95,19 @@ module Kinding where
     _ctx = ContextFormation._wf _⊢_wf
 
     -- Well-formed type/kind ascriptions in typing contexts.
+
     data _⊢_wf {n} (Γ : Ctx n) : TermAsc n → Set where
       wf-kd : ∀ {a} → Γ ⊢ a kd    → Γ ⊢ (kd a) wf
       wf-tp : ∀ {a} → Γ ⊢Tp a ∈ * → Γ ⊢ (tp a) wf
 
     -- Well-formed kinds.
+
     data _⊢_kd {n} (Γ : Ctx n) : Kind Term n → Set where
       kd-⋯ : ∀ {a b} → Γ ⊢Tp a ∈ * → Γ ⊢Tp b ∈ * → Γ ⊢ a ⋯ b kd
       kd-Π : ∀ {j k} → Γ ⊢ j kd → kd j ∷ Γ ⊢ k kd → Γ ⊢ Π j k kd
 
     -- Kinding derivations.
+
     data _⊢Tp_∈_ {n} (Γ : Ctx n) : Term n → Kind Term n → Set where
       ∈-var : ∀ {k} x → Γ ctx → lookup Γ x ≡ kd k → Γ ⊢Tp var x ∈ k
       ∈-⊥-f : Γ ctx → Γ ⊢Tp ⊥ ∈ *
@@ -123,6 +126,7 @@ module Kinding where
       ∈-⇑   : ∀ {a j k} → Γ ⊢Tp a ∈ j → Γ ⊢ j <∷ k → Γ ⊢Tp a ∈ k
 
     -- Subkinding derivations.
+
     data _⊢_<∷_ {n} (Γ : Ctx n) : Kind Term n → Kind Term n → Set where
       <∷-⋯ : ∀ {a₁ a₂ b₁ b₂} →
              Γ ⊢ a₂ <: a₁ ∈ * → Γ ⊢ b₁ <: b₂ ∈ * → Γ ⊢ a₁ ⋯ b₁ <∷ a₂ ⋯ b₂
@@ -131,6 +135,7 @@ module Kinding where
              Γ ⊢ Π j₁ k₁ <∷ Π j₂ k₂
 
     -- Subtyping derivations.
+
     data _⊢_<:_∈_ {n} (Γ : Ctx n) : Term n → Term n → Kind Term n → Set where
       <:-refl  : ∀ {a k}     → Γ ⊢Tp a ∈ k → Γ ⊢ a <: a ∈ k
       <:-trans : ∀ {a b c k} → Γ ⊢ a <: b ∈ k → Γ ⊢ b <: c ∈ k → Γ ⊢ a <: c ∈ k
@@ -168,20 +173,24 @@ module Kinding where
       <:-⇑     : ∀ {a b j k} → Γ ⊢ a <: b ∈ j → Γ ⊢ j <∷ k → Γ ⊢ a <: b ∈ k
 
     -- Type equality.
+
     data _⊢_≃_∈_ {n} (Γ : Ctx n) : Term n → Term n → Kind Term n → Set where
       <:-antisym : ∀ {a b k} → Γ ⊢ a <: b ∈ k → Γ ⊢ b <: a ∈ k → Γ ⊢ a ≃ b ∈ k
 
   -- Kind equality.
+
   data _⊢_≅_ {n} (Γ : Ctx n) : Kind Term n → Kind Term n → Set where
     <∷-antisym : ∀ {j k} → Γ ⊢ j <∷ k → Γ ⊢ k <∷ j → Γ ⊢ j ≅ k
 
   -- Combined kinding of types and term variable typing.
+
   data _⊢_∈_ {n} (Γ : Ctx n) : Term n → TermAsc n → Set where
     ∈-tp  : ∀ {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ∈ kd k
     ∈-var : ∀ x {a} → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢ var x ∈ tp a
 
   -- Combined type equality and syntactic term variable equality (used
   -- for well-formed equality lifted to substitutions).
+
   data _⊢_≃⊎≡_∈_ {n} (Γ : Ctx n) : Term n → Term n → TermAsc n → Set where
     ≃-tp  : ∀ {a b k} → Γ ⊢ a ≃ b ∈ k           → Γ ⊢ a     ≃⊎≡ b     ∈ kd k
     ≃-var : ∀ x {a} → Γ ctx → lookup Γ x ≡ tp a → Γ ⊢ var x ≃⊎≡ var x ∈ tp a
@@ -238,48 +247,58 @@ wf-kd-inv (wf-kd k-kd) = k-kd
 ≃⇒<: (<:-antisym a<:b b<:a) = a<:b
 
 -- Reflexivity of subkinding.
+
 <∷-refl : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k <∷ k
 <∷-refl (kd-⋯ a∈* b∈*)   = <∷-⋯ (<:-refl a∈*) (<:-refl b∈*)
 <∷-refl (kd-Π j-kd k-kd) = <∷-Π (<∷-refl j-kd) (<∷-refl k-kd) (kd-Π j-kd k-kd)
 
 -- Reflexivity of kind equality.
+
 ≅-refl : ∀ {n} {Γ : Ctx n} {k} → Γ ⊢ k kd → Γ ⊢ k ≅ k
 ≅-refl k-kd = <∷-antisym (<∷-refl k-kd) (<∷-refl k-kd)
 
 -- Symmetry of kind equality.
+
 ≅-sym : ∀ {n} {Γ : Ctx n} {j k} → Γ ⊢ j ≅ k → Γ ⊢ k ≅ j
 ≅-sym (<∷-antisym j<∷k k<∷j) = <∷-antisym k<∷j j<∷k
 
 -- An admissible kind equality rule for interval kinds.
+
 ≅-⋯ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂} →
       Γ ⊢ a₁ ≃ a₂ ∈ * → Γ ⊢ b₁ ≃ b₂ ∈ * → Γ ⊢ a₁ ⋯ b₁ ≅ a₂ ⋯ b₂
 ≅-⋯ (<:-antisym a₁<:a₂ a₂<:a₁) (<:-antisym b₁<:b₂ b₂<:b₁) =
   <∷-antisym (<∷-⋯ a₂<:a₁ b₁<:b₂) (<∷-⋯ a₁<:a₂ b₂<:b₁)
 
 -- Type equality is reflexive.
+
 ≃-refl : ∀ {n} {Γ : Ctx n} {a k} → Γ ⊢Tp a ∈ k → Γ ⊢ a ≃ a ∈ k
 ≃-refl a∈k = <:-antisym (<:-refl a∈k) (<:-refl a∈k)
 
 -- Type equality is transitive.
+
 ≃-trans : ∀ {n} {Γ : Ctx n} {a b c k} →
           Γ ⊢ a ≃ b ∈ k → Γ ⊢ b ≃ c ∈ k → Γ ⊢ a ≃ c ∈ k
 ≃-trans (<:-antisym a<:b b<:a) (<:-antisym b<:c c<:b) =
   <:-antisym (<:-trans a<:b b<:c) (<:-trans c<:b b<:a)
 
 -- Type equality is symmetric.
+
 ≃-sym : ∀ {n} {Γ : Ctx n} {a b k} → Γ ⊢ a ≃ b ∈ k → Γ ⊢ b ≃ a ∈ k
 ≃-sym (<:-antisym a<:b b<:a) = <:-antisym b<:a a<:b
 
 -- Reflexivity of the combined type and term variable equality.
+
 ≃⊎≡-refl : ∀ {n} {Γ : Ctx n} {a b} → Γ ⊢ a ∈ b → Γ ⊢ a ≃⊎≡ a ∈ b
 ≃⊎≡-refl (∈-tp a∈k)                = ≃-tp (≃-refl a∈k)
 ≃⊎≡-refl (∈-var x Γ-ctx Γ[x]≡tp-a) = ≃-var x Γ-ctx Γ[x]≡tp-a
 
 -- Types inhabiting interval kinds are proper Types.
+
 Tp∈-⋯-* : ∀ {n} {Γ : Ctx n} {a b c} → Γ ⊢Tp a ∈ b ⋯ c → Γ ⊢Tp a ∈ *
 Tp∈-⋯-* a∈b⋯c = ∈-⇑ (∈-s-i a∈b⋯c) (<∷-⋯ (<:-⊥ a∈b⋯c) (<:-⊤ a∈b⋯c))
 
 -- Well-formedness of the * kind.
+
 *-kd : ∀ {n} {Γ : Ctx n} → Γ ctx → Γ ⊢ * kd
 *-kd Γ-ctx = kd-⋯ (∈-⊥-f Γ-ctx) (∈-⊤-f Γ-ctx)
 
@@ -287,6 +306,7 @@ module _ where
   open Substitution
 
   -- An admissible β-rule for type equality.
+
   ≃-β : ∀ {n} {Γ : Ctx n} {j a k b} → kd j ∷ Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ j →
         -- Validity conditions:
         Γ ⊢Tp a [ b ] ∈ k Kind[ b ] → kd j ∷ Γ ⊢ k kd → Γ ⊢ k Kind[ b ] kd →
@@ -296,12 +316,14 @@ module _ where
                (<:-β₂ a∈k b∈j a[b]∈k[b] k-kd k[b]-kd)
 
   -- An admissible η-rule for type equality.
+
   ≃-η : ∀ {n} {Γ : Ctx n} {a j k} →
         Γ ⊢Tp a ∈ Π j k → Γ ⊢ Λ j (weaken a · var zero) ≃ a ∈ Π j k
   ≃-η a∈Πjk = <:-antisym (<:-η₁ a∈Πjk) (<:-η₂ a∈Πjk)
 
 -- An admissible congruence rule for type equality w.r.t. formation of
 -- arrow types.
+
 ≃-→ : ∀ {n} {Γ : Ctx n} {a₁ a₂ b₁ b₂} →
       Γ ⊢ a₁ ≃ a₂ ∈ * → Γ ⊢ b₁ ≃ b₂ ∈ * → Γ ⊢ a₁ ⇒ b₁ ≃ a₂ ⇒ b₂ ∈ *
 ≃-→ (<:-antisym a₁<:a₂∈* a₂<:a₁∈*) (<:-antisym b₁<:b₂∈* b₂<:b₁∈*) =
@@ -309,6 +331,7 @@ module _ where
 
 -- An admissible congruence rule for type equality w.r.t. operator
 -- abstraction.
+
 ≃-λ : ∀ {n} {Γ : Ctx n} {j₁ j₂ a₁ a₂ j k} →
       kd j ∷ Γ ⊢ a₁ ≃ a₂ ∈ k → Γ ⊢Tp Λ j₁ a₁ ∈ Π j k → Γ ⊢Tp Λ j₂ a₂ ∈ Π j k →
       Γ ⊢ Λ j₁ a₁ ≃ Λ j₂ a₂ ∈ Π j k
@@ -317,6 +340,7 @@ module _ where
              (<:-λ a₂<:a₁∈k Λj₂a₂∈Πjk Λj₁a₁∈Πjk)
 
 -- An admissible subsumption rule for type equality.
+
 ≃-⇑ : ∀ {n} {Γ : Ctx n} {a b j k} → Γ ⊢ a ≃ b ∈ j → Γ ⊢ j <∷ k → Γ ⊢ a ≃ b ∈ k
 ≃-⇑ (<:-antisym a<:b b<:a) j<∷k = <:-antisym (<:-⇑ a<:b j<∷k) (<:-⇑ b<:a j<∷k)
 
@@ -385,10 +409,12 @@ wf-ctx (wf-tp a∈*)  = Tp∈-ctx a∈*
 
 -- A shorthand for kindings and typings of Ts by kind or type
 -- ascriptions.
+
 TermAscTyping : (ℕ → Set) → Set₁
 TermAscTyping T = Typing TermAsc T TermAsc Level.zero
 
 -- Liftings from well-typed Ts to well-typed/kinded terms/types.
+
 LiftTo-∈ : ∀ {T} → TermAscTyping T → Set₁
 LiftTo-∈ _⊢T_∈_ = LiftTyped Substitution.termAscTermSubst _⊢_wf _⊢T_∈_ _⊢_∈_
 
@@ -400,6 +426,7 @@ record TypedSubstAppHelpers {T} (rawLift : Lift T Term) : Set where
   module L = Lift     rawLift
 
   field
+
     -- Substitutions in kinds and types commute.
 
     Kind/-sub-↑ : ∀ {m n} k a (σ : Sub T m n) →
@@ -413,7 +440,8 @@ record TypedSubstAppHelpers {T} (rawLift : Lift T Term) : Set where
     weaken-/ : ∀ {m n} {σ : Sub T m n} a →
                weaken (a A./ σ) ≡ weaken a A./ σ L.↑
 
--- Application of generic well-typed T-substitutions to all the judgments.
+-- Application of generic well-formed T-substitutions to all the
+-- judgments.
 
 module TypedSubstApp {T : ℕ → Set} (_⊢T_∈_ : TermAscTyping T)
                      (liftTyped : LiftTo-∈ _⊢T_∈_)
@@ -425,6 +453,7 @@ module TypedSubstApp {T : ℕ → Set} (_⊢T_∈_ : TermAscTyping T)
   open TypedSubstAppHelpers helpers
 
   -- Lift well-kinded Ts to well-kinded types.
+
   liftTp : ∀ {n} {Γ : Ctx n} {a k kd-k} →
            kd-k ≡ kd k → Γ ⊢T a ∈ kd-k → Γ ⊢Tp L.lift a ∈ k
   liftTp refl a∈kd-k with ∈-lift a∈kd-k
@@ -583,17 +612,20 @@ module TypedSubstApp {T : ℕ → Set} (_⊢T_∈_ : TermAscTyping T)
     <∷-/-wf (<∷-Π j₂<∷j₁ _ _) σ∈Γ = <∷-/-wf j₂<∷j₁ σ∈Γ
 
   -- Substitutions preserve well-formedness of ascriptions.
+
   wf-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a σ} →
          Γ ⊢ a wf → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A.TermAsc/ σ wf
   wf-/ (wf-kd k-kd) σ∈Γ = wf-kd (kd-/ k-kd σ∈Γ)
   wf-/ (wf-tp a∈b)  σ∈Γ = wf-tp (Tp∈-/ a∈b σ∈Γ)
 
   -- Substitutions commute with kind equality.
+
   ≅-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {j k σ} →
         Γ ⊢ j ≅ k → Δ ⊢/ σ ∈ Γ → Δ ⊢ j A.Kind/ σ ≅ k A.Kind/ σ
   ≅-/ (<∷-antisym j<∷k k<∷j) σ∈Γ = <∷-antisym (<∷-/ j<∷k σ∈Γ) (<∷-/ k<∷j σ∈Γ)
 
   -- Substitutions preserve well-kindedness and well-typedness.
+
   ∈-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b σ} →
         Γ ⊢ a ∈ b → Δ ⊢/ σ ∈ Γ → Δ ⊢ a A./ σ ∈ b A.TermAsc/ σ
   ∈-/ (∈-tp a∈b)                σ∈Γ = ∈-tp (Tp∈-/ a∈b σ∈Γ)
@@ -602,6 +634,7 @@ module TypedSubstApp {T : ℕ → Set} (_⊢T_∈_ : TermAscTyping T)
           (∈-lift (/∈-lookup σ∈Γ x))
 
   -- Substitutions preserve type and syntactic term equality.
+
   ≃⊎≡-/ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a b c σ} →
           Γ ⊢ a ≃⊎≡ b ∈ c → Δ ⊢/ σ ∈ Γ →
           Δ ⊢ a A./ σ ≃⊎≡ b A./ σ ∈ c A.TermAsc/ σ
@@ -612,6 +645,7 @@ module TypedSubstApp {T : ℕ → Set} (_⊢T_∈_ : TermAscTyping T)
     in ≃⊎≡-refl x/σ∈tp-a/σ
 
 -- Well-kinded type substitutions.
+
 module KindedSubstitution where
   open Substitution           using (simple; termSubst)
   open SimpleExt    simple    using (extension)
@@ -693,6 +727,7 @@ module KindedSubstitution where
   ∈-weaken a-wf b∈c = ∈-/Var b∈c (Var∈-wk a-wf)
 
   -- Weakening preserves type and syntactic term equality.
+
   ≃⊎≡-weaken : ∀ {n} {Γ : Ctx n} {a b c d} → Γ ⊢ a wf → Γ ⊢ b ≃⊎≡ c ∈ d →
                (a ∷ Γ) ⊢ weaken b ≃⊎≡ weaken c ∈ weakenTermAsc d
   ≃⊎≡-weaken a-wf b≃⊎≡c∈d = ≃⊎≡-/Var b≃⊎≡c∈d (Var∈-wk a-wf)
@@ -719,6 +754,7 @@ module KindedSubstitution where
 
   -- A typed substitution that narrows the kind of the first type
   -- variable.
+
   ∈-<∷-sub : ∀ {n} {Γ : Ctx n} {j k} →
              Γ ⊢ j kd → Γ ⊢ j <∷ k → kd j ∷ Γ ⊢/ id ∈ kd k ∷ Γ
   ∈-<∷-sub j-kd j<∷k =
@@ -729,6 +765,7 @@ module KindedSubstitution where
 
   -- Narrowing the kind of the first type variable preserves
   -- well-formedness of kinds.
+
   ⇓-kd : ∀ {n} {Γ : Ctx n} {j₁ j₂ k} →
          Γ ⊢ j₁ kd → Γ ⊢ j₁ <∷ j₂ → kd j₂ ∷ Γ ⊢ k kd → kd j₁ ∷ Γ ⊢ k kd
   ⇓-kd j₁-kd j₁<∷j₂ k-kd =
@@ -736,6 +773,7 @@ module KindedSubstitution where
 
   -- Narrowing the kind of the first type variable preserves
   -- well-kindedness.
+
   ⇓-Tp∈ : ∀ {n} {Γ : Ctx n} {j₁ j₂ a k} →
           Γ ⊢ j₁ kd → Γ ⊢ j₁ <∷ j₂ → kd j₂ ∷ Γ ⊢Tp a ∈ k → kd j₁ ∷ Γ ⊢Tp a ∈ k
   ⇓-Tp∈ j₁-kd j₁<∷j₂ a∈k =
@@ -769,6 +807,7 @@ module WfCtxOps where
   open WellFormedWeakenOps wfWeakenOps public renaming (lookup to lookup-wf)
 
   -- Lookup the kind of a type variable in a well-formed context.
+
   lookup-kd : ∀ {m} {Γ : Ctx m} {k} x →
               Γ ctx → TermCtx.lookup Γ x ≡ kd k → Γ ⊢ k kd
   lookup-kd x Γ-ctx Γ[x]≡kd-k =
@@ -778,6 +817,7 @@ open KindedSubstitution
 open WfCtxOps
 
 -- Transitivity of subkinding.
+
 <∷-trans : ∀ {n} {Γ : Ctx n} {j k l} → Γ ⊢ j <∷ k → Γ ⊢ k <∷ l → Γ ⊢ j <∷ l
 <∷-trans (<∷-⋯ a₂<:a₁ b₁<:b₂) (<∷-⋯ a₃<:a₂ b₂<:b₃) =
   <∷-⋯ (<:-trans a₃<:a₂ a₂<:a₁) (<:-trans b₁<:b₂ b₂<:b₃)
@@ -788,6 +828,7 @@ open WfCtxOps
        Πj₁k₁-kd
 
 -- Transitivity of kind equality.
+
 ≅-trans : ∀ {n} {Γ : Ctx n} {j k l} → Γ ⊢ j ≅ k → Γ ⊢ k ≅ l → Γ ⊢ j ≅ l
 ≅-trans (<∷-antisym k₁<∷k₂ k₂<∷k₁) (<∷-antisym k₂<∷k₃ k₃<∷k₂) =
   <∷-antisym (<∷-trans k₁<∷k₂ k₂<∷k₃) (<∷-trans k₃<∷k₂ k₂<∷k₁)
@@ -876,23 +917,32 @@ module WfSubstitutionEquality where
   infixl 4  _⊢/_≃′_∈_
 
   -- An inversion lemma for the generic term/type equality.
+
   ≃⊎≡-kd-inv : ∀ {n} {Γ : Ctx n} {a b k kd-k} →
                kd-k ≡ kd k → Γ ⊢ a ≃⊎≡ b ∈ kd-k → Γ ⊢ a ≃ b ∈ k
   ≃⊎≡-kd-inv refl (≃-tp a≃b∈k) = a≃b∈k
 
-  -- A shorthand.
+  -- A 'judgment' that combines equality of a pair of substitutions σ
+  -- and ρ with well-formedness of σ and ρ.
   --
-  -- TODO: explain why we use this particular representation of equal
-  -- substitutions here.
+  -- NOTE.  By using this combined equality and well-formedness
+  -- judgment in the functionality lemmas below we effectively add
+  -- extra premises (validity conditions) to the lemmas, thus
+  -- weakening them.  We prove stronger versions later when we have
+  -- established validity of all the judgments (which uses the weak
+  -- version of the functionality lemmas).
+
   _⊢/_≃′_∈_ : ∀ {m n} → Ctx n → Sub Term m n → Sub Term m n → Ctx m → Set
   Δ ⊢/ σ ≃′ ρ ∈ Γ = Δ ⊢/ σ ∈ Γ × Δ ⊢/ ρ ∈ Γ × Δ ⊢/ σ ≃ ρ ∈ Γ × Δ ⊢/ ρ ≃ σ ∈ Γ
 
-  -- Symmetry of substitution equality.
+  -- Symmetry of the combined substitution equality judgment.
+
   ≃′-sym : ∀ {m n Δ Γ} {ρ σ : Sub Term m n} → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢/ σ ≃′ ρ ∈ Γ
   ≃′-sym (ρ∈Γ , σ∈Γ , ρ≃σ∈Γ , σ≃ρ∈Γ) = σ∈Γ , ρ∈Γ , σ≃ρ∈Γ , ρ≃σ∈Γ
 
   -- Lift a pair of equal substitutions over an additional type
   -- variable.
+
   ≃′-↑ : ∀ {m n Γ Δ} {ρ σ : Sub Term m n} {j k} →
          Δ ⊢ j kd → Δ ⊢ j ≅ k Kind/ ρ → Δ ⊢ j ≅ k Kind/ σ → Δ ⊢/ ρ ≃′ σ ∈ Γ →
          kd j ∷ Δ ⊢/ ρ ↑ ≃′ σ ↑ ∈ kd k ∷ Γ
@@ -909,11 +959,20 @@ module WfSubstitutionEquality where
       z∈k/σ′  = subst (_ ⊢Tp _ ∈_)
                       (cong (weakenKind ∘ (_ Kind/_)) (sym (π₁-zip _ _))) z∈k/σ
 
-  -- Lemmas about equal substitutions (weak versions).
+  -- Functionality of substitution (weak versions).
+  --
+  -- NOTE.  The functionality lemmas proven below are stated in terms
+  -- of the combined equality and well-formedness judgment defined
+  -- above.  This effectively adds extra premises (validity
+  -- conditions) to the lemmas, thus weakening them.  We prove
+  -- stronger versions later when we have established validity of all
+  -- the judgments (which uses the weak version of the functionality
+  -- lemmas).
 
   mutual
 
     -- Equal substitutions map well-formed kinds to kind equations.
+
     kd-/≃ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {k ρ σ} →
             Γ ⊢ k kd → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢ k Kind/ ρ ≅ k Kind/ σ
     kd-/≃ (kd-⋯ a∈* b∈*)   ρ≃σ∈Γ = ≅-⋯ (Tp∈-/≃ a∈* ρ≃σ∈Γ) (Tp∈-/≃ b∈* ρ≃σ∈Γ)
@@ -932,6 +991,7 @@ module WfSubstitutionEquality where
                     (<∷-Π (≅⇒<∷ j/ρ≅j/σ) (≅⇒<∷ k/σ≅k/ρ) Πjk/σ-kd)
 
     -- Equal substitutions map well-kinded types to type equations.
+
     Tp∈-/≃ : ∀ {m n} {Γ : Ctx m} {Δ : Ctx n} {a k ρ σ} →
              Γ ⊢Tp a ∈ k → Δ ⊢/ ρ ≃′ σ ∈ Γ → Δ ⊢ a / ρ ≃ a / σ ∈ k Kind/ ρ
     Tp∈-/≃ {ρ = ρ} {σ} (∈-var x Γ-ctx Γ[x]≡kd-k) (_ , _ , ρ≃σ∈Γ , _) =
@@ -1045,10 +1105,12 @@ module WfSubstitutionEquality where
     Tp∈-/≃-≅ (∈-s-i a∈b⋯c)                    ρ≃σ∈Γ = Tp∈-/≃-≅ a∈b⋯c ρ≃σ∈Γ
     Tp∈-/≃-≅ (∈-⇑ a∈k _)                      ρ≃σ∈Γ = Tp∈-/≃-≅ a∈k ρ≃σ∈Γ
 
-  -- Functionality of kind formation and kinding.
+
+  -- Functionality of single-variable substitutions.
 
   -- Equal single-variable substitutions map well-formed kinds to kind
   -- equations (weak version).
+
   kd-[≃′] : ∀ {n} {Γ : Ctx n} {a b j k} →
             kd j ∷ Γ ⊢ k kd → Γ ⊢Tp a ∈ j → Γ ⊢Tp b ∈ j → Γ ⊢ a ≃ b ∈ j →
             Γ ⊢ k Kind[ a ] ≅ k Kind[ b ]
@@ -1058,6 +1120,7 @@ module WfSubstitutionEquality where
 
   -- Equal single-variable substitutions map well-kinded types to type
   -- equations (weak version).
+
   Tp∈-[≃′] : ∀ {n} {Γ : Ctx n} {a b c j k} →
              kd j ∷ Γ ⊢Tp a ∈ k → Γ ⊢Tp b ∈ j → Γ ⊢Tp c ∈ j → Γ ⊢ b ≃ c ∈ j →
              Γ ⊢ a [ b ] ≃ a [ c ] ∈ k Kind[ b ]
