@@ -31,9 +31,6 @@ open import FOmegaInt.Kinding.Declarative as Declarative
 ------------------------------------------------------------------------
 -- Normalization/simplification of kinded types to simply kinded
 -- types.
---
--- TODO: explain the point of this and how "simple" kinding differs
--- from "canonical" kinding.
 
 open Syntax
 open TermCtx

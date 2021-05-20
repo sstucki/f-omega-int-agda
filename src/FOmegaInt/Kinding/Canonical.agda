@@ -27,9 +27,6 @@ import FOmegaInt.Kinding.Simple as SimpleKinding
 ------------------------------------------------------------------------
 -- Canonical kinding derivations.
 --
--- TODO: explain the point of this and how "canonical" kinding differs
--- from "algorithmic" kinding.
---
 -- NOTE. In the rules below, we use (singleton) kind synthesis
 -- judgments of the form `Γ ⊢Nf a ⇉ a ⋯ a' to ensure that `a' is a
 -- well-kinded proper type rather than kind checking judgments of the

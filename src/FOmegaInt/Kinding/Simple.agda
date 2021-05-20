@@ -30,9 +30,6 @@ open import FOmegaInt.Syntax.Normalization
 
 ------------------------------------------------------------------------
 -- Simple kinding derivations.
---
--- TODO: explain the point of this and how "simple" kinding differs
--- from "canonical" kinding.
 
 module Kinding where
   open SimpleCtx
@@ -368,7 +365,6 @@ module KindedHereditarySubstitution where
 
   open KindSimpLemmas simpLemmasKind′
 
-  -- TODO: explain why this terminates.
   mutual
 
     -- Hereditary substitutions preserve simple well-formedness and

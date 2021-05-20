@@ -27,9 +27,6 @@ open import FOmegaInt.Kinding.Simple
 
 ------------------------------------------------------------------------
 -- η-expansion of simply kinded types.
---
--- TODO: explain the point of this and how "simple" kinding differs
--- from "canonical" kinding.
 
 open Syntax
 open SimpleCtx
