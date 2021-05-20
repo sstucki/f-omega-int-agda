@@ -202,12 +202,8 @@ lem-4-4-2 = SimpleNorm.nf-/⟨⟩
 --    that is well-suited to the intrinsically well-scoped de Bruijn
 --    representation used throughout the mechanization.  However, this
 --    changes (and somewhat obscures) the statement of the lemma in
---    that
---
---    1. the kinding premise shared by all three parts of the lemma is
---       replaced by a well-typed substitution judgment, and
---
---    2. part 3 of the lemma becomes redundant and has been omitted.
+--    that the kinding premise shared by both parts of the lemma is
+--    replaced by a well-typed substitution judgment.
 --
 --    A more familiar version of the statement, for the special case
 --    where the last variable in the context is substituted, is stated
