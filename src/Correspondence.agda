@@ -165,23 +165,6 @@ lem-3-1-type-inequation-validity = DeclValid.<:-valid
 lem-3-2-1 = DeclValid.kd-[≃]
 lem-3-2-2 = DeclValid.Tp∈-[≃]
 
---    NOTE. The the functionality lemma(s) referenced above are
---    slightly weaker than the formulation given in the paper since
---    the latter allows substitutions of equal types for *any*
---    variable in the context (rather than just the last one).  The
---    fully general version from the paper can be recovered from the
---    following strengthened lemmas that prove functionality in the
---    *extended* declarative system and for pointwise equal *parallel*
---    substitutions (aka simultaneous substitutions).  However, only
---    the weak single-variable variants for the original declarative
---    system are used in the remainder of the metatheoretic
---    development, so we don't bother proving the more general
---    versions for the original system.
-
-import FOmegaInt.Kinding.Declarative as ExtDeclKinding
-parallel-functionality-1 = ExtDeclKinding.WfSubstitutionEquality.kd-/≃
-parallel-functionality-2 = ExtDeclKinding.WfSubstitutionEquality.Tp∈-/≃
-
 -- ** Sec. 4 -- Normalization of Types **
 
 --  * Lemma 4.1 (ordinary substs. β-reduce to hereditary substs.)
