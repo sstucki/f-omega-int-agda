@@ -22,7 +22,9 @@ To build the artifact:
 see the [QEmu Instructions](#qemu-instructions) below for how to setup,
 start and connect to the VM.
 
-Once you logged into the VM you can change to the artifact directory and
+Log into the VM as the user `artifact`, e.g. by running `ssh -p 5555
+artifact@localhost` and using the password `password`.  Once you are
+logged into the VM, you can change to the `artifact` directory and
 check the Agda mechanization by running
 
     cd artifact
