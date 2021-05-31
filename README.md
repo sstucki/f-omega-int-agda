@@ -39,12 +39,16 @@ the Agda mechanization below](#how-to-navigate-the-agda-mechanization).
 
 ### If you are viewing the contents of the source tarball...
 
-you will require an up-to-date installation of Agda and its standard
-library.  The code in this archive has been type-checked using Agda 2.6.1.3
-and version 1.6 of the Agda standard library.
+you will need to install Agda 2.6.1.3 and version 1.6 of the Agda
+standard library.  The code in this archive has been verified using
+this setup and type checks without errors or warnings (using the
+default `-Wwarn` setting).  Newer versions of Agda and its standard
+library may also work, though some warnings or minor errors are to be
+expected since neither Agda nor its standard library guarantee
+backwards compatibility with earlier versions.
 
-The latest versions of the Agda distribution and standard library, along
-with setup instructions, can be found at
+The Agda distribution and standard library, along with setup
+instructions, can be found at
 
  * https://github.com/agda/agda
  * https://github.com/agda/agda-stdlib
