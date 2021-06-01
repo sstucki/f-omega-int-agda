@@ -600,7 +600,7 @@ record TermLikeLemmas {ℓ} (T₁ : Pred ℕ ℓ) (T₂ : ℕ → Set)
     }
 
   open Application   varApplication   public using () renaming (_/_ to _/Var_)
-  open LiftSubLemmas varLiftSubLemmas public hiding (/✶-↑✶₁; /✶-↑✶₂; _⊙_; /-wk)
+  open LiftSubLemmas varLiftSubLemmas public hiding (/✶-↑✶₁; /✶-↑✶₂; /-wk)
     renaming (liftAppLemmas to varLiftAppLemmas)
 
   -- Lemmas relating weakening of T₁s to T₂-substitutions in T₁s.

@@ -88,7 +88,6 @@ lookup-raise-* {_} {m} {Γ} E {x} k hyp = begin
   weakenElimAsc⋆ m (lookup Γ x)  ≡⟨ cong (weakenElimAsc⋆ m) hyp ⟩
   weakenElimAsc⋆ m (kd ⌈ k ⌉)    ≡⟨ kd-⌈⌉-weaken⋆ m ⟩
   kd ⌈ k ⌉                       ∎
-  where
 
 
 ------------------------------------------------------------------------

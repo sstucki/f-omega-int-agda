@@ -141,5 +141,7 @@ module SubstOps {ℓ₁ ℓ₂} {T₁ : Pred ℕ ℓ₁} {T₂ : Pred ℕ ℓ₂
 
   -- Application of substitutions to context extensions.
 
+  infixl 8 _E/_
+
   _E/_ : ∀ {k m n} → CtxExt T₁ m k → Sub T₂ m n → CtxExt T₁ n k
   Γ E/ σ = mapExt (λ l t → t / σ ↑⋆ l) Γ
