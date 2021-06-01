@@ -350,7 +350,7 @@ record LiftTyped {t ℓ₁ ℓ₂} {Type : Pred ℕ t} {Term₁ Term₂ : Pred �
 
   open Lift        rawLift             public
   open Application typeTermApplication public
-  open TypedSimple typedSimple         public hiding (_⊢_∈_)
+  open TypedSimple typedSimple         public
 
   field
 
@@ -472,9 +472,9 @@ record TypedVarSubst {t} (Type : Pred ℕ t) ℓ : Set (lsuc (t ⊔ ℓ)) where
     ∈-wf (∈-var x Γ-wf) = Γ-wf
 
   open TypedSub typedRenaming public
-    renaming (_⊢/_∈_ to _⊢/Var_∈_) hiding (_⊢_wf; _/_)
+    renaming (_⊢/_∈_ to _⊢/Var_∈_) hiding (_⊢_wf)
   open TypedSimple typedSimple public
-    hiding (typeExtension; _/_; _⊢_∈_; ∈-var; _⊢_wf; wf-wf; /-wk; id-vanishes)
+    hiding (typeExtension; ∈-var; wf-wf; /-wk; id-vanishes)
 
   -- Applications of typed renamings to typed variables
 
@@ -490,8 +490,7 @@ record TypedVarSubst {t} (Type : Pred ℕ t) ℓ : Set (lsuc (t ⊔ ℓ)) where
           Γ ⊢Var x ∈ a → Δ ⊢/Var ρ ∈ Γ → Δ ⊢Var Vec.lookup ρ x ∈ a / ρ
     ∈-/ (∈-var x Γ-wf) ρ∈Γ = lookup ρ∈Γ x
 
-  open TypedApplication typedApplication public
-    using (_/_; ∈-/; ∈-⊙)
+  open TypedApplication typedApplication public using (∈-/; ∈-⊙)
 
 -- Abstract typed term substitutions.
 
@@ -638,7 +637,5 @@ record TypedTermSubst {t h} (Type : Pred ℕ t) (Term : Pred ℕ lzero) ℓ
 
   open TypedSub typedSub public hiding (typeExtension)
   open TypedSimple typedSimple public hiding
-    ( typeExtension; ∈-weaken; ∈-wf; ∈-var; wf-wf
-    ; /-wk; /-weaken; weaken-/-∷; id-vanishes
-    )
+    (∈-weaken; ∈-wf; ∈-var; wf-wf; /-wk; /-weaken; weaken-/-∷; id-vanishes)
   open TypedApplication typedApplication public hiding (/-⊙)
