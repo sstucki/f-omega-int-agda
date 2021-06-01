@@ -473,8 +473,7 @@ record TypedVarSubst {t} (Type : Pred ℕ t) ℓ : Set (lsuc (t ⊔ ℓ)) where
 
   open TypedSub typedRenaming public
     renaming (_⊢/_∈_ to _⊢/Var_∈_) hiding (_⊢_wf)
-  open TypedSimple typedSimple public
-    hiding (typeExtension; ∈-var; wf-wf; /-wk; id-vanishes)
+  open TypedSimple typedSimple public hiding (∈-var; wf-wf; /-wk; id-vanishes)
 
   -- Applications of typed renamings to typed variables
 
