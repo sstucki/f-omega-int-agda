@@ -41,7 +41,7 @@ the Agda mechanization below](#how-to-navigate-the-agda-mechanization).
 
 ### If you are viewing the contents of the source tarball...
 
-you will need to install Agda 2.6.1.3 and version 1.6 of the Agda
+you will need to install Agda 2.6.2 and version 1.7 of the Agda
 standard library.  The code in this archive has been verified using
 this setup and type checks without errors or warnings (using the
 default `-Wwarn` setting).  Newer versions of Agda and its standard
