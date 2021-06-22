@@ -2,6 +2,8 @@
 
 Name: **A theory of Higher-order Subtyping with Type Intervals**
 
+Authors: Sandro Stucki and Paolo G. Giarrusso
+
 ## Artifact Instructions
 
 Our virtual machine and package contain the [paper](paper.pdf) (and
@@ -207,3 +209,5 @@ of the ```QEMU_MEM_MB``` variable in the ```start.sh``` script.
 When preparing your artifact, please also follow the guidelines at:
  https://icfp21.sigplan.org/track/icfp-2021-artifact-evaluation#Forms-of-Artifacts
 
+------------------------------------------------------------------------
+Copyright (c) 2021 Sandro Stucki, Paolo G. Giarrusso

@@ -4,6 +4,8 @@
 
 {-# OPTIONS --safe --without-K #-}
 
+-- Authors: Sandro Stucki and Paolo G. Giarrusso
+
 -- The code in this repository contains an Agda mechanization of the
 -- type system Fω extended with interval kinds ("F omega int").  An
 -- interval kind `A..B' represents a type interval bounded by a pair
