@@ -6,10 +6,10 @@ Authors: Sandro Stucki and Paolo G. Giarrusso
 
 ## Artifact Instructions
 
-Our virtual machine and package contain the [paper](paper.pdf) (and
-[appendix](supplement.pdf)), the Agda source code, and the source
-pretty-printed into hyperlinked HTML for easy navigation. To browse the
-latter, start from [html/Correspondence.html](html/Correspondence.html).
+Our virtual machine and source archives contain the extended version
+of our [paper](icfp21-long.pdf), the Agda source code, and the source
+pretty-printed into hyperlinked HTML for easy navigation. To browse
+the latter, start from [html/Correspondence.html](html/Correspondence.html).
 
 To build the artifact:
 - `make doc` will typecheck the artifact and print it as hyper-linked HTML
@@ -91,7 +91,7 @@ Agda module or definition in the HTML version of the source code.
 An exhaustive list of all the modules contained in the mechanization with a
 brief description is contained in the [src/README.agda](src/README.agda)
 ([HTML version](html/README.html)) file, and in the [appendix of our
-paper](supplement.pdf).
+paper](icfp21-long.pdf).
 
 
 ## QEmu Instructions
