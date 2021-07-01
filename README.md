@@ -1,17 +1,23 @@
-# ICFP 2021 Artifact
+# A Theory of Higher-Order Subtyping with Type Intervals
 
-Name: **A theory of Higher-order Subtyping with Type Intervals**
+This archive contains the mechanized metatheory developed in the paper
+*A Theory of Higher-Order Subtyping with Type Intervals*
+presented at ICFP 2021 by Sandro Stucki and Paolo G. Giarrusso.
 
-Authors: Sandro Stucki and Paolo G. Giarrusso
+The artifact contains a formalization of all the metatheoretic results
+described in the paper mechanized using the Agda proof assistant.  It
+comes in two versions: a source tarball, and a virtual machine image
+with the sources and the necessary dependencies to check the proofs.
 
 ## Artifact Instructions
 
-Our virtual machine and source archives contain the extended version
-of our [paper](icfp21-long.pdf), the Agda source code, and the source
-pretty-printed into hyperlinked HTML for easy navigation. To browse
-the latter, start from [html/Correspondence.html](html/Correspondence.html).
+Our virtual machine and source archives contain the Agda source code
+(in `src/`) and the source pretty-printed into hyperlinked HTML for
+easy navigation (in `html/`).  To browse the latter, start from
+[html/Correspondence.html](html/Correspondence.html).
 
 To build the artifact:
+
 - `make doc` will typecheck the artifact and print it as hyper-linked HTML
   (results are cached);
 - `make` will just typecheck the artifact but not generate HTML;
@@ -178,36 +184,5 @@ To shutdown the guest system cleanly, login to it via ssh and use:
 $ sudo shutdown now
 ```
 
-
-### Artifact Preparation
-
-Authors should install software dependencies into the VM image as needed,
-preferably via the standard Debian package manager. For example, to install
-GHC and cabal-install, login to the host and type:
-
-```
-$ sudo apt update
-$ sudo apt install ghc
-$ sudo apt install cabal-install
-```
-
-If you really need a GUI then you can install X as follows, but we prefer
-console-only artifacts whenever possible.
-
-```
-$ sudo apt-get install xorg
-$ sudo apt-get install xfce4   # or some other window manager
-$ startx
-```
-
-See Debugging.md for advice on resolving other potential problems,
-particularly when installing the current version of Coq via opam.
-
-If your artifact needs lots of memory you may need to increase the value
-of the ```QEMU_MEM_MB``` variable in the ```start.sh``` script.
-
-When preparing your artifact, please also follow the guidelines at:
- https://icfp21.sigplan.org/track/icfp-2021-artifact-evaluation#Forms-of-Artifacts
-
 ------------------------------------------------------------------------
-Copyright (c) 2021 Sandro Stucki, Paolo G. Giarrusso
+Copyright (c) 2021 Sandro Stucki and Paolo G. Giarrusso
