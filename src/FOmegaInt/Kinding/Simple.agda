@@ -263,7 +263,7 @@ module WfsCtxOps where
     wfs-kd-inv (subst (_ ⊢_wfs) Γ[x]≡kd-a (W.lookup Γ-ctxs x))
 
 module KindedHereditarySubstitution where
-  open Data.Fin         using (zero; raise; lift)
+  open Data.Fin         using (zero; _↑ʳ_; lift)
   open Substitution     hiding (subst; sub; _↑; _↑⋆_)
   open KindedRenaming   using (_⊢/Var_∈_; Nf∈-/Var; Nf∈-weaken⋆; ∈-wk)
   open RenamingCommutes using (wk-/⟨⟩-↑⋆; /Var-wk-↑⋆-hsub-vanishes)
@@ -505,12 +505,12 @@ module KindedHereditarySubstitution where
                (Sp∈-[]-/⟨⟩-↑⋆ E j∋as∈l b∈k σ∈Γ) ⟩
         weakenElim⋆ i (b /⟨ l ⟩ σ) ∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)
       ≡˘⟨ cong (_?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)) (lookup-Hit (Hit-sub-↑⋆ i)) ⟩
-        lookupSV σ₂′ (raise i zero) ?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)
+        lookupSV σ₂′ (i ↑ʳ zero) ?∙∙⟨ k ⟩ (as₂ //⟨ k ⟩ σ₂′)
       ≡⟨⟩
-        miss (raise i zero) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+        miss (i ↑ʳ zero) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
       ≡˘⟨ cong (λ r → r ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′)
                (lookup-Miss (Miss-↑⋆ i under)) ⟩
-        lookupSV ((σ ↑) ↑⋆ i) (raise i zero) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
+        lookupSV ((σ ↑) ↑⋆ i) (i ↑ʳ zero) ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′
       ≡˘⟨ cong (λ y → lookupSV ((σ ↑) ↑⋆ i) y ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′)
                (Hit-sub-↑⋆₁ i hitP) ⟩
         lookupSV ((σ ↑) ↑⋆ i) x ?∙∙⟨ l ⟩ as₂ /⟨ k ⟩ σ₂′

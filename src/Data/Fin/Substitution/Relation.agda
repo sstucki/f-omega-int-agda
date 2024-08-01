@@ -35,21 +35,23 @@ module LiftTermRel (T₁ T₂ : ℕ → Set) where
   --
   -- Given a relation R on T₁ and T₂ terms, the family of relations
   -- (lift R) relates T₁ and T₂ substitutions point-wise.
-  lift : TermRel T₁ T₂ → SubRel T₁ T₂
-  lift P σ₁ σ₂ = Pointwise P σ₁ σ₂
+
+  liftRel : TermRel T₁ T₂ → SubRel T₁ T₂
+  liftRel R σ₁ σ₂ = Pointwise R σ₁ σ₂
 
   infix 4 _⟨_⟩_
 
   -- Syntactic sugar: and infix version of lifting.
+
   _⟨_⟩_ : ∀ {m n} → Sub T₁ m n → TermRel T₁ T₂ → Sub T₂ m n → Set
-  σ₁ ⟨ R ⟩ σ₂ = lift R σ₁ σ₂
+  σ₁ ⟨ R ⟩ σ₂ = liftRel R σ₁ σ₂
 
 
 ------------------------------------------------------------------------
 -- Generic substitutions lifted to relations
 
 module _ {T₁ T₂} (_∼_ : TermRel T₁ T₂) where
-  open LiftTermRel T₁ T₂ using (_⟨_⟩_)
+  open LiftTermRel T₁ T₂
 
   -- Extensions of substitutions lifted to relations.
   record RelExtension (ext₁ : Extension T₁) (ext₂ : Extension T₂) : Set where
@@ -103,7 +105,7 @@ module _ {T₁ T₂} (_∼_ : TermRel T₁ T₂) where
 
     -- Weakening.
 
-    wk⋆ : ∀ k {n} → S₁.wk⋆ k {n} ⟨ _∼_ ⟩ S₂.wk⋆ k {n}
+    wk⋆ : ∀ k {n} → liftRel _∼_ {m = n} (S₁.wk⋆ k) (S₂.wk⋆ k)
     wk⋆ zero    = id
     wk⋆ (suc k) = map⁺ weaken (wk⋆ k)
 
@@ -171,7 +173,7 @@ module VarEqSubst where
   infix 4 _⟨≡⟩_
 
   _⟨≡⟩_ : SubRel Fin Fin
-  _⟨≡⟩_ = LiftTermRel.lift Fin Fin _≡_
+  _⟨≡⟩_ = LiftTermRel.liftRel Fin Fin _≡_
 
   subst : RelSubst _≡_ V.subst V.subst
   subst = record

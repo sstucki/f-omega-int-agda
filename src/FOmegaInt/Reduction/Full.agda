@@ -20,7 +20,6 @@ open import Relation.Binary.Construct.Closure.ReflexiveTransitive
 import Relation.Binary.Construct.Closure.Symmetric as SymClos
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 open import Relation.Binary.Reduction
-import Function.Equivalence as Equiv
 
 open import FOmegaInt.Syntax
 

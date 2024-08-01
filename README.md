@@ -24,7 +24,7 @@ The Agda mechanization
 
 The file `src/README.agda` contains a detailed overview of the formalization.
 
-The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes heavy use of the [Agda standard library](https://github.com/agda/agda-stdlib).  The code in this repository has been type-checked using Agda 2.6.2 and version 1.7 of the Agda standard library.  The latest versions of the Agda distribution and standard library, along with setup instructions, can be found at
+The theory has been mechanized in [Agda](https://github.com/agda/agda) and makes heavy use of the [Agda standard library](https://github.com/agda/agda-stdlib).  The code in this repository has been type-checked using Agda 2.6.4.3 and version 2.0 of the Agda standard library.  The latest versions of the Agda distribution and standard library, along with setup instructions, can be found at
 
  * https://github.com/agda/agda
  * https://github.com/agda/agda-stdlib

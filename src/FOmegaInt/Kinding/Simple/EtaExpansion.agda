@@ -6,7 +6,7 @@
 
 module FOmegaInt.Kinding.Simple.EtaExpansion where
 
-open import Data.Fin using (Fin; zero; suc; raise; lift)
+open import Data.Fin using (Fin; zero; suc; _↑ʳ_; lift)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.Lemmas
 open import Data.Fin.Substitution.ExtraLemmas
@@ -186,7 +186,7 @@ module TrackSimpleKindsKindedEtaExp where
     -- substitution for x will correspond precisely to the de Bruijn
     -- index of x itself.  The stated form of the lemma is obtained by
     -- letting x be the n-th variable in a context with (n + m) free
-    -- variables, i.e. we fix x = (raise n zero) in e.
+    -- variables, i.e. we fix x = (n ↑ʳ zero) in e.
     --
     -- Note also that the proof of this lemma is currently the only
     -- place in the development where the Eq? predicate from the
@@ -235,8 +235,8 @@ module TrackSimpleKindsKindedEtaExp where
       begin
         lookupSV σ (x V./ (V.wk V.↑) V.↑⋆ n) ?∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ)
       ≡⟨ cong (λ z → lookupSV σ z ?∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ))
-              (lookup-raise-↑⋆ n zero refl) ⟩
-        lookupSV σ (raise n zero) ?∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ)
+              (lookup-↑⋆-↑ʳ n zero refl) ⟩
+        lookupSV σ (n ↑ʳ zero) ?∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ)
       ≡⟨ cong (_?∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ)) (lookup-Hit hitP) ⟩
         weakenElim⋆ n ηz ∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ)
       ≡˘⟨ cong (_∙∙⟨ k ⟩ (as′ //⟨ k ⟩ σ)) (EL./Var-wk⋆ n) ⟩
@@ -257,11 +257,11 @@ module TrackSimpleKindsKindedEtaExp where
         var x ∙ as
       ∎
       where
-        x = raise n zero
+        x = n ↑ʳ zero
         Γ = Γ₂ ++ kd k ∷ Γ₁
 
         Γ[x]≡kd-k = begin
-          lookup Γ (raise n zero)   ≡⟨ lookup-weaken⋆ n Γ₂ _ zero ⟩
+          lookup Γ (n ↑ʳ zero)      ≡⟨ lookup-weaken⋆ n Γ₂ _ zero ⟩
           weakenSAsc⋆ n (kd k)      ≡⟨ weakenSAsc⋆-id n ⟩
           kd k                      ∎
           where open ≡-Reasoning
@@ -274,7 +274,7 @@ module TrackSimpleKindsKindedEtaExp where
         k∋as∈★ = subst (_ ⊢_∋∙ _ ∈ _) k′≡k k′∋as∈★
 
         open ≈-Reasoning
-        open ExtLemmas₁ VarLemmas.lemmas₁ using (lookup-wk⋆; lookup-raise-↑⋆)
+        open ExtLemmas₁ VarLemmas.lemmas₁ using (lookup-wk⋆; lookup-↑⋆-↑ʳ)
         module EL = TermLikeLemmas termLikeLemmasElim
         module KL = TermLikeLemmas termLikeLemmasKind′
     Nf∈-[]-η-var {k} {_} {n} Γ₂ {_} {_} {j} hyp j-kds

@@ -6,7 +6,7 @@
 
 module FOmegaInt.Undecidable where
 
-open import Function.Equivalence using (_⇔_; equivalence)
+open import Function using (_⇔_; mk⇔)
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
@@ -52,7 +52,7 @@ DeclarativeSubtypeCheck = ∀ {n} (Γ : T.Ctx n) a b k → Dec (Γ ⊢ a <: b �
 -- The reduction from SK equality checking to canonical subtype checking.
 
 canonicalEquivalence : ∀ s t → Γ-SK? ⊢ encode s <: encode t ⇇ ⌜*⌝ ⇔ s ≡SK t
-canonicalEquivalence s t = equivalence decode-<:⇇-encode <:⇇-encode
+canonicalEquivalence s t = mk⇔ decode-<:⇇-encode <:⇇-encode
 
 canonicalReduction : CanoncialSubtypeCheck → SKEqualityCheck
 canonicalReduction check-<:⇇ s t =
@@ -62,7 +62,7 @@ canonicalReduction check-<:⇇ s t =
 
 declarativeEquivalence :
   ∀ s t → ⌞Γ-SK?⌟ ⊢ ⌞ encode s ⌟ <: ⌞ encode t ⌟ ∈ * ⇔ s ≡SK t
-declarativeEquivalence s t = equivalence
+declarativeEquivalence s t = mk⇔
   (λ es<:et∈* → decode-<:⇇-encode
       (subst₂ (_ ⊢_<:_⇇ _) (nf-encode s) (nf-encode t) (complete-<: es<:et∈*)))
   (λ s≡t → sound-<:⇇ (<:⇇-encode s≡t))

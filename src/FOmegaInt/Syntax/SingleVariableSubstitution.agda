@@ -6,7 +6,7 @@
 
 module FOmegaInt.Syntax.SingleVariableSubstitution where
 
-open import Data.Fin using (Fin; zero; suc; raise; lift)
+open import Data.Fin using (Fin; zero; suc; _↑ʳ_; lift)
 open import Data.Fin.Substitution using (Sub; Subs; Lift; Application)
 open import Data.Fin.Substitution.Lemmas using (AppLemmas)
   renaming (module VarLemmas to V)
@@ -298,12 +298,12 @@ Miss-injective (hitP₁ ↑) (hitP₂ ↑) = cong suc (Miss-injective hitP₁ hi
 -- Lifting preserves the predicates
 
 Hit-↑⋆ : ∀ {m n} {σ : SVSub m n} {x : Fin m} {a : Elim n} i →
-         Hit σ x a → Hit (σ ↑⋆ i) (raise i x) (weakenElim⋆ i a)
+         Hit σ x a → Hit (σ ↑⋆ i) (i ↑ʳ x) (weakenElim⋆ i a)
 Hit-↑⋆ zero    hyp = hyp
 Hit-↑⋆ (suc i) hyp = (Hit-↑⋆ i hyp) ↑
 
 Miss-↑⋆ : ∀ {m n} {σ : SVSub m n} {x : Fin m} {y : Fin n} i →
-          Miss σ x y → Miss (σ ↑⋆ i) (raise i x) (raise i y)
+          Miss σ x y → Miss (σ ↑⋆ i) (i ↑ʳ x) (i ↑ʳ y)
 Miss-↑⋆ zero    hyp = hyp
 Miss-↑⋆ (suc i) hyp = (Miss-↑⋆ i hyp) ↑
 
@@ -323,11 +323,11 @@ Miss-↑-↑⋆ (suc i) (hyp ↑) = (Miss-↑-↑⋆ i hyp) ↑
 -- substitutions.
 
 Hit-sub-↑⋆ : ∀ {n} {a : Elim n} i →
-             Hit (sub a ↑⋆ i) (raise i zero) (weakenElim⋆ i a)
+             Hit (sub a ↑⋆ i) (i ↑ʳ zero) (weakenElim⋆ i a)
 Hit-sub-↑⋆ i = Hit-↑⋆ i here
 
 Hit-sub-↑⋆₁ : ∀ {n} {a : Elim n} i {x b} →
-              Hit (sub a ↑⋆ i) x b → x ≡ raise i zero
+              Hit (sub a ↑⋆ i) x b → x ≡ i ↑ʳ zero
 Hit-sub-↑⋆₁ i hyp = Hit-functional₁ hyp (Hit-sub-↑⋆ i)
 
 Hit-sub-↑⋆₂ : ∀ {n} {a : Elim n} i {x b} →
@@ -374,7 +374,7 @@ lookup-sub-wk-↑⋆ i x {a} = begin
 -- clarity.
 
 data Eq? {m : ℕ} (n : ℕ) (x : Fin (n + suc m)) : Set where
-  yes : raise n zero ≡ x       → Eq? n x
+  yes : n ↑ʳ zero ≡ x          → Eq? n x
   no  : ∀ y → lift n suc y ≡ x → Eq? n x
 
 -- Eq? is stable w.r.t. increments.

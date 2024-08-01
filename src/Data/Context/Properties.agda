@@ -6,7 +6,7 @@
 
 module Data.Context.Properties where
 
-open import Data.Fin using (Fin; zero; suc; lift; raise)
+open import Data.Fin using (Fin; zero; suc; lift; _↑ʳ_)
 open import Data.Fin.Substitution.Extra using (Extension)
 open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product using (_×_; _,_)
@@ -121,12 +121,12 @@ module WeakenOpsLemmas {ℓ} {T : Pred ℕ ℓ} (extension : Extension T) where
   -- Lookup in the prefix of a concatenation results in weakening.
 
   lookup-weaken⋆ : ∀ {m} n (Δ : CtxExt T m n) (Γ : Ctx T m) x →
-                   lookup (Δ ++ Γ) (raise n x) ≡ weaken⋆ n (lookup Γ x)
+                   lookup (Δ ++ Γ) (n ↑ʳ x) ≡ weaken⋆ n (lookup Γ x)
   lookup-weaken⋆ zero    []      Γ x = refl
   lookup-weaken⋆ (suc n) (t ∷ Δ) Γ x = begin
-      lookup (t ∷ Δ ++ Γ) (suc (raise n x))
-    ≡⟨ VecProps.lookup-map (raise n x) weaken (toVec (Δ ++ Γ)) ⟩
-      weaken (lookup (Δ ++ Γ) (raise n x))
+      lookup (t ∷ Δ ++ Γ) (suc (n ↑ʳ x))
+    ≡⟨ VecProps.lookup-map (n ↑ʳ x) weaken (toVec (Δ ++ Γ)) ⟩
+      weaken (lookup (Δ ++ Γ) (n ↑ʳ x))
     ≡⟨ cong weaken (lookup-weaken⋆ n Δ Γ x) ⟩
       weaken (weaken⋆ n (lookup Γ x))
     ∎

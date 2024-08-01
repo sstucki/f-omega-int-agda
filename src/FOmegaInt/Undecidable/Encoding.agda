@@ -9,7 +9,7 @@ module FOmegaInt.Undecidable.Encoding where
 open import Data.Context.WellFormed
 open import Data.List using ([]; _∷_)
 open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Fin using (Fin; zero; suc; raise)
+open import Data.Fin using (Fin; zero; suc; _↑ʳ_)
 open import Data.Fin.Substitution
 open import Data.Fin.Substitution.ExtraLemmas
 open import Relation.Binary.PropositionalEquality hiding ([_])
@@ -80,11 +80,11 @@ kd-⌈⌉-weaken⋆ zero    = refl
 kd-⌈⌉-weaken⋆ (suc m) =
   trans (cong weakenElimAsc (kd-⌈⌉-weaken⋆ m)) (kd-⌈⌉-weaken _)
 
-lookup-raise-* : ∀ {n m} {Γ : Ctx n} (E : CtxExt n m) {x} k →
-                 lookup Γ x ≡ kd ⌈ k ⌉ →
-                 lookup (E ++ Γ) (raise m x) ≡ kd ⌈ k ⌉
-lookup-raise-* {_} {m} {Γ} E {x} k hyp = begin
-  lookup (E ++ Γ) (raise m x)    ≡⟨ lookup-weaken⋆ m E Γ x ⟩
+lookup-↑ʳ-* : ∀ {n m} {Γ : Ctx n} (E : CtxExt n m) {x} k →
+              lookup Γ x ≡ kd ⌈ k ⌉ →
+              lookup (E ++ Γ) (m ↑ʳ x) ≡ kd ⌈ k ⌉
+lookup-↑ʳ-* {_} {m} {Γ} E {x} k hyp = begin
+  lookup (E ++ Γ) (m ↑ʳ x)       ≡⟨ lookup-weaken⋆ m E Γ x ⟩
   weakenElimAsc⋆ m (lookup Γ x)  ≡⟨ cong (weakenElimAsc⋆ m) hyp ⟩
   weakenElimAsc⋆ m (kd ⌈ k ⌉)    ≡⟨ kd-⌈⌉-weaken⋆ m ⟩
   kd ⌈ k ⌉                       ∎
@@ -133,13 +133,13 @@ module EncodingWeakened {n} m where
   infixl 9 _⊛_
 
   encS : Elim (m + (3 + n))
-  encS = var∙ (raise m x₂)
+  encS = var∙ (m ↑ʳ x₂)
 
   encK : Elim (m + (3 + n))
-  encK = var∙ (raise m x₁)
+  encK = var∙ (m ↑ʳ x₁)
 
   _⊛_ : (a b : Elim (m + (3 + n))) → Elim (m + (3 + n))
-  a ⊛ b = var (raise m x₀) ∙ (a ∷ b ∷ [])
+  a ⊛ b = var (m ↑ʳ x₀) ∙ (a ∷ b ∷ [])
 
   -- Encoding of SK terms into raw types with (m + 3) free variables.
 
@@ -229,14 +229,14 @@ module KindedEncodingWeakened {m} (E : CtxExt 3 m)
   -- Kinded encodings of the SK terms
 
   Ne∈-S : Γ ⊢Ne encS ∈ ⌜*⌝
-  Ne∈-S = ∈-∙ (⇉-var _ Γ-ctx (lookup-raise-* E ★ refl)) ⇉-[]
+  Ne∈-S = ∈-∙ (⇉-var _ Γ-ctx (lookup-↑ʳ-* E ★ refl)) ⇉-[]
 
   Ne∈-K : Γ ⊢Ne encK ∈ ⌜*⌝
-  Ne∈-K = ∈-∙ (⇉-var _ Γ-ctx (lookup-raise-* E ★ refl)) ⇉-[]
+  Ne∈-K = ∈-∙ (⇉-var _ Γ-ctx (lookup-↑ʳ-* E ★ refl)) ⇉-[]
 
   Ne∈-⊛ : ∀ {a b} → Γ ⊢Ne a ∈ ⌜*⌝ → Γ ⊢Ne b ∈ ⌜*⌝ → Γ ⊢Ne a ⊛ b ∈ ⌜*⌝
   Ne∈-⊛ a∈* b∈* =
-    ∈-∙ (⇉-var _ Γ-ctx (lookup-raise-* E (★ ⇒ ★ ⇒ ★) refl))
+    ∈-∙ (⇉-var _ Γ-ctx (lookup-↑ʳ-* E (★ ⇒ ★ ⇒ ★) refl))
         (⇉-∷ (Nf⇇-ne a∈*) (kd-⌜*⌝ Γ-ctx)
              (⇉-∷ (Nf⇇-ne b∈*) (kd-⌜*⌝ Γ-ctx) ⇉-[]))
 

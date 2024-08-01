@@ -39,7 +39,7 @@
 --
 --   https://github.com/agda/agda-stdlib/
 --
--- The code has been tested using Agda 2.6.2 and version 1.7 of
+-- The code has been tested using Agda 2.6.4.3 and version 2.0 of
 -- the Agda standard library.
 
 module README where

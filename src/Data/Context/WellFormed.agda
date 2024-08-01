@@ -11,8 +11,8 @@ open import Data.Fin using (Fin)
 open import Data.Fin.Substitution.Extra using (Extension)
 open import Data.Nat using (ℕ)
 open import Data.Unit using (⊤; tt)
-open import Data.Vec.Relation.Unary.All as All using (All; []; _∷_)
-open import Data.Vec.Relation.Unary.All.Properties using (gmap)
+open import Data.Vec.Relation.Unary.All using (All; []; _∷_)
+open import Data.Vec.Relation.Unary.All.Properties using (lookup⁺; gmap)
 open import Relation.Binary using (REL)
 open import Relation.Unary using (Pred)
 
@@ -99,12 +99,12 @@ module ContextFormation {t ℓ} {T : Pred ℕ t} (_⊢_wf : Wf T T ℓ) where
     -- Lookup the well-formedness proof of a variable in a context.
 
     lookup : ∀ {n} {Γ : Ctx T n} → Γ wf → (x : Fin n) → Γ ⊢ (C.lookup Γ x) wf
-    lookup Γ-wf x = All.lookup x (toAll Γ-wf)
+    lookup Γ-wf x = lookup⁺ (toAll Γ-wf) x
 
     extLookup : ∀ {m n} {Γ : Ctx T m} {Δ : CtxExt T m n} →
                 All (λ t → Γ ⊢ t wf) (toVec Γ) → Γ ⊢ Δ wfExt →
                 ∀ x → (Δ ++ Γ) ⊢ (C.lookup (Δ ++ Γ) x) wf
-    extLookup ts-wf Γ-wf x = All.lookup x (extToAll ts-wf Γ-wf)
+    extLookup ts-wf Γ-wf x = lookup⁺ (extToAll ts-wf Γ-wf) x
 
 
 ------------------------------------------------------------------------

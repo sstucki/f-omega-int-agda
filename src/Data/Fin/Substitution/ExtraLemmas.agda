@@ -37,7 +37,7 @@ open import Relation.Unary using (Pred)
 -- An generalized version of Data.Fin.Lemmas.Lemmas₀
 
 module ExtLemmas₀ {ℓ} {T : Pred ℕ ℓ} (lemmas₀ : Lemmas₀ T) where
-  open Data.Fin using (lift; raise)
+  open Data.Fin using (lift)
 
   open Lemmas₀   lemmas₀ public hiding (lookup-map-weaken-↑⋆)
   open SimpleExt simple
@@ -62,26 +62,26 @@ module ExtLemmas₀ {ℓ} {T : Pred ℕ ℓ} (lemmas₀ : Lemmas₀ T) where
 -- A version of Data.Fin.Lemmas.Lemmas₁ with additional lemmas.
 
 module ExtLemmas₁ {ℓ} {T : Pred ℕ ℓ} (lemmas₁ : Lemmas₁ T) where
-  open Data.Fin using (raise; fromℕ; lift)
+  open Data.Fin using (_↑ʳ_)
 
   open Lemmas₁ lemmas₁
   open Simple simple
 
-  lookup-wk⋆ : ∀ {n} (x : Fin n) k → lookup (wk⋆ k) x ≡ var (raise k x)
+  lookup-wk⋆ : ∀ {n} (x : Fin n) k → lookup (wk⋆ k) x ≡ var (k ↑ʳ x)
   lookup-wk⋆ x zero    = lookup-id x
   lookup-wk⋆ x (suc k) = lookup-map-weaken x {_} {wk⋆ k} (lookup-wk⋆ x k)
 
-  lookup-raise-↑⋆ : ∀ k {m n} x {y} {σ : Sub T m n} →
-                    lookup  σ                x  ≡ var          y →
-                    lookup (σ ↑⋆ k) (raise k x) ≡ var (raise k y)
-  lookup-raise-↑⋆ zero    x         hyp = hyp
-  lookup-raise-↑⋆ (suc k) x {y} {σ} hyp =
-    lookup-map-weaken (raise k x) {_} {σ ↑⋆ k} (lookup-raise-↑⋆ k x hyp)
+  lookup-↑⋆-↑ʳ : ∀ k {m n} x {y} {σ : Sub T m n} →
+                 lookup  σ             x  ≡ var       y →
+                 lookup (σ ↑⋆ k) (k ↑ʳ x) ≡ var (k ↑ʳ y)
+  lookup-↑⋆-↑ʳ zero    x         hyp = hyp
+  lookup-↑⋆-↑ʳ (suc k) x {y} {σ} hyp =
+    lookup-map-weaken (k ↑ʳ x) {_} {σ ↑⋆ k} (lookup-↑⋆-↑ʳ k x hyp)
 
 -- A generalized version of Data.Fin.Lemmas.Lemmas₄
 
 module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
-  open Data.Fin using (lift; raise)
+  open Data.Fin using (_↑ʳ_; lift)
 
   open Lemmas₄    lemmas₄ public hiding (⊙-wk; wk-commutes)
   open Lemmas₃    lemmas₃        using (lookup-wk-↑⋆-⊙; /✶-↑✶′)
@@ -122,15 +122,15 @@ module ExtLemmas₄ {ℓ} {T : Pred ℕ ℓ} (lemmas₄ : Lemmas₄ T) where
                 t / ρ / wk ≡ t / wk / (t′ /∷ ρ)
   wk-commutes = wk-↑⋆-commutes zero
 
-  raise-/-↑⋆ : ∀ {m n} k x {ρ : Sub T m n} →
-               var (raise k x) / ρ ↑⋆ k ≡ var x / ρ / wk⋆ k
-  raise-/-↑⋆ zero    x {ρ} = sym (id-vanishes (var x / ρ))
-  raise-/-↑⋆ (suc k) x {ρ} = begin
-    var (suc (raise k x)) / ρ ↑⋆ suc k   ≡⟨ suc-/-↑ (raise k x) ⟩
-    var (raise k x) / ρ ↑⋆ k / wk        ≡⟨ cong (_/ wk) (raise-/-↑⋆ k x) ⟩
-    var x / ρ / wk⋆ k / wk               ≡⟨ sym (/-⊙ (var x / ρ)) ⟩
-    var x / ρ / wk⋆ k ⊙ wk           ≡⟨ cong (var x / ρ /_) (sym map-weaken) ⟩
-    var x / ρ / wk⋆ (suc k)          ∎
+  ↑ʳ-/-↑⋆ : ∀ {m n} k x {ρ : Sub T m n} →
+               var (k ↑ʳ x) / ρ ↑⋆ k ≡ var x / ρ / wk⋆ k
+  ↑ʳ-/-↑⋆ zero    x {ρ} = sym (id-vanishes (var x / ρ))
+  ↑ʳ-/-↑⋆ (suc k) x {ρ} = begin
+    var (suc (k ↑ʳ x)) / ρ ↑⋆ suc k   ≡⟨ suc-/-↑ (k ↑ʳ x) ⟩
+    var (k ↑ʳ x) / ρ ↑⋆ k / wk        ≡⟨ cong (_/ wk) (↑ʳ-/-↑⋆ k x) ⟩
+    var x / ρ / wk⋆ k / wk            ≡⟨ sym (/-⊙ (var x / ρ)) ⟩
+    var x / ρ / wk⋆ k ⊙ wk            ≡⟨ cong (var x / ρ /_) (sym map-weaken) ⟩
+    var x / ρ / wk⋆ (suc k)           ∎
 
   /-wk⋆ : ∀ {n} k {t : T n} → t / wk⋆ k ≡ weaken⋆ k t
   /-wk⋆ zero    {t} = id-vanishes t
@@ -348,7 +348,7 @@ record LiftSubLemmas {ℓ₁ ℓ₂ ℓ₃}
 
   -- Weakening is equivalent up to lifting.
 
-  liftSub-wk⋆ : ∀ k {n} → liftSub (L₃.wk⋆ k {n}) ≡ L₂.wk⋆ k {n}
+  liftSub-wk⋆ : ∀ k {n} → liftSub {m = n} (L₃.wk⋆ k) ≡ L₂.wk⋆ k
   liftSub-wk⋆ zero    = liftSub-id
   liftSub-wk⋆ (suc k) = begin
     liftSub (map L₃.weaken (L₃.wk⋆ k))   ≡⟨ sym (map-∘ _ _ _) ⟩

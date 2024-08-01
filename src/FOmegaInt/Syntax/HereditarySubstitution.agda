@@ -563,38 +563,38 @@ module _ where
                ⌞ a ⌟ / toSub σ  →β*  ⌞ a /⟨ k ⟩ σ ⌟
     ⌞⌟-/⟨⟩-β (var x ∙ bs) {k} {σ} = begin
         ⌞ var x ∙ bs ⌟ / toSub σ
-      ⟶⋆⟨ ⌞∙⌟-/⟨⟩-β (var x / toSub σ) (var x) bs ε ⟩
+      ⟶*⟨ ⌞∙⌟-/⟨⟩-β (var x / toSub σ) (var x) bs ε ⟩
         (var x / toSub σ) ⌞∙⌟ ⌞ bs //⟨ k ⟩ σ ⌟Sp
       ≡⟨ cong (_⌞∙⌟ ⌞ bs //⟨ k ⟩ σ ⌟Sp) (lookup-toSub σ x) ⟩
         ⌞ toElim (lookupSV σ x) ⌟ ⌞∙⌟ ⌞ bs //⟨ k ⟩ σ ⌟Sp
-      ⟶⋆⟨ ⌞⌟-?∙∙-β (lookupSV σ x) k (bs //⟨ k ⟩ σ) ⟩
+      ⟶*⟨ ⌞⌟-?∙∙-β (lookupSV σ x) k (bs //⟨ k ⟩ σ) ⟩
         ⌞ lookupSV σ x ?∙∙⟨ k ⟩ (bs //⟨ k ⟩ σ) ⌟
       ∎
     ⌞⌟-/⟨⟩-β (⊥ ∙ bs) = ⌞∙⌟-/⟨⟩-β ⊥ ⊥ bs ε
     ⌞⌟-/⟨⟩-β (⊤ ∙ bs) = ⌞∙⌟-/⟨⟩-β ⊤ ⊤ bs ε
     ⌞⌟-/⟨⟩-β (Π j b ∙ bs) {k} {σ} = ⌞∙⌟-/⟨⟩-β _ _ bs (begin
         ⌞ Π j b ⌟Hd / toSub σ
-      ⟶⋆⟨ →β*-Π (⌞⌟Kd-/⟨⟩-β j) (⌞⌟-/⟨⟩-β b) ⟩
+      ⟶*⟨ →β*-Π (⌞⌟Kd-/⟨⟩-β j) (⌞⌟-/⟨⟩-β b) ⟩
         Π ⌞ j Kind/⟨ k ⟩ σ ⌟Kd ⌞ b /⟨ k ⟩ σ ↑ ⌟
       ∎)
     ⌞⌟-/⟨⟩-β ((a ⇒ b) ∙ bs) {k} {σ} = ⌞∙⌟-/⟨⟩-β _ _ bs (begin
         ⌞ a ⇒ b ⌟Hd / toSub σ
-      ⟶⋆⟨ →β*-⇒ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
+      ⟶*⟨ →β*-⇒ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
         ⌞ a /⟨ k ⟩ σ ⌟ ⇒ ⌞ b /⟨ k ⟩ σ ⌟
       ∎)
     ⌞⌟-/⟨⟩-β (Λ j b ∙ bs) {k} {σ}  = ⌞∙⌟-/⟨⟩-β _ _ bs (begin
         ⌞ Λ j b ⌟Hd / toSub σ
-      ⟶⋆⟨ →β*-Λ (⌞⌟Kd-/⟨⟩-β j) (⌞⌟-/⟨⟩-β b) ⟩
+      ⟶*⟨ →β*-Λ (⌞⌟Kd-/⟨⟩-β j) (⌞⌟-/⟨⟩-β b) ⟩
         Λ ⌞ j Kind/⟨ k ⟩ σ ⌟Kd ⌞ b /⟨ k ⟩ σ ↑ ⌟
       ∎)
     ⌞⌟-/⟨⟩-β (ƛ a b ∙ bs) {k} {σ}  = ⌞∙⌟-/⟨⟩-β _ _ bs (begin
         ⌞ ƛ a b ⌟Hd / toSub σ
-      ⟶⋆⟨ →β*-ƛ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
+      ⟶*⟨ →β*-ƛ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
         ƛ ⌞ a /⟨ k ⟩ σ ⌟ ⌞ b /⟨ k ⟩ σ ↑ ⌟
       ∎)
     ⌞⌟-/⟨⟩-β (a ⊡ b ∙ bs) {k} {σ}  = ⌞∙⌟-/⟨⟩-β _ _ bs (begin
         ⌞ a ⊡ b ⌟Hd / toSub σ
-      ⟶⋆⟨ →β*-⊡ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
+      ⟶*⟨ →β*-⊡ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
         ⌞ a /⟨ k ⟩ σ ⌟ ⊡ ⌞ b /⟨ k ⟩ σ ⌟
       ∎)
 
@@ -602,12 +602,12 @@ module _ where
                  ⌞ j ⌟Kd Kind/ toSub σ  Kd→β*  ⌞ j Kind/⟨ k ⟩ σ ⌟Kd
     ⌞⌟Kd-/⟨⟩-β (a ⋯ b) {k} {σ} = Kd.begin
         (⌞ a ⋯ b ⌟Kd Kind/ toSub σ)
-      Kd.⟶⋆⟨ Kd→β*-⋯ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
+      Kd.⟶*⟨ Kd→β*-⋯ (⌞⌟-/⟨⟩-β a) (⌞⌟-/⟨⟩-β b) ⟩
         ⌞ a /⟨ k ⟩ σ ⌟ ⋯ ⌞ b /⟨ k ⟩ σ ⌟
       Kd.∎
     ⌞⌟Kd-/⟨⟩-β (Π j l) {k} {σ} = Kd.begin
         (⌞ Π j l ⌟Kd Kind/ toSub σ)
-      Kd.⟶⋆⟨ Kd→β*-Π (⌞⌟Kd-/⟨⟩-β j) (⌞⌟Kd-/⟨⟩-β l) ⟩
+      Kd.⟶*⟨ Kd→β*-Π (⌞⌟Kd-/⟨⟩-β j) (⌞⌟Kd-/⟨⟩-β l) ⟩
         Π ⌞ j Kind/⟨ k ⟩ σ ⌟Kd ⌞ l Kind/⟨ k ⟩ σ ↑ ⌟Kd
       Kd.∎
 
@@ -633,9 +633,9 @@ module _ where
       ⌞ a ∙∙ (b ∷ bs) ⌟            ∎
     ⌞⌟-∙∙-β a (j ⇒ k) (b ∷ bs) = begin
         ⌞ a ⌟ ⌞∙⌟ (⌞ b ⌟ ∷ ⌞ bs ⌟Sp)
-      ⟶⋆⟨ →β*-⌞∙⌟₁ (⌞⌟-⌜·⌝-β a (j ⇒ k) b) ⌞ bs ⌟Sp  ⟩
+      ⟶*⟨ →β*-⌞∙⌟₁ (⌞⌟-⌜·⌝-β a (j ⇒ k) b) ⌞ bs ⌟Sp  ⟩
         ⌞ a ⌜·⌝⟨ j ⇒ k ⟩ b ⌟ ⌞∙⌟ ⌞ bs ⌟Sp
-      ⟶⋆⟨ ⌞⌟-∙∙-β (a ⌜·⌝⟨ j ⇒ k ⟩ b) k bs ⟩
+      ⟶*⟨ ⌞⌟-∙∙-β (a ⌜·⌝⟨ j ⇒ k ⟩ b) k bs ⟩
         ⌞ a ⌜·⌝⟨ j ⇒ k ⟩ b ∙∙⟨ k ⟩ bs ⌟
       ∎
 
@@ -653,7 +653,7 @@ module _ where
     ⌞⌟-⌜·⌝-β ((a ⇒ b) ∙ []) (j ⇒ k) c = ε
     ⌞⌟-⌜·⌝-β (Λ l a ∙ []) (j ⇒ k) b = begin
       Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
-      ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-/⟨⟩-β a {j} {sub b} ⟩
+      ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶*⟨ ⌞⌟-/⟨⟩-β a {j} {sub b} ⟩
       ⌞ a [ b ∈ j ] ⌟            ∎
     ⌞⌟-⌜·⌝-β (ƛ a b   ∙ []) (j ⇒ k) c = ε
     ⌞⌟-⌜·⌝-β (a ⊡ b   ∙ []) (j ⇒ k) c = ε
@@ -671,7 +671,7 @@ module _ where
   ⌞⌟-↓⌜·⌝-β ((a ⇒ b) ∙ []) c = ε
   ⌞⌟-↓⌜·⌝-β (Λ l a ∙ []) b = begin
     Λ ⌞ l ⌟Kd ⌞ a ⌟ · ⌞ b ⌟    ⟶⟨ ⌈ cont-Tp· ⌞ l ⌟Kd ⌞ a ⌟ ⌞ b ⌟ ⌉ ⟩
-    ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶⋆⟨ ⌞⌟-/⟨⟩-β a {⌊ l ⌋} {sub b} ⟩
+    ⌞ a ⌟ [ ⌞ b ⌟ ]            ⟶*⟨ ⌞⌟-/⟨⟩-β a {⌊ l ⌋} {sub b} ⟩
     ⌞ a [ b ∈ ⌊ l ⌋ ] ⌟        ∎
   ⌞⌟-↓⌜·⌝-β (ƛ a b   ∙ []) c = ε
   ⌞⌟-↓⌜·⌝-β (a ⊡ b   ∙ []) c = ε
