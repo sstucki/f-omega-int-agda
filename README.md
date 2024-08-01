@@ -33,7 +33,7 @@ The easiest way to check all the code is to compile the `README.agda` file from 
 
     agda src/README.agda
 
-in the console, or simply open the file using the [Agda Emacs mode](https://github.com/agda/agda#configuring-the-emacs-mode) and type `C-c C-l`.
+in the console, or simply open the file using the [Agda Emacs mode](https://agda.readthedocs.io/en/latest/tools/emacs-mode.html) and type `C-c C-l`.
 
 
 Source code
