@@ -16,7 +16,7 @@ The mechanization includes a small-step operational call-by-value semantics, dec
  * type safety (progress & preservation) w.r.t. to the CBV semantics,
  * undecidability of subtyping.
 
-The metatheory of Fω with interval kinds is described in detail in my PhD thesis [Higher-Order Subtyping with Type Intervals](http://dx.doi.org/10.5075/epfl-thesis-8014).
+The metatheory of Fω with interval kinds is described in our [ICFP'21 paper _A Theory of Higher-Order Subtyping with Type Intervals_](https://doi.org/10.1145/3473574) and, in more detail, in my [PhD dissertation](https://doi.org/10.5075/epfl-thesis-8014).
 
 
 The Agda mechanization
